@@ -11,8 +11,10 @@ This is a monorepo, that uses:
 - [TypeScript](https://www.typescriptlang.org/) as primary language;
 - [Oxlint](https://oxc.rs/docs/guide/usage/linter) as linter;
 - [Oxfmt](https://oxc.rs/docs/guide/usage/formatter) as formatter;
-- [Changesets](https://github.com/changesets/changesets) for versioning and release PR management.
-- [Docusaurus](https://docusaurus.io/) for the documentation website.
+- [Vitest](https://vitest.dev/) as test framework;
+- [tsdown](https://tsdown.dev/) as library bundler;
+- [Changesets](https://github.com/changesets/changesets) for versioning and release PR management;
+- [Fumadocs](https://fumadocs.vercel.app/) for the documentation website.
 
 Lint and format configuration files are organized as:
 - root `.oxlintrc.base.json` as shared Oxlint base config;
@@ -30,7 +32,7 @@ Lint and format configuration files are organized as:
 
 - [`packages/next-safe-action`](./packages/next-safe-action): contains the source code of the library;
 - [`apps/playground`](./apps/playground): contains the source code of the Next.js playground app, which is a basic implementation of the library;
-- [`website`](./website): contains the source code of the [next-safe-action website](https://next-safe-action.dev).
+- [`apps/docs`](./apps/docs): contains the source code of the [next-safe-action documentation website](https://next-safe-action.dev), built with Fumadocs (content in `content/docs/`).
 
 ## How to contribute
 
@@ -59,22 +61,16 @@ pnpm run build:lib && pnpm run pg
 > If you see many type errors in the playground app after running the `build:lib` command, try to restart the TS Server of VS Code. This should fix the errors.
 
 If you updated user facing APIs of the library, you're **not required**, but **highly encouraged** to:
-- update [the documentation](./website/docs) of the library to reflect the changes you've made.
+- update [the documentation](./apps/docs/content/docs) of the library to reflect the changes you've made.
 - write tests for the changes you've made. They should be placed in the appropriate file inside [`__tests__`](./packages/next-safe-action/src/__tests__) directory (`next-safe-action` package).
 - add a Changeset file using `pnpm run changeset`.
 
 These steps can be done in later stages of the PR too, for instance when a maintainer already approved your code updates.
 
-Note that the [`website`](./website) project is not part of the monorepo packages, so you need to `cd` into it and then run this command to install its dependencies:
+The documentation site is part of the monorepo, so dependencies are already installed. You can start the Fumadocs development server with:
 
 ```sh
-pnpm install
-```
-
-Then you can start the Docusaurus development server with:
-
-```sh
-pnpm run start
+pnpm run docs
 ```
 
 ### Committing changes
@@ -92,7 +88,7 @@ pnpm run changeset
 If you need to keep the PR in the Changesets flow without producing a version bump, create an empty Changeset:
 
 ```sh
-pnpm run changeset -- --empty
+pnpm run changeset:empty
 ```
 
 PR CI runs linting/tests and checks for changesets before merge. The release workflow uses Changesets to create version PRs and publish from `main`.

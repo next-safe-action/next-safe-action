@@ -13,5 +13,5 @@
 	},
 	"sortTailwindcss": {},
 	"sortPackageJson": false,
-	"ignorePatterns": ["node_modules", "dist", ".turbo", ".next", "website", "*.md", "*.mdx"]
+	"ignorePatterns": ["node_modules", "dist", ".turbo", ".next", ".source", "*.md", "*.mdx"]
 }

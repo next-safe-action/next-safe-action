@@ -1,0 +1,4 @@
+{
+	"title": "Execute actions",
+	"pages": ["direct-execution", "hooks"]
+}

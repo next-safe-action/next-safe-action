@@ -10,7 +10,7 @@ next-safe-action is a TypeScript library for type-safe, validated Next.js Server
 
 - **`packages/next-safe-action`** — the library (source in `src/`, tests in `src/__tests__/`)
 - **`apps/playground`** — Next.js app for manual testing
-- **`website`** — Docusaurus docs site (separate from root workspace; `cd website && pnpm install`)
+- **`apps/docs`** — Fumadocs documentation site (content in `content/docs/`)
 
 ## Commands
 
@@ -21,6 +21,9 @@ All commands run from the repository root unless noted.
 | Install dependencies | `pnpm install` |
 | Build library | `pnpm run build:lib` |
 | Build + start playground | `pnpm run build:lib && pnpm run pg` |
+| Start docs dev server | `pnpm run docs` |
+| Build docs | `pnpm run build:docs` |
+| Lint docs | `pnpm run lint:docs` |
 | Lint library | `pnpm run lint:lib` |
 | Test library | `pnpm run test:lib` |
 | Run single test | `cd packages/next-safe-action && npx vitest run ./src/__tests__/<file>.test.ts` |

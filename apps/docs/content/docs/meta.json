@@ -1,0 +1,13 @@
+{
+	"pages": [
+		"getting-started",
+		"define-actions",
+		"execute-actions",
+		"recipes",
+		"integrations",
+		"types",
+		"migrations",
+		"troubleshooting",
+		"contributing"
+	]
+}

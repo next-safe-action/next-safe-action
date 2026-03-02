@@ -1,0 +1,13 @@
+{
+	"title": "Define actions",
+	"pages": [
+		"create-the-client",
+		"instance-methods",
+		"middleware",
+		"bind-arguments",
+		"validation-errors",
+		"extend-previous-schemas",
+		"action-utils",
+		"action-result-object"
+	]
+}
