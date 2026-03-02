@@ -3,3 +3,14 @@
 @import "fumadocs-ui/css/preset.css";
 
 @source "../node_modules/fumadocs-ui/dist/**/*.js";
+
+@theme {
+	--color-amber-accent: #f59e0b;
+	--color-amber-accent-light: #fbbf24;
+	--color-amber-accent-dark: #d97706;
+	--color-amber-glow: rgba(245, 158, 11, 0.15);
+	--color-amber-glow-strong: rgba(245, 158, 11, 0.25);
+	--color-amber-border: rgba(245, 158, 11, 0.3);
+	--font-display: var(--font-bricolage-grotesque), ui-sans-serif, system-ui, sans-serif;
+	--font-mono-code: var(--font-hack), ui-monospace, monospace;
+}

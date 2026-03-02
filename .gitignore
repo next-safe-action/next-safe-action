@@ -28,3 +28,6 @@ yarn-error.log*
 
 # Fumadocs generated types
 .source
+
+# Playwright
+.playwright-mcp

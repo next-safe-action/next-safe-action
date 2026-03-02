@@ -4,13 +4,11 @@ const withMDX = createMDX();
 
 /** @type {import('next').NextConfig} */
 const config = {
+	images: {
+		remotePatterns: [{ hostname: "avatars.githubusercontent.com" }],
+	},
 	async redirects() {
 		return [
-			{
-				source: "/",
-				destination: "/docs/getting-started",
-				permanent: true,
-			},
 			{
 				source: "/docs",
 				destination: "/docs/getting-started",
