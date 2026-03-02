@@ -1,5 +1,4 @@
-import assert from "node:assert";
-import { test } from "node:test";
+import { expect, test } from "vitest";
 import { z } from "zod";
 import { createSafeActionClient, DEFAULT_SERVER_ERROR_MESSAGE } from "..";
 import type { StandardSchemaV1 } from "../standard-schema";
@@ -21,8 +20,8 @@ test("inputSchema with clientInput parameter receives actual input data", async 
 	const testData = { message: "Hello World" };
 	const result = await action(testData);
 
-	assert.deepStrictEqual(receivedClientInput, testData);
-	assert.deepStrictEqual(result, { data: { success: true, data: testData } });
+	expect(receivedClientInput).toStrictEqual(testData);
+	expect(result).toStrictEqual({ data: { success: true, data: testData } });
 });
 
 test("inputSchema chaining with prevSchema and clientInput works correctly", async () => {
@@ -46,9 +45,9 @@ test("inputSchema chaining with prevSchema and clientInput works correctly", asy
 	const testData = { test: true, name: "John", age: 25 };
 	const result = await action(testData);
 
-	assert.ok(receivedPrevSchema); // Should be a Zod schema object
-	assert.deepStrictEqual(receivedClientInput, testData);
-	assert.deepStrictEqual(result, { data: { success: true, data: testData } });
+	expect(receivedPrevSchema).toBeTruthy(); // Should be a Zod schema object
+	expect(receivedClientInput).toStrictEqual(testData);
+	expect(result).toStrictEqual({ data: { success: true, data: testData } });
 });
 
 test("inputSchema chaining validates against extended schema without function", async () => {
@@ -63,13 +62,13 @@ test("inputSchema chaining validates against extended schema without function", 
 
 	// Valid data should work
 	const validResult = await action({ name: "John", age: 25 });
-	assert.deepStrictEqual(validResult, { data: { success: true, data: { name: "John", age: 25 } } });
+	expect(validResult).toStrictEqual({ data: { success: true, data: { name: "John", age: 25 } } });
 
 	// Invalid data should return validation errors
 	// @ts-expect-error
 	const invalidResult = await action({ name: "Jane" }); // Missing age
-	assert.ok(invalidResult.validationErrors);
-	assert.ok(invalidResult.validationErrors.age);
+	expect(invalidResult.validationErrors).toBeTruthy();
+	expect(invalidResult.validationErrors!.age).toBeTruthy();
 });
 
 test("inputSchema chaining validates against extended schema with function", async () => {
@@ -86,13 +85,13 @@ test("inputSchema chaining validates against extended schema with function", asy
 
 	// Valid data should work
 	const validResult = await action({ name: "John", age: 25 });
-	assert.deepStrictEqual(validResult, { data: { success: true, data: { name: "John", age: 25 } } });
+	expect(validResult).toStrictEqual({ data: { success: true, data: { name: "John", age: 25 } } });
 
 	// Invalid data should return validation errors
 	// @ts-expect-error
 	const invalidResult = await action({ name: "Jane" }); // Missing age
-	assert.ok(invalidResult.validationErrors);
-	assert.ok(invalidResult.validationErrors.age);
+	expect(invalidResult.validationErrors).toBeTruthy();
+	expect(invalidResult.validationErrors!.age).toBeTruthy();
 });
 
 test("inputSchema with clientInput can build dynamic Zod schema", async () => {
@@ -116,12 +115,12 @@ test("inputSchema with clientInput can build dynamic Zod schema", async () => {
 		});
 
 	const userResult = await action({ type: "user", name: "John", email: "john@example.com" });
-	assert.deepStrictEqual(userResult, {
+	expect(userResult).toStrictEqual({
 		data: { success: true, data: { type: "user", name: "John", email: "john@example.com" } },
 	});
 
 	const defaultResult = await action({ type: "other", data: "anything" });
-	assert.deepStrictEqual(defaultResult, {
+	expect(defaultResult).toStrictEqual({
 		data: { success: true, data: { type: "other", data: "anything" } },
 	});
 });
@@ -154,8 +153,8 @@ test("inputSchema with clientInput still receives main input when excess argumen
 	const actionWithExcessArgs = action as (...args: unknown[]) => Promise<unknown>;
 	const result = await actionWithExcessArgs(input, { client: "rq" }, "extra");
 
-	assert.deepStrictEqual(receivedClientInput, input);
-	assert.deepStrictEqual(result, {
+	expect(receivedClientInput).toStrictEqual(input);
+	expect(result).toStrictEqual({
 		data: { success: true, data: input },
 	});
 });
@@ -182,7 +181,7 @@ test("inputSchema function throws error when clientInput is invalid", async () =
 	const result = await action({ data: "some data" });
 
 	// Should return server error when inputSchema function throws
-	assert.deepStrictEqual(result, {
+	expect(result).toStrictEqual({
 		serverError: DEFAULT_SERVER_ERROR_MESSAGE,
 	});
 });
@@ -221,22 +220,23 @@ test("inputSchema treats callable Standard Schema validators as direct validator
 	});
 
 	const validResult = await action({ name: "John" });
-	assert.deepStrictEqual(validResult, { data: { name: "John" } });
-	assert.equal(factoryInvocationCount, 0);
+	expect(validResult).toStrictEqual({ data: { name: "John" } });
+	expect(factoryInvocationCount).toBe(0);
 
 	// @ts-expect-error
 	const invalidResult = await action({});
-	assert.ok(invalidResult.validationErrors);
-	assert.ok(invalidResult.validationErrors.name);
-	assert.equal(factoryInvocationCount, 0);
+	expect(invalidResult.validationErrors).toBeTruthy();
+	expect(invalidResult.validationErrors!.name).toBeTruthy();
+	expect(factoryInvocationCount).toBe(0);
 });
 
 test("inputSchema throws for sync non-schema functions", () => {
-	assert.throws(
-		() => ac.inputSchema((() => z.object({ name: z.string() })) as any),
-		(error: unknown) =>
-			error instanceof TypeError &&
-			error.message.includes("Standard Schema validator") &&
-			error.message.includes("async function")
-	);
+	try {
+		ac.inputSchema((() => z.object({ name: z.string() })) as any);
+		expect.unreachable("Should have thrown TypeError");
+	} catch (e) {
+		expect(e).toBeInstanceOf(TypeError);
+		expect((e as TypeError).message).toContain("Standard Schema validator");
+		expect((e as TypeError).message).toContain("async function");
+	}
 });

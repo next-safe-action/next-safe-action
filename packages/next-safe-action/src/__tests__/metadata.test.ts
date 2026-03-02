@@ -1,5 +1,4 @@
-import assert from "node:assert";
-import { test } from "node:test";
+import { expect, test } from "vitest";
 import { z } from "zod";
 import { DEFAULT_SERVER_ERROR_MESSAGE, createSafeActionClient } from "..";
 
@@ -27,7 +26,7 @@ test("action with expected metadata format works", async () => {
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("action without expected metadata returns server error", async () => {
@@ -43,7 +42,7 @@ test("action without expected metadata returns server error", async () => {
 		serverError: DEFAULT_SERVER_ERROR_MESSAGE,
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("metadata is passed to middleware functions and server code function", async () => {
@@ -75,5 +74,5 @@ test("metadata is passed to middleware functions and server code function", asyn
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });

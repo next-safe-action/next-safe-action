@@ -1,6 +1,5 @@
-import assert from "node:assert";
-import { test } from "node:test";
 import { redirect } from "next/navigation";
+import { expect, test } from "vitest";
 import { z } from "zod";
 import {
 	createMiddleware,
@@ -36,7 +35,7 @@ test("instance context value is accessible in server code function", async () =>
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("instance context value is extended in action middleware and both values are accessible in server code function", async () => {
@@ -57,7 +56,7 @@ test("instance context value is extended in action middleware and both values ar
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("instance context value is correctly overridden in subsequent middleware", async () => {
@@ -84,7 +83,7 @@ test("instance context value is correctly overridden in subsequent middleware", 
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("action client inputs are passed to middleware", async () => {
@@ -116,7 +115,7 @@ test("action client inputs are passed to middleware", async () => {
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("invalid bind args give back a serverError result", async () => {
@@ -147,7 +146,7 @@ test("invalid bind args give back a serverError result", async () => {
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("happy path execution result from middleware is correct", async () => {
@@ -193,7 +192,7 @@ test("happy path execution result from middleware is correct", async () => {
 		],
 	};
 
-	assert.deepStrictEqual(middlewareResult, expectedResult);
+	expect(middlewareResult).toStrictEqual(expectedResult);
 });
 
 test("server error execution result from middleware is correct", async () => {
@@ -229,7 +228,7 @@ test("server error execution result from middleware is correct", async () => {
 		},
 	};
 
-	assert.deepStrictEqual(middlewareResult, expectedResult);
+	expect(middlewareResult).toStrictEqual(expectedResult);
 });
 
 test("validation errors in execution result from middleware are correct", async () => {
@@ -267,7 +266,7 @@ test("validation errors in execution result from middleware are correct", async 
 		},
 	};
 
-	assert.deepStrictEqual(middlewareResult, expectedResult);
+	expect(middlewareResult).toStrictEqual(expectedResult);
 });
 
 test("server validation errors in execution result from middleware are correct", async () => {
@@ -309,7 +308,7 @@ test("server validation errors in execution result from middleware are correct",
 		},
 	};
 
-	assert.deepStrictEqual(middlewareResult, expectedResult);
+	expect(middlewareResult).toStrictEqual(expectedResult);
 });
 
 test("framework error result from middleware is correct", async () => {
@@ -355,7 +354,7 @@ test("framework error result from middleware is correct", async () => {
 		],
 	};
 
-	assert.deepStrictEqual(middlewareResult, expectedResult);
+	expect(middlewareResult).toStrictEqual(expectedResult);
 });
 
 test("framework error is thrown within middleware", async () => {
@@ -367,13 +366,12 @@ test("framework error is thrown within middleware", async () => {
 			return null;
 		});
 
-	await assert.rejects(
-		async () => await action(),
-		(e) => {
-			return FrameworkErrorHandler.isNavigationError(e);
-		},
-		"A framework error to be thrown"
-	);
+	try {
+		await action();
+		expect.unreachable("A framework error to be thrown");
+	} catch (e) {
+		expect(FrameworkErrorHandler.isNavigationError(e)).toBe(true);
+	}
 });
 
 // Flattened validation errors shape.
@@ -417,7 +415,7 @@ test("flattened validation errors in execution result from middleware are correc
 		},
 	};
 
-	assert.deepStrictEqual(middlewareResult, expectedResult);
+	expect(middlewareResult).toStrictEqual(expectedResult);
 });
 
 test("overridden formatted validation errors in execution result from middleware are correct", async () => {
@@ -455,7 +453,7 @@ test("overridden formatted validation errors in execution result from middleware
 		},
 	};
 
-	assert.deepStrictEqual(middlewareResult, expectedResult);
+	expect(middlewareResult).toStrictEqual(expectedResult);
 });
 
 test("standalone middleware extends context", async () => {
@@ -476,5 +474,5 @@ test("standalone middleware extends context", async () => {
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });

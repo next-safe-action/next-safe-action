@@ -39,7 +39,7 @@
 	],
 	"scripts": {
 		"lint": "tsc --noEmit && oxlint --type-aware .",
-		"test": "node --import tsx --test ./src/__tests__/*.test.ts",
+		"test": "vitest run",
 		"build": "tsdown"
 	},
 	"keywords": [
@@ -73,7 +73,7 @@
 		"react": "catalog:",
 		"react-dom": "catalog:",
 		"tsdown": "^0.20.3",
-		"tsx": "^4.19.2",
+		"vitest": "^3.1.1",
 		"typescript": "catalog:",
 		"yup": "^1.6.1",
 		"zod": "^3.24.1"

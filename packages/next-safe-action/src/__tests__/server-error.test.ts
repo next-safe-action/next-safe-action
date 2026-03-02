@@ -1,5 +1,4 @@
-import assert from "node:assert";
-import { test } from "node:test";
+import { expect, test } from "vitest";
 import { DEFAULT_SERVER_ERROR_MESSAGE, createSafeActionClient } from "..";
 
 class ActionError extends Error {}
@@ -26,7 +25,7 @@ test("unknown error occurred in server code function is masked by default", asyn
 		serverError: DEFAULT_SERVER_ERROR_MESSAGE,
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("unknown error occurred in middleware function is masked by default", async () => {
@@ -47,7 +46,7 @@ test("unknown error occurred in middleware function is masked by default", async
 		serverError: DEFAULT_SERVER_ERROR_MESSAGE,
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("known error occurred in server code function is unmasked", async () => {
@@ -61,7 +60,7 @@ test("known error occurred in server code function is unmasked", async () => {
 		serverError: "Something bad happened",
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("known error occurred in middleware function is unmasked", async () => {
@@ -82,7 +81,7 @@ test("known error occurred in middleware function is unmasked", async () => {
 		serverError: "Something bad happened",
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("error occurred with `throwServerError` set to true at the action level throws", async () => {
@@ -93,7 +92,7 @@ test("error occurred with `throwServerError` set to true at the action level thr
 		{ throwServerError: true }
 	);
 
-	await assert.rejects(async () => await action());
+	await expect(async () => await action()).rejects.toThrow();
 });
 
 // Server error is an object with a 'message' property.
@@ -117,7 +116,7 @@ test("error occurred in server code function has the correct shape defined by `h
 		serverError: { message: "Something bad happened" },
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("error occurred in middleware function has the correct shape defined by `handleServerError`", async () => {
@@ -138,7 +137,7 @@ test("error occurred in middleware function has the correct shape defined by `ha
 		serverError: { message: "Something bad happened" },
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 // Rethrow all server errors.
@@ -154,7 +153,7 @@ test("action throws if an error occurred in server code function and `handleServ
 		throw new Error("Something bad happened");
 	});
 
-	await assert.rejects(() => action());
+	await expect(() => action()).rejects.toThrow();
 });
 
 test("action throws if an error occurred in middleware function and `handleServerError` rethrows it", async () => {
@@ -169,5 +168,5 @@ test("action throws if an error occurred in middleware function and `handleServe
 			};
 		});
 
-	await assert.rejects(() => action());
+	await expect(() => action()).rejects.toThrow();
 });

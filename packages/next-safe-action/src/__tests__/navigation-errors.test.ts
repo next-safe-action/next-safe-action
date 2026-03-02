@@ -1,6 +1,5 @@
-import assert from "node:assert";
-import { test } from "node:test";
 import { redirect } from "next/navigation";
+import { expect, test } from "vitest";
 import { z } from "zod";
 import { createSafeActionClient, type MiddlewareResult } from "..";
 import { FrameworkErrorHandler } from "../next/errors";
@@ -12,13 +11,12 @@ test("action with redirect throws navigation error immediately on server", async
 		redirect("/test");
 	});
 
-	await assert.rejects(
-		async () => await action(),
-		(e) => {
-			return FrameworkErrorHandler.isNavigationError(e);
-		},
-		"Expected navigation error to be thrown"
-	);
+	try {
+		await action();
+		expect.unreachable("Expected navigation error to be thrown");
+	} catch (e) {
+		expect(FrameworkErrorHandler.isNavigationError(e)).toBe(true);
+	}
 });
 
 test("action with redirect includes onNavigation callback execution before throwing", async () => {
@@ -32,11 +30,11 @@ test("action with redirect includes onNavigation callback execution before throw
 		{
 			onNavigation: async ({ navigationKind }) => {
 				onNavigationCalled = true;
-				assert.strictEqual(navigationKind, "redirect");
+				expect(navigationKind).toBe("redirect");
 			},
 			onSettled: async ({ navigationKind }) => {
 				onSettledCalled = true;
-				assert.strictEqual(navigationKind, "redirect");
+				expect(navigationKind).toBe("redirect");
 			},
 		}
 	);
@@ -47,8 +45,8 @@ test("action with redirect includes onNavigation callback execution before throw
 		}
 	});
 
-	assert.strictEqual(onNavigationCalled, true, "onNavigation callback should be called");
-	assert.strictEqual(onSettledCalled, true, "onSettled callback should be called");
+	expect(onNavigationCalled).toBe(true);
+	expect(onSettledCalled).toBe(true);
 });
 
 test("action with redirect does not call onSuccess or onError callbacks", async () => {
@@ -75,8 +73,8 @@ test("action with redirect does not call onSuccess or onError callbacks", async 
 		}
 	});
 
-	assert.strictEqual(onSuccessCalled, false, "onSuccess should not be called for navigation");
-	assert.strictEqual(onErrorCalled, false, "onError should not be called for navigation");
+	expect(onSuccessCalled).toBe(false);
+	expect(onErrorCalled).toBe(false);
 });
 
 test("action with input schema and redirect calls onNavigation callback with correct navigation kind", async () => {
@@ -105,8 +103,8 @@ test("action with input schema and redirect calls onNavigation callback with cor
 		}
 	});
 
-	assert.strictEqual(onNavigationCalled, true);
-	assert.strictEqual(capturedNavigationKind, "redirect");
+	expect(onNavigationCalled).toBe(true);
+	expect(capturedNavigationKind).toBe("redirect");
 });
 
 test("action correctly identifies different navigation types", async () => {
@@ -119,7 +117,7 @@ test("action correctly identifies different navigation types", async () => {
 			throw e;
 		}
 		const kind = FrameworkErrorHandler.getNavigationKind(e);
-		assert.strictEqual(kind, "redirect");
+		expect(kind).toBe("redirect");
 	});
 });
 
@@ -144,9 +142,9 @@ test("navigation error is thrown after middleware execution", async () => {
 		}
 	});
 
-	assert.strictEqual(middlewareExecuted, true, "Middleware should execute before redirect");
-	assert.strictEqual(middlewareResult.success, false);
-	assert.strictEqual(middlewareResult.navigationKind, "redirect");
+	expect(middlewareExecuted).toBe(true);
+	expect(middlewareResult.success).toBe(false);
+	expect(middlewareResult.navigationKind).toBe("redirect");
 });
 
 test("redirect with bind args triggers onNavigation callback", async () => {
@@ -177,8 +175,8 @@ test("redirect with bind args triggers onNavigation callback", async () => {
 		}
 	});
 
-	assert.strictEqual(onNavigationCalled, true);
-	assert.strictEqual(capturedNavigationKind, "redirect");
+	expect(onNavigationCalled).toBe(true);
+	expect(capturedNavigationKind).toBe("redirect");
 });
 
 test("multiple redirects in sequence each throw navigation error", async () => {
@@ -204,5 +202,5 @@ test("multiple redirects in sequence each throw navigation error", async () => {
 		}
 	});
 
-	assert.strictEqual(redirectCount, 2, "Both redirects should throw navigation errors");
+	expect(redirectCount).toBe(2);
 });

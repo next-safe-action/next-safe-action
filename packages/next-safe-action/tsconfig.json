@@ -25,5 +25,5 @@
 		"noEmit": true
 	},
 	"exclude": ["node_modules"],
-	"include": ["tsdown.config.ts", "./src/**/*.ts"]
+	"include": ["tsdown.config.ts", "vitest.config.ts", "./src/**/*.ts"]
 }

@@ -1,5 +1,4 @@
-import assert from "node:assert";
-import { test } from "node:test";
+import { expect, test } from "vitest";
 import { getActionShorthandStatusObject, getActionStatus } from "../hooks-utils";
 import type { SafeActionResult } from "../index.types";
 
@@ -20,7 +19,7 @@ test("getActionStatus returns hasSucceeded after execution completes", () => {
 		result,
 	});
 
-	assert.strictEqual(status, "hasSucceeded");
+	expect(status).toBe("hasSucceeded");
 });
 
 test("getActionStatus keeps error precedence over success", () => {
@@ -32,7 +31,7 @@ test("getActionStatus keeps error precedence over success", () => {
 		result: {},
 	});
 
-	assert.strictEqual(status, "hasErrored");
+	expect(status).toBe("hasErrored");
 });
 
 test("shorthand status can be succeeded while still transitioning", () => {
@@ -41,9 +40,9 @@ test("shorthand status can be succeeded while still transitioning", () => {
 		isTransitioning: true,
 	});
 
-	assert.strictEqual(shorthand.hasSucceeded, true);
-	assert.strictEqual(shorthand.isTransitioning, true);
-	assert.strictEqual(shorthand.isPending, true);
+	expect(shorthand.hasSucceeded).toBe(true);
+	expect(shorthand.isTransitioning).toBe(true);
+	expect(shorthand.isPending).toBe(true);
 });
 
 test("executing status remains executing", () => {
@@ -55,5 +54,5 @@ test("executing status remains executing", () => {
 		result: {},
 	});
 
-	assert.strictEqual(status, "executing");
+	expect(status).toBe("executing");
 });

@@ -1,5 +1,4 @@
-import assert from "node:assert";
-import { test } from "node:test";
+import { expect, test } from "vitest";
 import { z } from "zod";
 import { createSafeActionClient, DEFAULT_SERVER_ERROR_MESSAGE } from "..";
 import { ActionBindArgsValidationError } from "../validation-errors";
@@ -36,7 +35,7 @@ test("action with invalid bind args input and valid main input gives back a serv
 		serverError: DEFAULT_SERVER_ERROR_MESSAGE,
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 // Unmasked server error client.
@@ -88,5 +87,5 @@ test("action with invalid bind args input gives back a server error object with 
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });

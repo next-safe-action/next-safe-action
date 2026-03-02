@@ -1,5 +1,4 @@
-import assert from "node:assert";
-import { test } from "node:test";
+import { expect, test } from "vitest";
 import { z } from "zod";
 import { createSafeActionClient } from "..";
 
@@ -13,7 +12,7 @@ test("action with no input schema returns empty object", async () => {
 	const actualResult = await action();
 	const expectedResult = {};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("action with no input schema and return data gives back an object with correct `data`", async () => {
@@ -30,7 +29,7 @@ test("action with no input schema and return data gives back an object with corr
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("action with input, output schema and return data gives back an object with correct `data`", async () => {
@@ -53,7 +52,7 @@ test("action with input, output schema and return data gives back an object with
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("action with input schema passed via async function and return data gives back an object with correct `data`", async () => {
@@ -75,7 +74,7 @@ test("action with input schema passed via async function and return data gives b
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("action with input schema extended via async function, ouput schema and return data gives back an object with correct `data`", async () => {
@@ -102,7 +101,7 @@ test("action with input schema extended via async function, ouput schema and ret
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("action with no input schema, with bind args input schemas, output schema and return data gives back an object with correct `data`", async () => {
@@ -128,7 +127,7 @@ test("action with no input schema, with bind args input schemas, output schema a
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("action with input schema, bind args input schemas, output schema and return data gives back an object with correct `data`", async () => {
@@ -158,7 +157,7 @@ test("action with input schema, bind args input schemas, output schema and retur
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 // Excess arguments tests — wrapper should not change the intended signature of the action.
@@ -179,7 +178,7 @@ test("action with no input schema silently ignores excess arguments", async () =
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("action with input schema silently ignores excess arguments", async () => {
@@ -199,7 +198,7 @@ test("action with input schema silently ignores excess arguments", async () => {
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("action with bind args input schemas silently ignores excess arguments", async () => {
@@ -225,7 +224,7 @@ test("action with bind args input schemas silently ignores excess arguments", as
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 // Fewer arguments tests — missing arguments should result in validation errors, not crashes.
@@ -240,8 +239,8 @@ test("action with input schema called with no arguments returns validation error
 	const actionWithNoArgs = action as (...args: unknown[]) => Promise<unknown>;
 	const actualResult = await actionWithNoArgs();
 
-	assert.ok(actualResult != null);
-	assert.ok(typeof actualResult === "object" && "validationErrors" in actualResult);
+	expect(actualResult).toBeTruthy();
+	expect(typeof actualResult === "object" && actualResult !== null && "validationErrors" in actualResult).toBe(true);
 });
 
 test("action with bind args input schemas called with no arguments returns server error", async () => {
@@ -257,8 +256,8 @@ test("action with bind args input schemas called with no arguments returns serve
 	const actionWithNoArgs = action as (...args: unknown[]) => Promise<unknown>;
 	const actualResult = await actionWithNoArgs();
 
-	assert.ok(actualResult != null);
-	assert.ok(typeof actualResult === "object" && "serverError" in actualResult);
+	expect(actualResult).toBeTruthy();
+	expect(typeof actualResult === "object" && actualResult !== null && "serverError" in actualResult).toBe(true);
 });
 
 test("action with input schema and bind args called with only bind args returns validation errors", async () => {
@@ -275,6 +274,6 @@ test("action with input schema and bind args called with only bind args returns 
 	const actionWithPartialArgs = action as (...args: unknown[]) => Promise<unknown>;
 	const actualResult = await actionWithPartialArgs("johndoe");
 
-	assert.ok(actualResult != null);
-	assert.ok(typeof actualResult === "object" && "validationErrors" in actualResult);
+	expect(actualResult).toBeTruthy();
+	expect(typeof actualResult === "object" && actualResult !== null && "validationErrors" in actualResult).toBe(true);
 });

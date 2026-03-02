@@ -23,7 +23,7 @@ All commands run from the repository root unless noted.
 | Build + start playground | `pnpm run build:lib && pnpm run pg` |
 | Lint library | `pnpm run lint:lib` |
 | Test library | `pnpm run test:lib` |
-| Run single test | `cd packages/next-safe-action && node --import tsx --test ./src/__tests__/<file>.test.ts` |
+| Run single test | `cd packages/next-safe-action && npx vitest run ./src/__tests__/<file>.test.ts` |
 | Format all files | `pnpm run fmt` |
 | Check formatting | `pnpm run fmt:check` |
 | Create changeset | `pnpm run changeset` |
@@ -57,7 +57,7 @@ The library has three entry points: `next-safe-action` (server), `next-safe-acti
 
 ## Testing
 
-- Framework: Node.js built-in test runner with `tsx` for TypeScript
+- Framework: Vitest
 - Test files follow `feature-name.test.ts` naming convention
 - Add regression tests for behavioral or API changes
 

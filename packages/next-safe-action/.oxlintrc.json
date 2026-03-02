@@ -15,8 +15,7 @@
 		{
 			"files": ["src/__tests__/**/*.ts"],
 			"rules": {
-				"eslint/no-shadow": "off",
-				"typescript/no-floating-promises": "off"
+				"eslint/no-shadow": "off"
 			}
 		}
 	]

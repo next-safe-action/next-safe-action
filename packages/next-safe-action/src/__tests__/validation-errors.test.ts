@@ -1,5 +1,4 @@
-import assert from "node:assert";
-import { test } from "node:test";
+import { expect, test } from "vitest";
 import { z } from "zod";
 import type { ValidationErrors } from "..";
 import {
@@ -66,7 +65,7 @@ test("action with invalid input gives back an object with correct `validationErr
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("action with invalid enum input gives back an object with correct `validationErrors` (default formatted shape)", async () => {
@@ -104,7 +103,7 @@ test("action with invalid enum input gives back an object with correct `validati
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("action with root level schema error gives back an object with correct `validationErrors` (default formatted shape)", async () => {
@@ -144,7 +143,7 @@ test("action with root level schema error gives back an object with correct `val
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("action with invalid input gives back an object with correct `validationErrors` (default formatted shape overridden by custom flattened shape)", async () => {
@@ -182,7 +181,7 @@ test("action with invalid input gives back an object with correct `validationErr
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("action with invalid output data returns the default `serverError`", async () => {
@@ -198,7 +197,7 @@ test("action with invalid output data returns the default `serverError`", async 
 		serverError: DEFAULT_SERVER_ERROR_MESSAGE,
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("action with invalid output data throws an error of the correct type", async () => {
@@ -234,7 +233,7 @@ test("action with invalid output data throws an error of the correct type", asyn
 		}
 	}
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 // Formatted shape tests (same as default).
@@ -294,7 +293,7 @@ test("action with invalid input gives back an object with correct `validationErr
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("action with root level schema error gives back an object with correct `validationErrors` (set formatted shape)", async () => {
@@ -334,7 +333,7 @@ test("action with root level schema error gives back an object with correct `val
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("action with invalid input gives back an object with correct `validationErrors` (set formatted shape overridden by custom flattened shape)", async () => {
@@ -372,7 +371,7 @@ test("action with invalid input gives back an object with correct `validationErr
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 // Flattened shape tests.
@@ -419,7 +418,7 @@ test("action with invalid input gives back an object with correct `validationErr
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("action with root level schema error gives back an object with correct `validationErrors` (set flattened shape)", async () => {
@@ -467,7 +466,7 @@ test("action with root level schema error gives back an object with correct `val
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("action with invalid input gives back an object with correct `validationErrors` (set flattened shape overridden by custom formatted shape)", async () => {
@@ -507,7 +506,7 @@ test("action with invalid input gives back an object with correct `validationErr
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 // `returnValidationErrors` tests.
@@ -547,7 +546,7 @@ test("action with errors set via `returnValidationErrors` gives back an object w
 		validationErrors: structuredClone(errorsObject),
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("action with errors set via `returnValidationErrors` gives back an object with correct `validationErrors` (set formatted shape)", async () => {
@@ -585,7 +584,7 @@ test("action with errors set via `returnValidationErrors` gives back an object w
 		validationErrors: structuredClone(errorsObject),
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("action with errors set via `returnValidationErrors` gives back an object with correct `validationErrors` (set flattened shape)", async () => {
@@ -627,7 +626,7 @@ test("action with errors set via `returnValidationErrors` gives back an object w
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 // `throwValidationErrors` tests.
@@ -648,7 +647,7 @@ test("action with validation errors and `throwValidationErrors` option set to tr
 		{ throwValidationErrors: true }
 	);
 
-	await assert.rejects(async () => await action({ username: "12", password: "34" }));
+	await expect(async () => await action({ username: "12", password: "34" })).rejects.toThrow();
 });
 
 const tveac = createSafeActionClient({
@@ -667,7 +666,7 @@ test("action with validation errors and `throwValidationErrors` option set to tr
 		};
 	});
 
-	await assert.rejects(async () => await action({ username: "12", password: "34" }));
+	await expect(async () => await action({ username: "12", password: "34" })).rejects.toThrow();
 });
 
 test("action with server validation errors and `throwValidationErrors` option set to true in client throws", async () => {
@@ -687,7 +686,7 @@ test("action with server validation errors and `throwValidationErrors` option se
 		};
 	});
 
-	await assert.rejects(async () => await action({ username: "1234", password: "5678" }));
+	await expect(async () => await action({ username: "1234", password: "5678" })).rejects.toThrow();
 });
 
 test("action with validation errors and `throwValidationErrors` option set to true both in client and action throws", async () => {
@@ -705,7 +704,7 @@ test("action with validation errors and `throwValidationErrors` option set to tr
 		{ throwValidationErrors: true }
 	);
 
-	await assert.rejects(async () => await action({ username: "12", password: "34" }));
+	await expect(async () => await action({ username: "12", password: "34" })).rejects.toThrow();
 });
 
 test("action with validation errors and overridden `throwValidationErrors` set to false at the action level doesn't throw", async () => {
@@ -762,5 +761,5 @@ test("action with validation errors and overridden `throwValidationErrors` set t
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
