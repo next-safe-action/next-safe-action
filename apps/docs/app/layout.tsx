@@ -1,15 +1,10 @@
 import { RootProvider } from "fumadocs-ui/provider/next";
 import type { Metadata } from "next";
-import { Inter, Google_Sans_Code } from "next/font/google";
+import { Inter } from "next/font/google";
 import type { ReactNode } from "react";
 import "./global.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-
-const googleSansCode = Google_Sans_Code({
-	subsets: ["latin"],
-	variable: "--font-google-sans-code",
-});
 
 export const metadata: Metadata = {
 	title: {
@@ -35,7 +30,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
 	return (
-		<html lang="en" className={`${inter.variable} ${googleSansCode.variable}`} suppressHydrationWarning>
+		<html lang="en" className={inter.variable} suppressHydrationWarning>
 			<head>
 				<script defer data-domain="next-safe-action.dev" src="https://plausible.theedoran.xyz/js/script.js" />
 			</head>

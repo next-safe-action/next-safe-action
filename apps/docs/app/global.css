@@ -6,7 +6,6 @@
 
 @theme {
 	--font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-	--font-mono: var(--font-google-sans-code), ui-monospace, monospace;
 	--color-amber-accent: #f59e0b;
 	--color-amber-accent-light: #fbbf24;
 	--color-amber-accent-dark: #d97706;
