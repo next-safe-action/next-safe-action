@@ -1,0 +1,160 @@
+---
+title: Optimistic Updates
+description: Update the UI instantly while the server processes your action.
+---
+
+The `useOptimisticAction` hook lets you update the UI **immediately** when the user performs an action, without waiting for the server response. If the server confirms the change, the optimistic state is replaced by the real data. If the server fails, the state reverts automatically.
+
+## How it works
+
+1. User triggers the action (e.g., clicks "Add Todo")
+2. The `updateFn` runs immediately with the current state and input → UI updates instantly
+3. The action executes on the server in the background
+4. On success: the page revalidates and real data replaces the optimistic state
+5. On failure: the optimistic state reverts to the original
+
+## Full example: Todo list
+
+<Steps>
+<Step>
+
+### Define the action
+
+```ts title="src/app/actions.ts"
+"use server";
+
+import { z } from "zod";
+import { revalidatePath } from "next/cache";
+import { actionClient } from "@/lib/safe-action";
+
+export const addTodo = actionClient
+	.inputSchema(z.object({ title: z.string().min(1) }))
+	.action(async ({ parsedInput }) => {
+		// Save to database
+		await db.todo.create({ data: { title: parsedInput.title } });
+
+		// Revalidate the page so the server component re-fetches
+		revalidatePath("/todos");
+
+		return { title: parsedInput.title };
+	});
+```
+
+</Step>
+<Step>
+
+### Create the Server Component (data fetcher)
+
+```tsx title="src/app/todos/page.tsx"
+import { db } from "@/lib/db";
+import { TodoList } from "./todo-list";
+
+export default async function TodosPage() {
+	const todos = await db.todo.findMany();
+
+	return <TodoList todos={todos} />;
+}
+```
+
+</Step>
+<Step>
+
+### Create the Client Component with optimistic updates
+
+```tsx title="src/app/todos/todo-list.tsx"
+"use client";
+
+import { useOptimisticAction } from "next-safe-action/hooks";
+import { addTodo } from "../actions";
+
+type Todo = { id: string; title: string };
+
+export function TodoList({ todos }: { todos: Todo[] }) {
+	const { execute, optimisticState, isExecuting } = useOptimisticAction(addTodo, {
+		// The current server state
+		currentState: todos,
+		// How to compute the optimistic state from current state + input
+		updateFn: (currentTodos, input) => {
+			return [
+				...currentTodos,
+				{ id: `temp-${Date.now()}`, title: input.title },
+			];
+		},
+		onError: () => {
+			// If the server fails, optimisticState reverts automatically
+			// You can show a toast here
+		},
+	});
+
+	return (
+		<div>
+			<ul>
+				{optimisticState.map((todo) => (
+					<li key={todo.id}>{todo.title}</li>
+				))}
+			</ul>
+			<button
+				onClick={() => execute({ title: "New todo" })}
+				disabled={isExecuting}
+			>
+				Add Todo
+			</button>
+		</div>
+	);
+}
+```
+
+</Step>
+</Steps>
+
+## Key concepts
+
+### `currentState`
+
+The current server state, typically passed as a prop from a Server Component. When the page revalidates after a successful action, this prop updates with the real data from the server.
+
+### `updateFn`
+
+A **pure function** that takes the current state and the action input, and returns the new optimistic state. This runs **synchronously** before the server action starts:
+
+```ts
+updateFn: (state, input) => {
+	// Return a new state with the optimistic change applied
+	return [...state, { id: "temp", ...input }];
+}
+```
+
+<Callout>
+`updateFn` should not have side effects. It's called during React's render cycle.
+</Callout>
+
+### `optimisticState`
+
+The state to render in your component. It's either:
+- The **optimistic state** (from `updateFn`) while the action is running
+- The **real state** (from `currentState`) when idle or after revalidation
+
+### Automatic revert
+
+If the server action fails, `optimisticState` automatically reverts to `currentState`. You don't need to handle rollbacks manually.
+
+## Return object
+
+`useOptimisticAction` returns the same properties as `useAction` (see [Hooks](/docs/guides/hooks)), plus:
+
+| Property | Type | Description |
+|---|---|---|
+| `optimisticState` | `State` | The current optimistic state to render |
+
+All callbacks (`onSuccess`, `onError`, `onSettled`, etc.) work the same way as `useAction`.
+
+## What's next?
+
+<Cards>
+	<Card href="/docs/guides/hooks" title="Hooks">
+		Full useAction guide with all return properties and callbacks.
+	</Card>
+	<Card href="/docs/api/hooks-api" title="Hooks API Reference">
+		Full type signatures for useOptimisticAction.
+	</Card>
+</Cards>

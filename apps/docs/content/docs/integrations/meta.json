@@ -1,4 +1,4 @@
 {
 	"title": "Integrations",
-	"pages": ["react-hook-form"]
+	"pages": ["react-hook-form", "standard-schema"]
 }

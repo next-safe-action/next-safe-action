@@ -1,13 +1,15 @@
 {
 	"pages": [
-		"getting-started",
-		"define-actions",
-		"execute-actions",
-		"recipes",
+		"introduction",
+		"quick-start",
+		"concepts",
+		"guides",
+		"advanced",
 		"integrations",
-		"types",
-		"migrations",
+		"api",
 		"troubleshooting",
+		"migrations",
+		"playground",
 		"contributing"
 	]
 }

@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 230" width="700" height="230">
+	<defs>
+		<marker id="et-d" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="10" markerHeight="7" orient="auto-start-reverse">
+			<polygon points="0 0, 10 3.5, 0 7" fill="#9ca3af"/>
+		</marker>
+	</defs>
+	<!-- Root -->
+	<rect x="260" y="0" width="180" height="40" rx="8" fill="#1e293b" stroke="#94a3b8" stroke-width="1.5"/>
+	<text x="350" y="25" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" font-weight="600" fill="#e2e8f0">Action Errors</text>
+	<!-- Branches -->
+	<line x1="260" y1="44" x2="100" y2="72" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#et-d)"/>
+	<line x1="350" y1="44" x2="350" y2="72" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#et-d)"/>
+	<line x1="440" y1="44" x2="600" y2="72" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#et-d)"/>
+	<!-- Validation Errors -->
+	<rect x="0" y="76" width="200" height="40" rx="8" fill="#422006" stroke="#fbbf24" stroke-width="1.5"/>
+	<text x="100" y="100" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" font-weight="600" fill="#fde68a">Validation Errors</text>
+	<!-- Server Errors -->
+	<rect x="250" y="76" width="200" height="40" rx="8" fill="#450a0a" stroke="#f87171" stroke-width="1.5"/>
+	<text x="350" y="100" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" font-weight="600" fill="#fecaca">Server Errors</text>
+	<!-- Framework Errors -->
+	<rect x="500" y="76" width="200" height="40" rx="8" fill="#1e3a5f" stroke="#60a5fa" stroke-width="1.5"/>
+	<text x="600" y="100" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" font-weight="600" fill="#93c5fd">Framework Errors</text>
+	<!-- Validation sub-items -->
+	<line x1="50" y1="120" x2="50" y2="142" stroke="#9ca3af" stroke-width="1" marker-end="url(#et-d)"/>
+	<line x1="150" y1="120" x2="150" y2="142" stroke="#9ca3af" stroke-width="1" marker-end="url(#et-d)"/>
+	<rect x="0" y="146" width="100" height="32" rx="6" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+	<text x="50" y="167" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#cbd5e1">Input errors</text>
+	<rect x="106" y="146" width="100" height="32" rx="6" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+	<text x="156" y="167" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#cbd5e1">Bind args errors</text>
+	<!-- Server sub-items -->
+	<line x1="300" y1="120" x2="300" y2="142" stroke="#9ca3af" stroke-width="1" marker-end="url(#et-d)"/>
+	<line x1="400" y1="120" x2="400" y2="142" stroke="#9ca3af" stroke-width="1" marker-end="url(#et-d)"/>
+	<rect x="250" y="146" width="100" height="32" rx="6" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+	<text x="300" y="167" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#cbd5e1">Thrown errors</text>
+	<rect x="356" y="146" width="100" height="32" rx="6" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+	<text x="406" y="167" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#cbd5e1">Custom classes</text>
+	<!-- Framework sub-items -->
+	<line x1="540" y1="120" x2="540" y2="142" stroke="#9ca3af" stroke-width="1" marker-end="url(#et-d)"/>
+	<line x1="600" y1="120" x2="600" y2="142" stroke="#9ca3af" stroke-width="1" marker-end="url(#et-d)"/>
+	<line x1="660" y1="120" x2="660" y2="142" stroke="#9ca3af" stroke-width="1" marker-end="url(#et-d)"/>
+	<rect x="500" y="146" width="80" height="32" rx="6" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+	<text x="540" y="167" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#cbd5e1">redirect</text>
+	<rect x="586" y="146" width="80" height="32" rx="6" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+	<text x="626" y="167" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#cbd5e1">notFound</text>
+	<rect x="500" y="188" width="80" height="32" rx="6" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+	<text x="540" y="209" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#cbd5e1">forbidden</text>
+	<rect x="586" y="188" width="80" height="32" rx="6" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+	<text x="626" y="209" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#cbd5e1">unauthorized</text>
+</svg>

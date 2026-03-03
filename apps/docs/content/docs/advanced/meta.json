@@ -1,0 +1,14 @@
+{
+	"title": "Advanced",
+	"pages": [
+		"output-validation",
+		"bind-arguments",
+		"extend-schemas",
+		"metadata",
+		"custom-validation-errors",
+		"standalone-middleware",
+		"framework-errors",
+		"i18n",
+		"file-uploads"
+	]
+}

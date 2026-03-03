@@ -1,0 +1,157 @@
+---
+title: Custom Validation Errors
+description: Customize validation error shapes, formatting, and manual error returns.
+---
+
+next-safe-action gives you control over how validation errors are shaped, formatted, and returned to the client.
+
+## Error shapes
+
+There are two built-in shapes:
+
+<Tabs items={["Formatted (default)", "Flattened"]} persist>
+<Tab value="Formatted (default)">
+
+The formatted shape mirrors the schema structure with `_errors` arrays at each level:
+
+```ts
+// Result of failed validation:
+{
+	validationErrors: {
+		name: { _errors: ["String must contain at least 2 character(s)"] },
+		address: {
+			street: { _errors: ["Required"] },
+			_errors: [],
+		},
+	}
+}
+```
+
+This is the default because it preserves the nesting of your schema, making it easy to display errors next to the corresponding form fields.
+
+</Tab>
+<Tab value="Flattened">
+
+The flattened shape separates form-level errors from field-level errors:
+
+```ts
+// Result of failed validation:
+{
+	validationErrors: {
+		formErrors: ["Passwords don't match"],
+		fieldErrors: {
+			name: ["String must contain at least 2 character(s)"],
+			email: ["Invalid email"],
+		},
+	}
+}
+```
+
+This is simpler to work with when you just need a list of errors per field.
+
+</Tab>
+</Tabs>
+
+### Setting the default shape
+
+Set the shape for all actions when creating the client:
+
+```ts
+const actionClient = createSafeActionClient({
+	defaultValidationErrorsShape: "flattened",
+});
+```
+
+### Overriding per action
+
+Override the shape for a specific action by passing a function to `inputSchema()`:
+
+```ts
+export const myAction = actionClient
+	.inputSchema(schema, {
+		handleValidationErrorsShape: (ve) => flattenValidationErrors(ve),
+	})
+	.action(async ({ parsedInput }) => { /* ... */ });
+```
+
+## Manually returning validation errors
+
+Use `returnValidationErrors()` to return validation errors from your server code, for example when checking business logic that can't be expressed in a schema:
+
+```ts
+import { returnValidationErrors } from "next-safe-action";
+
+export const signUp = actionClient
+	.inputSchema(z.object({
+		email: z.string().email(),
+		username: z.string().min(3),
+	}))
+	.action(async ({ parsedInput }) => {
+		// Check business logic
+		const emailExists = await db.user.findByEmail(parsedInput.email);
+		if (emailExists) {
+			return returnValidationErrors(schema, {
+				email: { _errors: ["Email already registered"] },
+			});
+		}
+
+		const usernameExists = await db.user.findByUsername(parsedInput.username);
+		if (usernameExists) {
+			return returnValidationErrors(schema, {
+				username: { _errors: ["Username taken"] },
+			});
+		}
+
+		// Create user...
+	});
+```
+
+<Callout>
+`returnValidationErrors` actually **throws** internally, it never returns. This ensures the remaining server code doesn't execute. The error is caught by the action builder and returned as `validationErrors` in the result.
+</Callout>
+
+### Form-level errors
+
+Use `_errors` at the root level for errors that don't belong to a specific field:
+
+```ts
+return returnValidationErrors(schema, {
+	_errors: ["Invalid credentials"],
+});
+```
+
+## Throwing validation errors
+
+If you prefer throwing validation errors instead of returning them in the result, enable `throwValidationErrors`:
+
+```ts
+// Per action
+export const myAction = actionClient
+	.action(async ({ parsedInput }, { throwValidationErrors }) => {
+		// This throws instead of returning in the result
+		throwValidationErrors(schema, {
+			email: { _errors: ["Already registered"] },
+		});
+	});
+
+// Globally (all actions throw on validation failure)
+const actionClient = createSafeActionClient({
+	throwValidationErrors: true,
+});
+```
+
+## Utility functions
+
+| Function | Description |
+|---|---|
+| `flattenValidationErrors(ve)` | Convert formatted errors to flattened shape |
+| `formatValidationErrors(ve)` | Identity function (returns formatted errors as-is) |
+| `returnValidationErrors(schema, errors)` | Throw validation errors from server code |
+
+See the [Validation Utilities API reference](/docs/api/validation-utilities) for full signatures.
+
+## See also
+
+- [Error Handling](/docs/concepts/error-handling) — the complete error taxonomy
+- [Input Validation](/docs/concepts/input-validation) — how validation errors are generated
+- [Error Classes](/docs/api/error-classes) — `ActionValidationError` and related classes

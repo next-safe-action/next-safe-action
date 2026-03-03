@@ -1,0 +1,101 @@
+---
+title: Metadata
+description: Attach type-checked metadata to actions for logging, permissions, and more.
+---
+
+Metadata lets you attach **type-safe data** to each action that's accessible in middleware. This is useful for logging, permission checks, rate limiting, and any cross-cutting concern that needs to know *which* action is running.
+
+## Setup
+
+<Steps>
+<Step>
+
+### Define a metadata schema
+
+Tell the client what shape metadata should have:
+
+```ts title="src/lib/safe-action.ts"
+import { z } from "zod";
+import { createSafeActionClient } from "next-safe-action";
+
+export const actionClient = createSafeActionClient({
+	defineMetadataSchema() {
+		return z.object({
+			actionName: z.string(),
+			requiredRole: z.enum(["user", "admin"]).optional(),
+		});
+	},
+});
+```
+
+</Step>
+<Step>
+
+### Set metadata on each action
+
+Once a metadata schema is defined, `.metadata()` must be called before `.action()`:
+
+```ts title="src/app/actions.ts"
+"use server";
+
+export const deleteUser = actionClient
+	.metadata({ actionName: "deleteUser", requiredRole: "admin" })
+	.inputSchema(z.object({ userId: z.string() }))
+	.action(async ({ parsedInput }) => {
+		await db.user.delete({ where: { id: parsedInput.userId } });
+	});
+```
+
+TypeScript enforces the metadata shape. If you forget a required field or use the wrong type, you get a compile error.
+
+</Step>
+<Step>
+
+### Access metadata in middleware
+
+Metadata is available in every middleware function:
+
+```ts title="src/lib/safe-action.ts"
+export const actionClient = createSafeActionClient({
+	defineMetadataSchema() {
+		return z.object({
+			actionName: z.string(),
+			requiredRole: z.enum(["user", "admin"]).optional(),
+		});
+	},
+}).use(async ({ next, metadata }) => {
+	// Log which action is running
+	console.log(`Running action: ${metadata.actionName}`);
+	return next();
+}).use(async ({ next, metadata, ctx }) => {
+	// Check permissions based on metadata
+	if (metadata.requiredRole && ctx.user.role !== metadata.requiredRole) {
+		throw new Error(`Requires ${metadata.requiredRole} role`);
+	}
+	return next();
+});
+```
+
+</Step>
+</Steps>
+
+## Use cases
+
+| Use case | Metadata fields |
+|---|---|
+| Logging | `actionName`, `category` |
+| Permissions | `requiredRole`, `requiredPermissions` |
+| Rate limiting | `rateLimit`, `rateLimitWindow` |
+| Feature flags | `feature`, `experimentGroup` |
+| Analytics | `trackingEvent`, `source` |
+
+<Callout>
+Metadata is validated at runtime using the schema you define. If invalid metadata is passed, the action fails with a metadata validation error before any middleware runs.
+</Callout>
+
+## See also
+
+- [Middleware](/docs/guides/middleware) — where metadata is most commonly used
+- [`defineMetadataSchema`](/docs/api/create-safe-action-client#parameters) — client-level metadata schema configuration
+- [`.metadata()` method](/docs/api/safe-action-client#metadata) — API reference
+- [`ActionMetadataValidationError`](/docs/api/error-classes#actionmetadatavalidationerror) — error thrown on invalid metadata

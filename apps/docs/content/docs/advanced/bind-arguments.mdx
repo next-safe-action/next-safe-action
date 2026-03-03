@@ -1,0 +1,109 @@
+---
+title: Bind Arguments
+description: Pass additional validated arguments to your actions using bindArgsSchemas().
+---
+
+Bind arguments let you pass **extra validated arguments** to an action that aren't part of the main input. This is useful when you need to combine server-side values (like an ID from a Server Component) with client-side input (like form data).
+
+## How it works
+
+<Steps>
+<Step>
+
+### Define bind args schemas
+
+Use `.bindArgsSchemas()` to define schemas for the extra arguments. The schemas are passed as a **named tuple** so TypeScript can track each argument's type:
+
+```ts title="src/app/actions.ts"
+"use server";
+
+import { z } from "zod";
+import { actionClient } from "@/lib/safe-action";
+
+export const updateItem = actionClient
+	.bindArgsSchemas<[itemId: z.ZodString]>([z.string().uuid()])
+	.inputSchema(z.object({ name: z.string().min(1) }))
+	.action(async ({ parsedInput, bindArgsParsedInputs: [itemId] }) => {
+		// itemId is typed as string (validated UUID)
+		// parsedInput.name is typed as string
+		await db.item.update({ where: { id: itemId }, data: { name: parsedInput.name } });
+		return { success: true };
+	});
+```
+
+</Step>
+<Step>
+
+### Bind and call from the client
+
+Use JavaScript's `.bind()` to attach the extra arguments:
+
+```tsx title="src/app/items/[id]/page.tsx"
+import { updateItem } from "./actions";
+import { ItemForm } from "./item-form";
+
+// Server Component — has access to the item ID
+export default async function ItemPage({ params }: { params: { id: string } }) {
+	// Bind the item ID to the action
+	const updateThisItem = updateItem.bind(null, params.id);
+
+	return <ItemForm action={updateThisItem} />;
+}
+```
+
+```tsx title="src/app/items/[id]/item-form.tsx"
+"use client";
+
+import { useAction } from "next-safe-action/hooks";
+
+export function ItemForm({ action }: { action: typeof updateItem }) {
+	const { execute, isExecuting } = useAction(action);
+
+	return (
+		<button onClick={() => execute({ name: "New name" })} disabled={isExecuting}>
+			Update
+		</button>
+	);
+}
+```
+
+</Step>
+</Steps>
+
+<Callout>
+**Why use bind args instead of including the ID in the input?** Bind args are set on the server (in a Server Component) and can't be tampered with by the client. This is a security pattern, the client only sends the input, not the ID.
+</Callout>
+
+## Named tuple types
+
+The generic parameter `<[itemId: z.ZodString]>` creates a **named tuple type**. This gives you readable names when destructuring `bindArgsParsedInputs`:
+
+```ts
+// Without named tuple — positional, harder to read
+.bindArgsSchemas([z.string(), z.number()])
+.action(async ({ bindArgsParsedInputs: [arg0, arg1] }) => { ... })
+
+// With named tuple — self-documenting
+.bindArgsSchemas<[itemId: z.ZodString, version: z.ZodNumber]>([z.string(), z.number()])
+.action(async ({ bindArgsParsedInputs: [itemId, version] }) => { ... })
+```
+
+## Progressive enhancement
+
+Bind args work with form actions too. The bound values are sent as hidden fields in the `FormData`:
+
+```tsx
+// Server Component
+const deleteItem = deleteItemAction.bind(null, item.id);
+
+// Client form — works without JavaScript
+<form action={deleteItem}>
+	<button type="submit">Delete</button>
+</form>
+```
+
+## See also
+
+- [Action Result](/docs/concepts/action-result) — how bind args validation errors appear in the result
+- [`.bindArgsSchemas()` method](/docs/api/safe-action-client#bindargsschemas) — API reference
+- [Form Actions](/docs/guides/form-actions) — using bind args with progressive enhancement

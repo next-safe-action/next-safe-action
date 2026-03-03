@@ -1,0 +1,144 @@
+---
+title: Standard Schema
+description: Use Zod, Valibot, ArkType, or any Standard Schema library with next-safe-action.
+---
+
+next-safe-action supports any validation library that implements the [Standard Schema](https://github.com/standard-schema/standard-schema) specification (v1). This means you can use Zod, Valibot, ArkType, or any other compliant library, with no adapters or plugins needed.
+
+## Supported libraries
+
+<Cards>
+	<Card title="Zod" href="https://zod.dev">
+		The most popular TypeScript-first schema library. Rich ecosystem, extensive documentation.
+	</Card>
+	<Card title="Valibot" href="https://valibot.dev">
+		Modular schema library optimized for bundle size. Tree-shakeable API.
+	</Card>
+	<Card title="ArkType" href="https://arktype.io">
+		TypeScript's 1:1 validator with native type syntax and optimized performance.
+	</Card>
+</Cards>
+
+Any library that implements the `StandardSchemaV1` interface will work with next-safe-action. Check the [Standard Schema repository](https://github.com/standard-schema/standard-schema) for the full list of compliant libraries.
+
+## Usage
+
+The API is identical regardless of which library you choose. Just pass your schema to `.inputSchema()` and `.outputSchema()`:
+
+<Tabs items={["Zod", "Valibot", "ArkType"]} persist groupId="schema-lib">
+<Tab value="Zod">
+
+```ts title="src/app/actions.ts"
+"use server";
+
+import { z } from "zod";
+import { actionClient } from "@/lib/safe-action";
+
+export const createUser = actionClient
+	.inputSchema(
+		z.object({
+			name: z.string().min(2),
+			email: z.string().email(),
+		})
+	)
+	.action(async ({ parsedInput }) => {
+		// parsedInput: { name: string, email: string }
+	});
+```
+
+</Tab>
+<Tab value="Valibot">
+
+```ts title="src/app/actions.ts"
+"use server";
+
+import * as v from "valibot";
+import { actionClient } from "@/lib/safe-action";
+
+export const createUser = actionClient
+	.inputSchema(
+		v.object({
+			name: v.pipe(v.string(), v.minLength(2)),
+			email: v.pipe(v.string(), v.email()),
+		})
+	)
+	.action(async ({ parsedInput }) => {
+		// parsedInput: { name: string, email: string }
+	});
+```
+
+</Tab>
+<Tab value="ArkType">
+
+```ts title="src/app/actions.ts"
+"use server";
+
+import { type } from "arktype";
+import { actionClient } from "@/lib/safe-action";
+
+export const createUser = actionClient
+	.inputSchema(
+		type({
+			name: "string >= 2",
+			email: "string.email",
+		})
+	)
+	.action(async ({ parsedInput }) => {
+		// parsedInput: { name: string, email: string }
+	});
+```
+
+</Tab>
+</Tabs>
+
+## How it works
+
+next-safe-action doesn't import or depend on any validation library directly. Instead, it uses the Standard Schema protocol:
+
+1. Your schema exposes a `~standard` property with a `validate` method
+2. next-safe-action calls `schema["~standard"].validate(input)` at runtime
+3. The result is either `{ value }` (success) or `{ issues }` (failure)
+4. Type inference works through `StandardSchemaV1.InferInput<S>` and `StandardSchemaV1.InferOutput<S>`
+
+This means:
+- **Zero adapter code**, validation libraries work directly
+- **Full type inference**, `parsedInput` and validation errors are typed
+- **Runtime agnostic**, any compliant library works identically
+
+## Choosing a library
+
+| Feature | Zod | Valibot | ArkType |
+|---|---|---|---|
+| **Bundle size** | ~14 KB | ~1-5 KB (tree-shakeable) | ~30 KB |
+| **API style** | Method chaining | Functional / pipe-based | TypeScript syntax |
+| **Ecosystem** | Largest (adapters, plugins) | Growing | Smaller |
+| **Performance** | Good | Good | Excellent |
+| **Error messages** | Customizable | Customizable | Built-in |
+
+<Callout>
+All three libraries work identically with next-safe-action. Choose based on your project's needs: bundle size, API preference, or ecosystem requirements.
+</Callout>
+
+## Mixing libraries
+
+Since next-safe-action uses Standard Schema at the protocol level, you can even use different libraries for different actions in the same project:
+
+```ts
+// Action using Zod
+export const createUser = actionClient
+	.inputSchema(z.object({ name: z.string() }))
+	.action(async ({ parsedInput }) => { /* ... */ });
+
+// Action using Valibot (in the same project!)
+export const updateSettings = actionClient
+	.inputSchema(v.object({ theme: v.picklist(["light", "dark"]) }))
+	.action(async ({ parsedInput }) => { /* ... */ });
+```
+
+This works because the action client only interacts with schemas through the Standard Schema interface. It doesn't know (or care) which library created the schema.
+
+## See also
+
+- [Input Validation](/docs/concepts/input-validation) — how schemas are used in the action lifecycle
+- [Custom Validation Errors](/docs/advanced/custom-validation-errors) — customizing how validation errors are shaped
+- [i18n](/docs/advanced/i18n) — async schema factories for translated error messages

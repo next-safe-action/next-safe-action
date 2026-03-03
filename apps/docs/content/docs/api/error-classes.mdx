@@ -1,0 +1,194 @@
+---
+title: Error Classes
+description: API reference for all exported error classes.
+---
+
+next-safe-action exports several error classes that are thrown during action execution. You can use these in `handleServerError` or `try/catch` blocks to identify specific error types.
+
+All error classes are imported from the main entry point:
+
+```ts
+import {
+	ActionValidationError,
+	ActionBindArgsValidationError,
+	ActionMetadataValidationError,
+	ActionOutputDataValidationError,
+} from "next-safe-action";
+```
+
+## `ActionValidationError`
+
+Thrown when input validation fails **and** `throwValidationErrors` is enabled (either at the client level or per action). Contains the shaped validation errors (after `handleValidationErrorsShape` is applied).
+
+```ts
+class ActionValidationError<CVE> extends Error {
+	validationErrors: CVE;
+}
+```
+
+<TypeTable
+	type={{
+		validationErrors: {
+			description: "The validation errors object, shaped according to the client's defaultValidationErrorsShape or the action's handleValidationErrorsShape.",
+			type: "CVE",
+		},
+		message: {
+			description: "Error message. Defaults to 'Server Action validation error(s) occurred'. Can be overridden via throwValidationErrors.overrideErrorMessage.",
+			type: "string",
+		},
+	}}
+/>
+
+```ts
+// Enable throwing per action
+export const myAction = actionClient.action(
+	async ({ parsedInput }, { throwValidationErrors }) => {
+		throwValidationErrors(schema, {
+			email: { _errors: ["Already registered"] },
+		});
+	}
+);
+
+// Or enable globally
+const actionClient = createSafeActionClient({
+	throwValidationErrors: true,
+});
+
+// Catch in handleServerError
+const actionClient = createSafeActionClient({
+	throwValidationErrors: true,
+	handleServerError: (error) => {
+		if (error instanceof ActionValidationError) {
+			// error.validationErrors is available
+			return "Validation failed";
+		}
+		return DEFAULT_SERVER_ERROR_MESSAGE;
+	},
+});
+```
+
+---
+
+## `ActionBindArgsValidationError`
+
+Thrown internally when bind argument validation fails. This error is caught by the action builder and the validation errors are returned in the result.
+
+```ts
+class ActionBindArgsValidationError extends Error {
+	validationErrors: unknown[];
+}
+```
+
+<TypeTable
+	type={{
+		validationErrors: {
+			description: "Array of validation errors, one entry per bind argument schema. Each entry is undefined if that argument passed validation.",
+			type: "unknown[]",
+		},
+		message: {
+			description: "'Server Action bind args validation error(s) occurred'",
+			type: "string",
+		},
+	}}
+/>
+
+<Callout type="warn">
+This error is handled internally by the action builder. You typically don't need to catch it yourself unless you're building custom error handling in `handleServerError`.
+</Callout>
+
+---
+
+## `ActionMetadataValidationError`
+
+Thrown when the metadata provided via `.metadata()` doesn't match the schema defined by `defineMetadataSchema`. This is a developer error, meaning the metadata value doesn't conform to the schema.
+
+```ts
+class ActionMetadataValidationError<MDS extends StandardSchemaV1 | undefined> extends Error {
+	validationErrors: ValidationErrors<MDS>;
+}
+```
+
+<TypeTable
+	type={{
+		validationErrors: {
+			description: "Formatted validation errors from validating the metadata against the metadata schema.",
+			type: "ValidationErrors<MDS>",
+		},
+		message: {
+			description: "'Invalid metadata input. Please be sure to pass metadata via metadata method before defining the action.'",
+			type: "string",
+		},
+		name: {
+			description: "'ActionMetadataError'",
+			type: "string",
+		},
+	}}
+/>
+
+---
+
+## `ActionOutputDataValidationError`
+
+Thrown when the action's return value doesn't match the schema defined by `.outputSchema()`. This is a developer error, meaning the server code is returning data that doesn't conform to the output schema.
+
+```ts
+class ActionOutputDataValidationError<DS extends StandardSchemaV1 | undefined> extends Error {
+	validationErrors: ValidationErrors<DS>;
+}
+```
+
+<TypeTable
+	type={{
+		validationErrors: {
+			description: "Formatted validation errors from validating the action's return data against the output schema.",
+			type: "ValidationErrors<DS>",
+		},
+		message: {
+			description: "'Invalid action data (output). Please be sure to return data following the shape of the schema passed to dataSchema method.'",
+			type: "string",
+		},
+		name: {
+			description: "'ActionOutputDataError'",
+			type: "string",
+		},
+	}}
+/>
+
+---
+
+## Error handling patterns
+
+### Identifying errors in `handleServerError`
+
+```ts
+import {
+	ActionValidationError,
+	ActionMetadataValidationError,
+	ActionOutputDataValidationError,
+} from "next-safe-action";
+
+const actionClient = createSafeActionClient({
+	throwValidationErrors: true,
+	handleServerError: (error) => {
+		if (error instanceof ActionValidationError) {
+			return "Please check your input.";
+		}
+		if (error instanceof ActionMetadataValidationError) {
+			console.error("Developer error: invalid metadata", error.validationErrors);
+			return "Internal error";
+		}
+		if (error instanceof ActionOutputDataValidationError) {
+			console.error("Developer error: invalid output", error.validationErrors);
+			return "Internal error";
+		}
+		return "Something went wrong.";
+	},
+});
+```
+
+## See also
+
+- [Error Handling](/docs/concepts/error-handling) — the complete error taxonomy
+- [Custom Validation Errors](/docs/advanced/custom-validation-errors) — customizing error shapes and manual error returns
+- [Validation Utilities](/docs/api/validation-utilities) — `returnValidationErrors` and formatting functions
+- [`createSafeActionClient()`](/docs/api/create-safe-action-client) — `handleServerError` and `throwValidationErrors` options

@@ -1,0 +1,160 @@
+---
+title: Hooks
+description: Use useAction to execute actions from client components with full lifecycle control.
+---
+
+The `useAction` hook is the primary way to execute safe actions from Client Components. It provides reactive status tracking, lifecycle callbacks, and loading states.
+
+## Basic usage
+
+```tsx
+"use client";
+
+import { useAction } from "next-safe-action/hooks";
+import { myAction } from "./actions";
+
+export default function MyComponent() {
+	const { execute, result, status, isExecuting } = useAction(myAction);
+
+	return (
+		<div>
+			<button onClick={() => execute({ name: "Alice" })} disabled={isExecuting}>
+				{isExecuting ? "Loading..." : "Run action"}
+			</button>
+			{result.data && <p>Success: {JSON.stringify(result.data)}</p>}
+			{result.serverError && <p>Error: {result.serverError}</p>}
+		</div>
+	);
+}
+```
+
+## Return object
+
+`useAction` returns an object with these properties:
+
+| Property | Type | Description |
+|---|---|---|
+| `execute` | `(input) => void` | Execute the action (fire-and-forget) |
+| `executeAsync` | `(input) => Promise<Result>` | Execute and await the result |
+| `result` | `SafeActionResult` | The latest action result |
+| `input` | `Input \| undefined` | The current/last input passed to execute |
+| `status` | `HookActionStatus` | Current status string |
+| `reset` | `() => void` | Reset to initial state |
+| `isIdle` | `boolean` | `true` when no action has been executed |
+| `isExecuting` | `boolean` | `true` while the action is running |
+| `isTransitioning` | `boolean` | `true` during React transition |
+| `isPending` | `boolean` | `true` when executing or transitioning |
+| `hasSucceeded` | `boolean` | `true` after a successful execution |
+| `hasErrored` | `boolean` | `true` after a failed execution |
+| `hasNavigated` | `boolean` | `true` after a framework navigation (redirect, etc.) |
+
+## Status lifecycle
+
+The `status` property transitions through these states:
+
+<picture>
+	<source srcSet="/img/diagrams/hook-status-lifecycle-dark.svg" media="(prefers-color-scheme: dark)" />
+	<img src="/img/diagrams/hook-status-lifecycle-light.svg" alt="Hook status lifecycle: idle → executing → hasSucceeded / hasErrored / hasNavigated" />
+</picture>
+
+The boolean shortcuts (`isExecuting`, `hasSucceeded`, etc.) are derived from `status` for convenience.
+
+## `execute` vs `executeAsync`
+
+| Method | Returns | Use when |
+|---|---|---|
+| `execute(input)` | `void` | You want fire-and-forget, handling results via callbacks or the reactive `result` property |
+| `executeAsync(input)` | `Promise<Result>` | You need to `await` the result inline (e.g., sequential calls, conditional logic) |
+
+```tsx
+// Fire-and-forget — result is available reactively
+execute({ name: "Alice" });
+
+// Await the result — useful for sequential operations
+const result = await executeAsync({ name: "Alice" });
+if (result?.data) {
+	await executeAsync({ name: "Bob" });
+}
+```
+
+<Callout type="warn">
+`executeAsync` throws the server error if the action fails with a server error, so wrap it in a try/catch if needed. `execute` never throws, errors are always captured in `result`.
+</Callout>
+
+## Callbacks
+
+Pass callbacks as the second argument to `useAction` for lifecycle events:
+
+```tsx
+const { execute } = useAction(myAction, {
+	onExecute: ({ input }) => {
+		// Fires immediately when execute() is called
+		console.log("Starting with input:", input);
+	},
+	onSuccess: ({ data, input }) => {
+		// Fires when the action succeeds
+		toast.success(`Created: ${data.name}`);
+	},
+	onError: ({ error, input }) => {
+		// Fires when the action fails (validation or server error)
+		if (error.validationErrors) {
+			toast.error("Invalid input");
+		} else if (error.serverError) {
+			toast.error(error.serverError);
+		}
+	},
+	onNavigation: ({ navigationKind }) => {
+		// Fires when the action triggers a framework navigation
+		// (redirect, notFound, forbidden, unauthorized)
+		console.log("Navigating:", navigationKind);
+	},
+	onSettled: ({ result, input }) => {
+		// Fires after every execution (success, error, or navigation)
+		// Like finally in a try/catch
+		analytics.track("action_completed");
+	},
+});
+```
+
+### Callback execution order
+
+1. `onExecute` — always first
+2. One of: `onSuccess`, `onError`, or `onNavigation`
+3. `onSettled` — always last
+
+<Accordions>
+<Accordion title="Deprecated: useStateAction">
+
+The `useStateAction` hook was deprecated in v8. Use React's built-in `useActionState` instead:
+
+```tsx
+import { useActionState } from "react";
+import { myAction } from "./actions";
+
+function MyForm() {
+	const [result, dispatch] = useActionState(myAction, {});
+
+	return (
+		<form action={dispatch}>
+			<input name="email" />
+			<button type="submit">Submit</button>
+		</form>
+	);
+}
+```
+
+If you're migrating from v7, see the [v7 to v8 migration guide](/docs/migrations/v7-to-v8).
+
+</Accordion>
+</Accordions>
+
+## What's next?
+
+<Cards>
+	<Card href="/docs/guides/optimistic-updates" title="Optimistic Updates">
+		Use useOptimisticAction to update the UI instantly while the server processes.
+	</Card>
+	<Card href="/docs/api/hooks-api" title="Hooks API Reference">
+		Full type signatures for useAction and useOptimisticAction.
+	</Card>
+</Cards>

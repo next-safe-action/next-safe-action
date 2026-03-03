@@ -1,0 +1,141 @@
+---
+title: Input Validation
+description: Standard Schema validation, error shapes, and type inference.
+---
+
+Input validation is the core feature of next-safe-action. Every action can define an input schema that validates and types the data before your server code runs. This uses the [Standard Schema](https://github.com/standard-schema/standard-schema) specification, so you can use **any** compatible validation library.
+
+## Defining an input schema
+
+Use the `.inputSchema()` method to attach a schema to your action:
+
+<Tabs items={["Zod", "Valibot"]} groupId="schema-lib" persist>
+<Tab value="Zod">
+
+```ts title="src/app/actions.ts"
+"use server";
+
+import { z } from "zod";
+import { actionClient } from "@/lib/safe-action";
+
+export const createUser = actionClient
+	.inputSchema(z.object({
+		name: z.string().min(2),
+		email: z.string().email(),
+		age: z.number().min(18).optional(),
+	}))
+	.action(async ({ parsedInput }) => {
+		// parsedInput is typed as { name: string; email: string; age?: number }
+		return { id: "123", ...parsedInput };
+	});
+```
+
+</Tab>
+<Tab value="Valibot">
+
+```ts title="src/app/actions.ts"
+"use server";
+
+import * as v from "valibot";
+import { actionClient } from "@/lib/safe-action";
+
+export const createUser = actionClient
+	.inputSchema(v.object({
+		name: v.pipe(v.string(), v.minLength(2)),
+		email: v.pipe(v.string(), v.email()),
+		age: v.optional(v.pipe(v.number(), v.minValue(18))),
+	}))
+	.action(async ({ parsedInput }) => {
+		// parsedInput is typed as { name: string; email: string; age?: number }
+		return { id: "123", ...parsedInput };
+	});
+```
+
+</Tab>
+</Tabs>
+
+The `parsedInput` parameter in your server code is **fully typed** based on the schema's output type. TypeScript will error if you access a property that doesn't exist.
+
+## How validation works
+
+When an action is called, the input goes through this flow:
+
+1. **Client sends raw input** — the unvalidated data from the client
+2. **Standard Schema parse** — the input is validated against your schema
+3. **Success** → your server code receives `parsedInput` (typed and validated)
+4. **Failure** → the action returns `validationErrors` immediately (your server code never runs)
+
+<Callout>
+The raw `clientInput` is also available in middleware and server code if you need access to the original, unvalidated data.
+</Callout>
+
+## Validation error shapes
+
+When validation fails, the error object structure depends on the configured shape. There are two built-in shapes:
+
+### Formatted (default)
+
+The default shape mirrors your schema structure with `_errors` arrays at each level:
+
+```ts
+// Schema: z.object({ name: z.string().min(2), email: z.string().email() })
+// Input:  { name: "", email: "invalid" }
+
+{
+	validationErrors: {
+		name: { _errors: ["String must contain at least 2 character(s)"] },
+		email: { _errors: ["Invalid email"] },
+	}
+}
+```
+
+### Flattened
+
+The flattened shape separates form-level errors from field-level errors:
+
+```ts
+// Same schema and input as above
+
+{
+	validationErrors: {
+		formErrors: [],
+		fieldErrors: {
+			name: ["String must contain at least 2 character(s)"],
+			email: ["Invalid email"],
+		},
+	}
+}
+```
+
+You can set the default shape when creating the client:
+
+```ts
+const actionClient = createSafeActionClient({
+	defaultValidationErrorsShape: "flattened",
+});
+```
+
+Or override it per-action. See [Custom Validation Errors](/docs/advanced/custom-validation-errors) for details.
+
+## Supported libraries
+
+Any library that implements the [Standard Schema](https://github.com/standard-schema/standard-schema) specification works with next-safe-action. This includes:
+
+| Library | Status |
+|---|---|
+| [Zod](https://zod.dev/) | Fully supported |
+| [Valibot](https://valibot.dev/) | Fully supported |
+| [ArkType](https://arktype.io/) | Fully supported |
+
+See the [Standard Schema integration guide](/docs/integrations/standard-schema) for side-by-side comparisons.
+
+## What's next?
+
+<Cards>
+	<Card href="/docs/concepts/action-result" title="Action Result">
+		Learn the full structure of the result object returned by actions.
+	</Card>
+	<Card href="/docs/advanced/custom-validation-errors" title="Custom Validation Errors">
+		Customize error shapes, format errors, and manually return validation errors.
+	</Card>
+</Cards>

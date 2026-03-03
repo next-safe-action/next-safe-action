@@ -1,0 +1,181 @@
+---
+title: Form Actions
+description: Use next-safe-action with HTML forms for progressive enhancement.
+---
+
+next-safe-action works with HTML forms using `FormData` as input. This enables **progressive enhancement**, meaning forms that work even without JavaScript.
+
+## Stateless vs stateful
+
+There are two approaches to form actions:
+
+<Tabs items={["Stateless (useAction)", "Stateful (useActionState)"]} persist>
+<Tab value="Stateless (useAction)">
+
+Use `useAction` when you want full control over execution and don't need the form to work without JavaScript:
+
+<Steps>
+<Step>
+
+### Define the action with FormData input
+
+When a form submits, the browser sends `FormData`. Use a library like `zod-form-data` to validate it:
+
+```package-install
+zod-form-data
+```
+
+```ts title="src/app/actions.ts"
+"use server";
+
+import { z } from "zod";
+import { zfd } from "zod-form-data";
+import { actionClient } from "@/lib/safe-action";
+
+const schema = zfd.formData({
+	email: zfd.text(z.string().email()),
+	password: zfd.text(z.string().min(8)),
+});
+
+export const loginAction = actionClient
+	.inputSchema(schema)
+	.action(async ({ parsedInput: { email, password } }) => {
+		const user = await authenticate(email, password);
+		return { userId: user.id };
+	});
+```
+
+</Step>
+<Step>
+
+### Create the form component
+
+```tsx title="src/app/login.tsx"
+"use client";
+
+import { useAction } from "next-safe-action/hooks";
+import { useRef } from "react";
+import { loginAction } from "./actions";
+
+export default function LoginForm() {
+	const formRef = useRef<HTMLFormElement>(null);
+	const { execute, result, isExecuting } = useAction(loginAction, {
+		onSuccess: () => {
+			formRef.current?.reset();
+		},
+	});
+
+	return (
+		<form ref={formRef} onSubmit={(e) => { e.preventDefault(); execute(new FormData(e.currentTarget)); }}>
+			<input name="email" type="email" placeholder="Email" />
+			{result.validationErrors?.email && <p>{result.validationErrors.email._errors[0]}</p>}
+
+			<input name="password" type="password" placeholder="Password" />
+			{result.validationErrors?.password && <p>{result.validationErrors.password._errors[0]}</p>}
+
+			<button type="submit" disabled={isExecuting}>
+				{isExecuting ? "Logging in..." : "Log in"}
+			</button>
+		</form>
+	);
+}
+```
+
+</Step>
+</Steps>
+
+</Tab>
+<Tab value="Stateful (useActionState)">
+
+Use React's `useActionState` for **progressive enhancement**, where the form works even if JavaScript hasn't loaded yet:
+
+<Steps>
+<Step>
+
+### Define a state action
+
+Use `.stateAction()` instead of `.action()` for stateful actions:
+
+```ts title="src/app/actions.ts"
+"use server";
+
+import { z } from "zod";
+import { zfd } from "zod-form-data";
+import { actionClient } from "@/lib/safe-action";
+
+const schema = zfd.formData({
+	email: zfd.text(z.string().email()),
+	password: zfd.text(z.string().min(8)),
+});
+
+export const loginAction = actionClient
+	.inputSchema(schema)
+	.stateAction(async ({ parsedInput: { email, password } }) => {
+		const user = await authenticate(email, password);
+		return { userId: user.id };
+	});
+```
+
+</Step>
+<Step>
+
+### Create the form with useActionState
+
+```tsx title="src/app/login.tsx"
+"use client";
+
+import { useActionState } from "react";
+import { loginAction } from "./actions";
+
+export default function LoginForm() {
+	const [result, dispatch, isPending] = useActionState(loginAction, {});
+
+	return (
+		<form action={dispatch}>
+			<input name="email" type="email" placeholder="Email" />
+			{result.validationErrors?.email && <p>{result.validationErrors.email._errors[0]}</p>}
+
+			<input name="password" type="password" placeholder="Password" />
+			{result.validationErrors?.password && <p>{result.validationErrors.password._errors[0]}</p>}
+
+			<button type="submit" disabled={isPending}>
+				{isPending ? "Logging in..." : "Log in"}
+			</button>
+
+			{result.data && <p>Logged in as user {result.data.userId}</p>}
+			{result.serverError && <p>Error: {result.serverError}</p>}
+		</form>
+	);
+}
+```
+
+</Step>
+</Steps>
+
+<Callout type="info">
+**Progressive enhancement**: The `action={dispatch}` pattern means the form submits natively, even before React hydrates on the client. The server processes the action and returns updated HTML. Once JavaScript loads, the form becomes interactive with `isPending` states and instant validation.
+</Callout>
+
+</Tab>
+</Tabs>
+
+## When to use each approach
+
+| Feature | Stateless (`useAction`) | Stateful (`useActionState`) |
+|---|---|---|
+| Works without JS | No | Yes |
+| Loading states | `isExecuting` from hook | `isPending` from `useActionState` |
+| Lifecycle callbacks | `onSuccess`, `onError`, etc. | Not available |
+| Action method | `.action()` | `.stateAction()` |
+| Best for | Interactive forms with rich UI | Forms that need progressive enhancement |
+
+## What's next?
+
+<Cards>
+	<Card href="/docs/guides/hooks" title="Hooks">
+		Full useAction guide with callbacks and status lifecycle.
+	</Card>
+	<Card href="/docs/advanced/file-uploads" title="File Uploads">
+		Upload files using FormData with next-safe-action.
+	</Card>
+</Cards>

@@ -1,0 +1,160 @@
+---
+title: Error Handling
+description: A unified guide to validation errors, server errors, and framework errors.
+---
+
+next-safe-action has three categories of errors, each handled differently:
+
+<picture>
+	<source srcSet="/img/diagrams/error-taxonomy-dark.svg" media="(prefers-color-scheme: dark)" />
+	<img src="/img/diagrams/error-taxonomy-light.svg" alt="Error taxonomy: Action Errors splits into Validation Errors, Server Errors, and Framework Errors" />
+</picture>
+
+## Validation errors
+
+Validation errors occur when the client sends data that doesn't match the input schema. They're **returned** in the result object (not thrown) and are always safe to show to the user:
+
+```ts
+const result = await createUser({ name: "", email: "bad" });
+
+result.validationErrors;
+// → { name: { _errors: ["Too short"] }, email: { _errors: ["Invalid email"] } }
+```
+
+Validation errors are produced in two ways:
+
+1. **Automatically** — when Standard Schema validation fails on input or bind args
+2. **Manually** — when you call `returnValidationErrors()` in your server code (e.g., "email already taken")
+
+```ts
+import { returnValidationErrors } from "next-safe-action";
+
+export const signUp = actionClient
+	.inputSchema(schema)
+	.action(async ({ parsedInput }) => {
+		const exists = await db.user.findByEmail(parsedInput.email);
+		if (exists) {
+			return returnValidationErrors(schema, {
+				email: { _errors: ["Already registered"] },
+			});
+		}
+		// ...
+	});
+```
+
+<Callout>
+`returnValidationErrors` actually **throws** internally (it never returns), which ensures the remaining server code doesn't execute.
+</Callout>
+
+See [Input Validation](/docs/concepts/input-validation) for error shapes and [Custom Validation Errors](/docs/advanced/custom-validation-errors) for advanced formatting.
+
+## Server errors
+
+Server errors are **unexpected failures**, such as database timeouts, API failures, or bugs in your server code. By default, next-safe-action:
+
+1. Catches the thrown error
+2. Passes it to `handleServerError` (which you define in client options)
+3. Returns the handler's return value as `result.serverError`
+
+```ts
+const actionClient = createSafeActionClient({
+	handleServerError(e) {
+		// This runs when any action throws an unexpected error
+		console.error("Action error:", e.message);
+
+		// What you return here becomes result.serverError on the client
+		// Default: "Something went wrong"
+		return e.message;
+	},
+});
+```
+
+<Callout type="warn">
+**Security**: The default `handleServerError` returns a generic `"Something went wrong"` message. If you return `e.message`, make sure your errors don't contain sensitive information (stack traces, database queries, etc.).
+</Callout>
+
+### Throwing server errors explicitly
+
+Use `throwServerError` in action utils to re-throw errors instead of catching them:
+
+```ts
+export const myAction = actionClient
+	.action(async ({ parsedInput }, { throwServerError }) => {
+		// If this throws, the error is re-thrown (not caught by handleServerError)
+		throwServerError("Custom error message");
+	});
+```
+
+Or enable it globally in client options:
+
+```ts
+const actionClient = createSafeActionClient({
+	throwValidationErrors: true, // Re-throw validation errors instead of returning them
+});
+```
+
+## Framework errors
+
+Framework errors are **navigation events** triggered by Next.js functions like `redirect()`, `notFound()`, `forbidden()`, and `unauthorized()`. These are special because they're not really "errors", but control flow mechanisms that Next.js uses to trigger navigation.
+
+next-safe-action detects and handles these automatically:
+
+```ts
+import { redirect } from "next/navigation";
+
+export const loginAction = actionClient
+	.inputSchema(loginSchema)
+	.action(async ({ parsedInput }) => {
+		const user = await authenticate(parsedInput);
+		// This triggers a redirect — not a normal return
+		redirect("/dashboard");
+	});
+```
+
+### What happens with framework errors
+
+1. **On the server**: The error is caught, identified as a framework error, and re-thrown so Next.js can handle the navigation
+2. **On the client**: If using `useAction`, the hook detects the navigation and sets `status` to `"hasNavigated"` (instead of `"hasSucceeded"` or `"hasErrored"`)
+3. **Callbacks**: The `onNavigation` callback fires (instead of `onSuccess` or `onError`)
+
+### Navigation kinds
+
+The `navigationKind` property tells you what type of navigation occurred:
+
+| Function | `navigationKind` |
+|---|---|
+| `redirect()` | `"redirect"` |
+| `notFound()` | `"notFound"` |
+| `forbidden()` | `"forbidden"` |
+| `unauthorized()` | `"unauthorized"` |
+
+```ts
+const { execute } = useAction(myAction, {
+	onNavigation: ({ navigationKind }) => {
+		if (navigationKind === "redirect") {
+			// Action triggered a redirect
+		}
+	},
+});
+```
+
+See [Framework Errors](/docs/advanced/framework-errors) for advanced configuration.
+
+## Error handling summary
+
+| Error type | How it's produced | Where it appears | Safe for users? |
+|---|---|---|---|
+| Validation | Schema parse failure or `returnValidationErrors()` | `result.validationErrors` | Yes |
+| Server | Thrown error in server code/middleware | `result.serverError` | Depends on `handleServerError` |
+| Framework | `redirect()`, `notFound()`, etc. | Navigation occurs | N/A (handled by Next.js) |
+
+## What's next?
+
+<Cards>
+	<Card href="/docs/advanced/custom-validation-errors" title="Custom Validation Errors">
+		Customize error shapes, flatten errors, and manually return validation errors.
+	</Card>
+	<Card href="/docs/advanced/framework-errors" title="Framework Errors">
+		Advanced configuration for redirect, notFound, forbidden, and unauthorized.
+	</Card>
+</Cards>

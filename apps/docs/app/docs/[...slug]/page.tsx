@@ -1,6 +1,6 @@
 import { DocsPage, DocsBody, DocsTitle } from "fumadocs-ui/layouts/docs/page";
-import defaultMdxComponents from "fumadocs-ui/mdx";
 import { notFound } from "next/navigation";
+import { useMDXComponents } from "@/mdx-components";
 import { source } from "@/lib/source";
 
 export default async function Page(props: { params: Promise<{ slug: string[] }> }) {
@@ -14,7 +14,7 @@ export default async function Page(props: { params: Promise<{ slug: string[] }> 
 		<DocsPage toc={page.data.toc} breadcrumb={{ enabled: true }} footer={{ enabled: true }}>
 			<DocsTitle>{page.data.title}</DocsTitle>
 			<DocsBody>
-				<MDXContent components={defaultMdxComponents} />
+				<MDXContent components={useMDXComponents({})} />
 			</DocsBody>
 		</DocsPage>
 	);

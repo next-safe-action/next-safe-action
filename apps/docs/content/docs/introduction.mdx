@@ -1,0 +1,89 @@
+---
+title: Introduction
+description: Type-safe, validated Server Actions for Next.js.
+---
+
+**next-safe-action** is a library that takes the hassle out of Server Actions in Next.js. It gives you end-to-end type safety from input validation to the action result, with a chainable API for middleware, metadata, and schema validation, all powered by [Standard Schema](https://github.com/standard-schema/standard-schema).
+
+## Features
+
+<Cards>
+	<Card title="Type Safety">
+		Full TypeScript inference from input schema to action result, no manual type annotations needed.
+	</Card>
+	<Card title="Validation">
+		Built-in input and output validation via Standard Schema (Zod, Valibot, ArkType, and more).
+	</Card>
+	<Card title="Middleware">
+		Chainable middleware with type-safe context accumulation for authentication, logging, and more.
+	</Card>
+	<Card title="React Hooks">
+		Purpose-built hooks for executing actions with status tracking, callbacks, and optimistic updates.
+	</Card>
+</Cards>
+
+## Why next-safe-action?
+
+Server Actions are powerful, but using them directly means writing a lot of boilerplate for validation, error handling, and type safety. Here's what changes with next-safe-action.
+
+**Without next-safe-action**, raw Server Actions have no built-in validation or typed results:
+
+```ts title="app/actions.ts"
+"use server";
+
+export async function updateUser(formData: FormData) {
+	// ❌ No type safety — raw FormData
+	const name = formData.get("name");
+
+	// ❌ Manual validation
+	if (typeof name !== "string" || name.length < 3) {
+		return { error: "Invalid name" };
+	}
+
+	// ❌ Untyped result — caller doesn't know the shape
+	try {
+		await db.user.update({ name });
+		return { success: true };
+	} catch (e) {
+		return { error: "Something went wrong" };
+	}
+}
+```
+
+**With next-safe-action**, validation, type safety, and structured results out of the box:
+
+```ts title="app/actions.ts"
+"use server";
+
+import { z } from "zod";
+import { actionClient } from "@/lib/safe-action";
+
+export const updateUser = actionClient
+	.inputSchema(z.object({ name: z.string().min(3) }))
+	.action(async ({ parsedInput: { name } }) => {
+		// ✅ `name` is typed as `string`, validated, min 3 chars
+		await db.user.update({ name });
+		// ✅ Return type is inferred and available to the caller
+		return { success: true };
+	});
+```
+
+The result is always a structured object with `data`, `validationErrors`, and `serverError`, making it impossible to forget error handling on the client side.
+
+<Callout title="Requirements">
+- Next.js >= 14
+- React >= 18.2.0
+- TypeScript >= 5
+- A validation library supported by [Standard Schema](https://github.com/standard-schema/standard-schema) (e.g., Zod, Valibot, ArkType)
+</Callout>
+
+## Next steps
+
+<Cards>
+	<Card href="/docs/quick-start" title="Quick Start">
+		Get up and running in 5 minutes with a complete working example.
+	</Card>
+	<Card href="/docs/concepts/how-it-works" title="How It Works">
+		Understand the action lifecycle, middleware pipeline, and architecture.
+	</Card>
+</Cards>

@@ -1,4 +1,0 @@
-{
-	"title": "Hooks",
-	"pages": ["useaction", "useoptimisticaction", "usestateaction", "hook-callbacks"]
-}

@@ -3,12 +3,164 @@ title: React Hook Form
 description: Learn how to integrate next-safe-action with React Hook Form.
 ---
 
-next-safe-action works great in combo with [React Hook Form](https://react-hook-form.com/).
+next-safe-action has a first-party adapter for [React Hook Form](https://react-hook-form.com/) that provides seamless integration between validated server actions and form state management.
 
-By using the react-hook-form adapter, you'll get first-class integration and complete customization for advanced use cases. First, install the following dependencies:
+## Installation
 
 ```package-install
 next-safe-action react-hook-form @hookform/resolvers @next-safe-action/adapter-react-hook-form
 ```
 
-Then, take a look at the project page on GitHub to learn how to use it: [@next-safe-action/adapter-react-hook-form](https://github.com/next-safe-action/adapter-react-hook-form).
+<Steps>
+<Step>
+
+### Define the action
+
+Create a standard server action with an input schema:
+
+```ts title="src/app/actions.ts"
+"use server";
+
+import { z } from "zod";
+import { actionClient } from "@/lib/safe-action";
+
+const createUserSchema = z.object({
+	name: z.string().min(2, "Name must be at least 2 characters"),
+	email: z.string().email("Invalid email address"),
+	age: z.coerce.number().min(18, "Must be at least 18"),
+});
+
+export const createUser = actionClient
+	.inputSchema(createUserSchema)
+	.action(async ({ parsedInput }) => {
+		const user = await db.user.create({ data: parsedInput });
+		return { user };
+	});
+```
+
+</Step>
+<Step>
+
+### Create the form component
+
+Use the `useHookFormAction` hook from the adapter to connect your action with React Hook Form:
+
+```tsx title="src/app/create-user-form.tsx"
+"use client";
+
+import { useHookFormAction } from "@next-safe-action/adapter-react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { createUser } from "./actions";
+import { z } from "zod";
+
+const schema = z.object({
+	name: z.string().min(2, "Name must be at least 2 characters"),
+	email: z.string().email("Invalid email address"),
+	age: z.coerce.number().min(18, "Must be at least 18"),
+});
+
+export function CreateUserForm() {
+	const { form, action, handleSubmitWithAction, resetFormAndAction } =
+		useHookFormAction(createUser, zodResolver(schema), {
+			formProps: {
+				defaultValues: {
+					name: "",
+					email: "",
+					age: 18,
+				},
+			},
+			actionProps: {
+				onSuccess: ({ data }) => {
+					alert(`Created user: ${data.user.name}`);
+					resetFormAndAction();
+				},
+			},
+		});
+
+	return (
+		<form onSubmit={handleSubmitWithAction}>
+			<div>
+				<label>Name</label>
+				<input {...form.register("name")} />
+				{form.formState.errors.name && (
+					<p>{form.formState.errors.name.message}</p>
+				)}
+			</div>
+
+			<div>
+				<label>Email</label>
+				<input {...form.register("email")} />
+				{form.formState.errors.email && (
+					<p>{form.formState.errors.email.message}</p>
+				)}
+			</div>
+
+			<div>
+				<label>Age</label>
+				<input type="number" {...form.register("age")} />
+				{form.formState.errors.age && (
+					<p>{form.formState.errors.age.message}</p>
+				)}
+			</div>
+
+			{action.result.serverError && (
+				<p>{action.result.serverError}</p>
+			)}
+
+			<button type="submit" disabled={action.isPending}>
+				{action.isPending ? "Creating..." : "Create User"}
+			</button>
+		</form>
+	);
+}
+```
+
+</Step>
+</Steps>
+
+## How it works
+
+The adapter bridges two concerns:
+
+1. **Client-side validation**: React Hook Form validates the form using the resolver (zodResolver, valibotResolver, etc.) for instant feedback
+2. **Server-side validation**: next-safe-action validates the same data on the server for security
+
+When the form is submitted:
+1. React Hook Form validates client-side first
+2. If valid, the data is sent to the server action
+3. Server-side validation errors are mapped back to the form fields
+
+## `useHookFormAction` return object
+
+<TypeTable
+	type={{
+		form: {
+			description: "The React Hook Form instance. Use this for register(), formState, setValue(), etc.",
+			type: "UseFormReturn",
+		},
+		action: {
+			description: "The useAction hook return object. Contains result, status, isPending, etc.",
+			type: "UseActionHookReturn",
+		},
+		handleSubmitWithAction: {
+			description: "Pre-wired submit handler. Pass directly to your <form> onSubmit.",
+			type: "(e?: React.FormEvent) => void",
+		},
+		resetFormAndAction: {
+			description: "Reset both form state and action state.",
+			type: "() => void",
+		},
+	}}
+/>
+
+## Further reading
+
+For advanced usage, custom error mapping, and more examples, visit the adapter's GitHub repository:
+
+[@next-safe-action/adapter-react-hook-form](https://github.com/next-safe-action/adapter-react-hook-form)
+
+## See also
+
+- [Hooks](/docs/guides/hooks) — the `useAction` hook that the adapter builds on
+- [Form Actions](/docs/guides/form-actions) — alternative form patterns without React Hook Form
+- [Custom Validation Errors](/docs/advanced/custom-validation-errors) — customizing error shapes for form display

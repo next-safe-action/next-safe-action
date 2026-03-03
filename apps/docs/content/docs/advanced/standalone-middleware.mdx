@@ -1,0 +1,90 @@
+---
+title: Standalone Middleware
+description: Create reusable middleware with createMiddleware() for sharing across clients.
+---
+
+The `createMiddleware()` helper lets you define middleware functions **outside** of a client, with proper type constraints. This is useful for sharing middleware across multiple clients or publishing middleware as a package.
+
+## Why standalone middleware?
+
+When you define middleware inline with `.use()`, the types are inferred from the client chain. But if you want to define middleware in a separate file, or share it across clients, you need a way to declare the type requirements upfront. That's what `createMiddleware()` does.
+
+## Usage
+
+```ts title="src/lib/middleware/logging.ts"
+import { createMiddleware } from "next-safe-action";
+
+export const loggingMiddleware = createMiddleware().define(async ({ next, metadata }) => {
+	const start = Date.now();
+	const result = await next();
+	console.log(`Action took ${Date.now() - start}ms`, metadata);
+	return result;
+});
+```
+
+Then use it with any client:
+
+```ts title="src/lib/safe-action.ts"
+import { createSafeActionClient } from "next-safe-action";
+import { loggingMiddleware } from "./middleware/logging";
+
+export const actionClient = createSafeActionClient().use(loggingMiddleware);
+```
+
+## Type constraints
+
+If your middleware needs specific properties on the context, server error, or metadata, declare them as a generic:
+
+```ts title="src/lib/middleware/auth-guard.ts"
+import { createMiddleware } from "next-safe-action";
+
+// This middleware requires ctx to have a `user` property
+export const adminGuard = createMiddleware<{
+	ctx: { user: { role: string } };
+}>().define(async ({ next, ctx }) => {
+	if (ctx.user.role !== "admin") {
+		throw new Error("Admin access required");
+	}
+	return next();
+});
+```
+
+Now TypeScript will error if you try to use `adminGuard` on a client that doesn't have `user` in its context:
+
+```ts
+// ✅ Works — authClient has ctx.user from auth middleware
+const adminClient = authClient.use(adminGuard);
+
+// ❌ Type error — actionClient doesn't have ctx.user
+const broken = actionClient.use(adminGuard);
+```
+
+## Available constraints
+
+The generic parameter accepts these optional properties:
+
+| Property | Type | Description |
+|---|---|---|
+| `ctx` | `object` | Required shape of the context |
+| `metadata` | `Schema` | Required shape of metadata |
+| `serverError` | `string \| Error` | Required server error type |
+
+```ts
+createMiddleware<{
+	ctx: { user: { id: string; role: string } };
+	metadata: { actionName: string };
+}>().define(async ({ next, ctx, metadata }) => {
+	// ctx.user and metadata.actionName are typed
+	return next();
+});
+```
+
+<Callout>
+The constraint defines the **minimum** required shape. The actual context/metadata can have additional properties, the middleware just needs these to be present.
+</Callout>
+
+## See also
+
+- [Middleware guide](/docs/guides/middleware) — foundational middleware concepts and patterns
+- [`createMiddleware()` API](/docs/api/create-middleware) — full API reference
+- [Metadata](/docs/advanced/metadata) — use metadata constraints in standalone middleware

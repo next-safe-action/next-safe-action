@@ -1,0 +1,13 @@
+{
+	"title": "API Reference",
+	"pages": [
+		"create-safe-action-client",
+		"safe-action-client",
+		"create-middleware",
+		"validation-utilities",
+		"error-classes",
+		"hooks-api",
+		"type-utilities",
+		"types"
+	]
+}

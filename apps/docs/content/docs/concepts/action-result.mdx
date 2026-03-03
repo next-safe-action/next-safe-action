@@ -1,0 +1,175 @@
+---
+title: Action Result
+description: Understand the structure and types of action execution results.
+---
+
+Every safe action returns a **result object**, a structured response that tells you exactly what happened. It always has the same shape, making error handling predictable and type-safe.
+
+## Result structure
+
+The result object has three optional keys:
+
+```ts
+{
+	data?: Data;              // Your server code's return value
+	validationErrors?: VE;    // Input validation failures
+	serverError?: ServerError; // Server-side errors
+}
+```
+
+Only **one** of these will be present at a time, as they're mutually exclusive outcomes:
+
+| Outcome | `data` | `validationErrors` | `serverError` |
+|---|---|---|---|
+| Success | Present | — | — |
+| Validation failure | — | Present | — |
+| Server error | — | — | Present |
+| Framework error (redirect, etc.) | — | — | — |
+
+<Callout>
+Framework errors (like `redirect()` or `notFound()`) are a special case. They don't return a result at all. Instead, Next.js handles the navigation directly. See [Error Handling](/docs/concepts/error-handling) for details.
+</Callout>
+
+## `data`
+
+When your server code completes successfully, `data` contains whatever you returned:
+
+```ts
+export const greetUser = actionClient
+	.inputSchema(z.object({ name: z.string() }))
+	.action(async ({ parsedInput }) => {
+		return { greeting: `Hello, ${parsedInput.name}!` };
+	});
+
+// On the client:
+const result = await greetUser({ name: "Alice" });
+// result.data → { greeting: "Hello, Alice!" }
+// Type: { greeting: string } | undefined
+```
+
+The `data` type is **inferred** from your server code's return type. If you define an `outputSchema`, the type comes from the schema instead.
+
+## `validationErrors`
+
+When the input doesn't match the schema, `validationErrors` contains the validation failures. Your server code **never runs** in this case:
+
+```ts
+export const createUser = actionClient
+	.inputSchema(z.object({
+		name: z.string().min(2),
+		email: z.string().email(),
+	}))
+	.action(async ({ parsedInput }) => {
+		// This code doesn't run if validation fails
+	});
+
+// On the client (with invalid input):
+const result = await createUser({ name: "", email: "bad" });
+// result.validationErrors → {
+//   name: { _errors: ["String must contain at least 2 character(s)"] },
+//   email: { _errors: ["Invalid email"] }
+// }
+```
+
+The shape of `validationErrors` depends on the configured error shape (formatted or flattened). See [Input Validation](/docs/concepts/input-validation) for details.
+
+You can also **manually return** validation errors from your server code using `returnValidationErrors()`:
+
+```ts
+import { returnValidationErrors } from "next-safe-action";
+
+export const createUser = actionClient
+	.inputSchema(z.object({ email: z.string().email() }))
+	.action(async ({ parsedInput }) => {
+		const exists = await db.user.findByEmail(parsedInput.email);
+		if (exists) {
+			// Return a validation error for the email field
+			return returnValidationErrors(inputSchema, {
+				email: { _errors: ["Email already taken"] },
+			});
+		}
+		return { id: "123" };
+	});
+```
+
+## `serverError`
+
+When an unexpected error is thrown in your server code or middleware, `serverError` contains the error message:
+
+```ts
+export const riskyAction = actionClient
+	.action(async () => {
+		throw new Error("Database connection failed");
+	});
+
+// On the client:
+const result = await riskyAction();
+// result.serverError → "Something went wrong" (default message)
+```
+
+<Callout type="warn">
+By default, the actual error message is **not** sent to the client, only the generic `"Something went wrong"` string. This prevents sensitive information from leaking. Customize this with `handleServerError` in [client options](/docs/api/create-safe-action-client).
+</Callout>
+
+## Reading the result
+
+A typical pattern for handling all cases:
+
+```ts
+const result = await myAction(input);
+
+if (result?.data) {
+	// Success — use result.data
+} else if (result?.validationErrors) {
+	// Validation failed — show errors to user
+} else if (result?.serverError) {
+	// Server error — show error message
+}
+```
+
+With the `useAction` hook, you get this handled via callbacks:
+
+```ts
+const { execute } = useAction(myAction, {
+	onSuccess: ({ data }) => { /* ... */ },
+	onError: ({ error }) => {
+		if (error.validationErrors) { /* ... */ }
+		if (error.serverError) { /* ... */ }
+	},
+});
+```
+
+<Accordions>
+<Accordion title="Bind args validation errors">
+
+If your action uses `bindArgsSchemas()`, validation errors for bound arguments appear in `validationErrors` as well. They're keyed by the argument position in the tuple:
+
+```ts
+export const updateItem = authClient
+	.bindArgsSchemas([z.string().uuid()])
+	.inputSchema(z.object({ name: z.string() }))
+	.action(async ({ parsedInput, bindArgsParsedInputs: [itemId] }) => {
+		// ...
+	});
+
+// Bound with an invalid UUID:
+const boundAction = updateItem.bind(null, "not-a-uuid");
+const result = await boundAction({ name: "test" });
+// result.validationErrors includes bind args errors
+```
+
+See [Bind Arguments](/docs/advanced/bind-arguments) for more details.
+
+</Accordion>
+</Accordions>
+
+## What's next?
+
+<Cards>
+	<Card href="/docs/concepts/error-handling" title="Error Handling">
+		Learn the full error taxonomy: validation, server, and framework errors.
+	</Card>
+	<Card href="/docs/guides/hooks" title="Hooks">
+		Use useAction for reactive result handling with callbacks and status tracking.
+	</Card>
+</Cards>

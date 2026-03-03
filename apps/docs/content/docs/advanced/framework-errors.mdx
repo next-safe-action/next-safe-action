@@ -1,0 +1,108 @@
+---
+title: Framework Errors
+description: Handle redirect, notFound, unauthorized, and forbidden in your actions.
+---
+
+Next.js provides navigation functions like `redirect()`, `notFound()`, `forbidden()`, and `unauthorized()`. These work inside safe actions, and next-safe-action detects and handles them automatically.
+
+## How framework errors work
+
+When you call a navigation function inside an action, Next.js throws a special error internally. next-safe-action:
+
+1. **Catches** the error and identifies it as a framework error
+2. **Re-throws** it so Next.js can handle the actual navigation
+3. **Notifies** hooks via `onNavigation` callback and `hasNavigated` status
+
+```ts title="src/app/actions.ts"
+"use server";
+
+import { redirect } from "next/navigation";
+import { actionClient } from "@/lib/safe-action";
+
+export const loginAction = actionClient
+	.inputSchema(loginSchema)
+	.action(async ({ parsedInput }) => {
+		const user = await authenticate(parsedInput);
+
+		if (!user) {
+			// Return validation error — NOT a framework error
+			return returnValidationErrors(loginSchema, {
+				_errors: ["Invalid credentials"],
+			});
+		}
+
+		// This is a framework error — triggers navigation
+		redirect("/dashboard");
+	});
+```
+
+## Navigation kinds
+
+Each navigation function maps to a `navigationKind`:
+
+| Function | `navigationKind` | HTTP Status | Description |
+|---|---|---|---|
+| `redirect(url)` | `"redirect"` | 303/307/308 | Navigate to another page |
+| `notFound()` | `"notFound"` | 404 | Show the not-found page |
+| `forbidden()` | `"forbidden"` | 403 | Show the forbidden page |
+| `unauthorized()` | `"unauthorized"` | 401 | Show the unauthorized page |
+
+## Handling in hooks
+
+When using `useAction`, framework errors set the status to `"hasNavigated"` and fire the `onNavigation` callback:
+
+```tsx
+const { execute, hasNavigated } = useAction(loginAction, {
+	onNavigation: ({ navigationKind }) => {
+		if (navigationKind === "redirect") {
+			// The user was redirected, action completed successfully
+		} else if (navigationKind === "notFound") {
+			// The resource wasn't found
+		}
+	},
+	onSuccess: ({ data }) => {
+		// This does NOT fire when redirect() is called
+		// redirect is a navigation, not a success
+	},
+});
+```
+
+<Callout type="warn">
+**Important**: When `redirect()` is called in an action, `onSuccess` does **not** fire, `onNavigation` fires instead. If your action redirects after success, put cleanup logic in `onNavigation` or `onSettled`, not `onSuccess`.
+</Callout>
+
+## Handling in action callbacks
+
+Framework errors also work with server-side action callbacks:
+
+```ts
+export const myAction = actionClient
+	.inputSchema(schema)
+	.action(
+		async ({ parsedInput }) => {
+			redirect("/somewhere");
+		},
+		{
+			onNavigation: ({ navigationKind }) => {
+				// Runs on the server after navigation is triggered
+				console.log("Action navigated:", navigationKind);
+			},
+		}
+	);
+```
+
+## Direct execution
+
+When calling actions directly (not via hooks), framework errors cause the navigation to happen on the server. The function call never returns a result:
+
+```tsx
+const result = await loginAction(input);
+// If redirect() was called, this line never executes
+// The browser navigates to the redirect URL instead
+```
+
+## See also
+
+- [Error Handling](/docs/concepts/error-handling) — where framework errors fit in the error taxonomy
+- [Hooks](/docs/guides/hooks) — `onNavigation` callback and `hasNavigated` status
+- [SafeActionUtils](/docs/api/safe-action-client#safeactionutils-action-callbacks) — server-side `onNavigation` callback

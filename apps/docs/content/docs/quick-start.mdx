@@ -1,0 +1,206 @@
+---
+title: Quick Start
+description: Get up and running with next-safe-action in 5 minutes.
+---
+
+<Callout title="Requirements">
+- Next.js >= 14 (App Router)
+- React >= 18.2.0
+- TypeScript >= 5
+- A [Standard Schema](https://github.com/standard-schema/standard-schema) validation library (e.g., Zod, Valibot)
+</Callout>
+
+<Steps>
+<Step>
+
+### Install
+
+Install next-safe-action and a validation library:
+
+<Tabs items={["Zod", "Valibot"]} groupId="schema-lib" persist>
+<Tab value="Zod">
+
+```package-install
+next-safe-action zod
+```
+
+</Tab>
+<Tab value="Valibot">
+
+```package-install
+next-safe-action valibot
+```
+
+</Tab>
+</Tabs>
+
+Then, create a safe action client. This is the entry point for defining all your actions:
+
+```ts title="src/lib/safe-action.ts"
+import { createSafeActionClient } from "next-safe-action";
+
+export const actionClient = createSafeActionClient();
+```
+
+This creates a base client with default settings. You can extend it later with [middleware](/docs/guides/middleware), [error handling](/docs/concepts/error-handling), and [metadata](/docs/advanced/metadata) as your app grows.
+
+</Step>
+<Step>
+
+### Define an action
+
+Create a Server Action with input validation. The schema guarantees that `parsedInput` is fully typed and validated before your server code runs:
+
+<Tabs items={["Zod", "Valibot"]} groupId="schema-lib" persist>
+<Tab value="Zod">
+
+```ts title="src/app/login-action.ts"
+"use server";
+
+import { z } from "zod";
+import { actionClient } from "@/lib/safe-action";
+
+const loginSchema = z.object({
+	username: z.string().min(3).max(10),
+	password: z.string().min(8).max(100),
+});
+
+export const loginUser = actionClient
+	.inputSchema(loginSchema)
+	.action(async ({ parsedInput: { username, password } }) => {
+		// `username` is string (3-10 chars), `password` is string (8-100 chars)
+		// Both are validated before this code runs
+		const user = await verifyCredentials(username, password);
+		return { id: user.id, name: user.name };
+	});
+```
+
+</Tab>
+<Tab value="Valibot">
+
+```ts title="src/app/login-action.ts"
+"use server";
+
+import * as v from "valibot";
+import { actionClient } from "@/lib/safe-action";
+
+const loginSchema = v.object({
+	username: v.pipe(v.string(), v.minLength(3), v.maxLength(10)),
+	password: v.pipe(v.string(), v.minLength(8), v.maxLength(100)),
+});
+
+export const loginUser = actionClient
+	.inputSchema(loginSchema)
+	.action(async ({ parsedInput: { username, password } }) => {
+		// `username` is string (3-10 chars), `password` is string (8-100 chars)
+		// Both are validated before this code runs
+		const user = await verifyCredentials(username, password);
+		return { id: user.id, name: user.name };
+	});
+```
+
+</Tab>
+</Tabs>
+
+<Callout>
+Note the `"use server"` directive at the top of the file. This is required by Next.js for all Server Actions.
+</Callout>
+
+The `action()` method returns a callable function. The `parsedInput` object is **fully typed** based on your schema, so you get autocomplete and compile-time errors if you access a field that doesn't exist.
+
+</Step>
+<Step>
+
+### Execute from a client component
+
+<Tabs items={["Direct call", "useAction hook"]} groupId="execution" persist>
+<Tab value="Direct call">
+
+The simplest approach. Call the action directly and handle the result:
+
+```tsx title="src/app/login.tsx"
+"use client";
+
+import { loginUser } from "./login-action";
+
+export default function Login() {
+	const handleLogin = async () => {
+		const result = await loginUser({
+			username: "johndoe",
+			password: "12345678",
+		});
+
+		if (result?.data) {
+			console.log("Welcome,", result.data.name);
+		} else if (result?.validationErrors) {
+			console.log("Validation failed:", result.validationErrors);
+		} else if (result?.serverError) {
+			console.log("Server error:", result.serverError);
+		}
+	};
+
+	return <button onClick={handleLogin}>Log in</button>;
+}
+```
+
+</Tab>
+<Tab value="useAction hook">
+
+For richer UI, track execution status, handle callbacks, and more:
+
+```tsx title="src/app/login.tsx"
+"use client";
+
+import { useAction } from "next-safe-action/hooks";
+import { loginUser } from "./login-action";
+
+export default function Login() {
+	const { execute, result, isExecuting } = useAction(loginUser, {
+		onSuccess: ({ data }) => {
+			console.log("Welcome,", data.name);
+		},
+		onError: ({ error }) => {
+			console.log("Something went wrong:", error);
+		},
+	});
+
+	return (
+		<div>
+			<button
+				onClick={() => execute({ username: "johndoe", password: "12345678" })}
+				disabled={isExecuting}
+			>
+				{isExecuting ? "Logging in..." : "Log in"}
+			</button>
+			{result.validationErrors && (
+				<p>Validation errors: {JSON.stringify(result.validationErrors)}</p>
+			)}
+		</div>
+	);
+}
+```
+
+The `useAction` hook gives you reactive `status`, `result`, and `input` values, plus lifecycle callbacks (`onSuccess`, `onError`, `onSettled`, and more). See the [Hooks guide](/docs/guides/hooks) for the full API.
+
+</Tab>
+</Tabs>
+
+</Step>
+</Steps>
+
+## What's next?
+
+<Cards>
+	<Card href="/docs/concepts/how-it-works" title="How It Works">
+		Understand the full action lifecycle and middleware pipeline.
+	</Card>
+	<Card href="/docs/concepts/action-result" title="Action Result">
+		Learn the full structure of the result object and how to handle every case.
+	</Card>
+	<Card href="/docs/guides/middleware" title="Middleware">
+		Add authentication, logging, and context to your actions.
+	</Card>
+	<Card href="/docs/guides/hooks" title="Hooks">
+		Deep dive into useAction with status tracking, callbacks, and async execution.
+	</Card>
+</Cards>
