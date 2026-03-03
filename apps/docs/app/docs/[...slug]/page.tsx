@@ -1,7 +1,7 @@
 import { DocsPage, DocsBody, DocsTitle } from "fumadocs-ui/layouts/docs/page";
 import { notFound } from "next/navigation";
+import { getPageImage, source } from "@/lib/source";
 import { useMDXComponents } from "@/mdx-components";
-import { source } from "@/lib/source";
 
 export default async function Page(props: { params: Promise<{ slug: string[] }> }) {
 	const params = await props.params;
@@ -32,5 +32,8 @@ export async function generateMetadata(props: { params: Promise<{ slug: string[]
 	return {
 		title: page.data.title,
 		description: page.data.description,
+		openGraph: {
+			images: getPageImage(page).url,
+		},
 	};
 }
