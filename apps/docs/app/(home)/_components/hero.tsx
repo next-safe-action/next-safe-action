@@ -140,7 +140,7 @@ export function Hero({ stars }: { stars: number | null }) {
 
 				{/* Right: code preview */}
 				<motion.div
-					className="w-full max-w-lg flex-1"
+					className="w-full max-w-lg flex-1 lg:max-w-none"
 					initial={{ opacity: 0, x: 30 }}
 					animate={{ opacity: 1, x: 0 }}
 					transition={{ duration: 0.6, delay: 0.3 }}
