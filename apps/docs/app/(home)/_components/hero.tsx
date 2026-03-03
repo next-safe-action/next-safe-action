@@ -88,11 +88,11 @@ function formatStarCount(count: number): string {
 
 export function Hero({ stars }: { stars: number | null }) {
 	return (
-		<section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 pt-20 pb-24">
+		<section className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden px-4 pt-20 pb-16 sm:px-6 sm:pb-24">
 			{/* Background glow */}
-			<div className="bg-amber-glow pointer-events-none absolute top-1/4 left-1/2 h-[600px] w-[800px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-60 blur-3xl" />
+			<div className="bg-amber-glow pointer-events-none absolute top-1/4 left-1/2 h-[400px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-60 blur-3xl sm:h-[600px] sm:w-[800px]" />
 
-			<div className="relative z-10 mx-auto flex max-w-6xl flex-col items-center gap-16 lg:flex-row lg:items-center lg:gap-20">
+			<div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col items-center gap-10 lg:flex-row lg:items-center lg:gap-20">
 				{/* Left: text content */}
 				<div className="flex flex-1 flex-col items-center text-center lg:items-start lg:text-left">
 					<motion.h1
@@ -105,7 +105,7 @@ export function Hero({ stars }: { stars: number | null }) {
 					</motion.h1>
 
 					<motion.p
-						className="text-fd-muted-foreground mt-6 max-w-xl text-lg"
+						className="text-fd-muted-foreground mt-6 max-w-xl sm:text-lg"
 						initial={{ opacity: 0, y: 20 }}
 						animate={{ opacity: 1, y: 0 }}
 						transition={{ duration: 0.5, delay: 0.2 }}
@@ -122,7 +122,7 @@ export function Hero({ stars }: { stars: number | null }) {
 					>
 						<Link
 							href="/docs/getting-started"
-							className="bg-amber-accent hover:bg-amber-accent-light inline-flex h-11 items-center rounded-lg px-6 font-semibold text-black transition-colors"
+							className="bg-amber-accent hover:bg-amber-accent-light inline-flex h-11 items-center rounded-lg px-4 font-semibold text-black transition-colors sm:px-6"
 						>
 							Get started
 						</Link>
@@ -130,7 +130,7 @@ export function Hero({ stars }: { stars: number | null }) {
 							href="https://github.com/TheEdoRan/next-safe-action"
 							target="_blank"
 							rel="noopener noreferrer"
-							className="border-fd-border text-fd-foreground hover:bg-fd-accent inline-flex h-11 items-center gap-2 rounded-lg border px-6 font-semibold transition-colors"
+							className="border-fd-border text-fd-foreground hover:bg-fd-accent inline-flex h-11 items-center gap-2 rounded-lg border px-4 font-semibold transition-colors sm:px-6"
 						>
 							GitHub
 							{stars !== null && <span className="text-fd-muted-foreground">&middot; {formatStarCount(stars)}</span>}
@@ -147,15 +147,15 @@ export function Hero({ stars }: { stars: number | null }) {
 				>
 					<div className="border-fd-border bg-fd-card overflow-hidden rounded-xl border shadow-2xl">
 						{/* Window chrome */}
-						<div className="border-fd-border flex items-center gap-2 border-b px-5 py-3.5">
+						<div className="border-fd-border flex items-center gap-2 border-b px-4 py-3 sm:px-5 sm:py-3.5">
 							<div className="bg-fd-muted-foreground/20 h-3 w-3 rounded-full" />
 							<div className="bg-fd-muted-foreground/20 h-3 w-3 rounded-full" />
 							<div className="bg-fd-muted-foreground/20 h-3 w-3 rounded-full" />
 							<span className="text-fd-muted-foreground ml-2 text-xs">action.ts</span>
 						</div>
 						{/* Code */}
-						<div className="overflow-x-auto px-6 py-5">
-							<pre className="font-mono-code text-[0.9rem] leading-7">
+						<div className="overflow-x-auto px-4 py-4 sm:px-6 sm:py-5">
+							<pre className="font-mono-code text-[0.78rem] leading-6 sm:text-[0.9rem] sm:leading-7">
 								{codeLines.map((line, i) => (
 									<div key={i} style={{ paddingLeft: `${line.indent * 1.5}rem` }}>
 										{line.parts.map((part, j) => (
