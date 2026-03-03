@@ -88,14 +88,14 @@ export function FooterCta() {
 				viewport={{ once: true, margin: "-100px" }}
 				transition={{ duration: 0.5 }}
 			>
-				<h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Get started in seconds</h2>
+				<h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Get started in seconds</h2>
 
 				{/* Install command */}
 				<div
 					ref={menuRef}
 					className="border-fd-border bg-fd-card relative mt-8 inline-flex items-center gap-3 rounded-lg border px-5 py-3"
 				>
-					<code className="font-mono-code text-fd-muted-foreground text-sm">
+					<code className="text-fd-muted-foreground font-mono text-sm">
 						<span className="text-amber-accent">$</span> {installCmd}
 					</code>
 					<button
@@ -152,7 +152,7 @@ export function FooterCta() {
 											<span className={isActive ? "text-amber-accent-light font-medium" : "text-fd-foreground"}>
 												{option.label}
 											</span>
-											<span className="text-fd-muted-foreground font-mono-code text-xs">
+											<span className="text-fd-muted-foreground font-mono text-xs">
 												{installCommands[option.id].split(" next-safe-action")[0]}
 											</span>
 										</button>

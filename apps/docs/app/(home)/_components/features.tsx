@@ -113,7 +113,7 @@ export function Features() {
 		<section className="px-6 py-24">
 			<div className="mx-auto max-w-6xl">
 				<motion.h2
-					className="font-display text-center text-3xl font-bold tracking-tight sm:text-4xl"
+					className="text-center text-3xl font-bold tracking-tight sm:text-4xl"
 					initial={{ opacity: 0, y: 20 }}
 					whileInView={{ opacity: 1, y: 0 }}
 					viewport={{ once: true, margin: "-100px" }}
@@ -138,7 +138,7 @@ export function Features() {
 							<div className="bg-amber-glow text-amber-accent flex h-10 w-10 items-center justify-center rounded-lg">
 								{feature.icon}
 							</div>
-							<h3 className="font-display mt-4 text-lg font-semibold">{feature.title}</h3>
+							<h3 className="mt-4 text-lg font-semibold">{feature.title}</h3>
 							<p className="text-fd-muted-foreground mt-2 text-sm leading-relaxed">{feature.description}</p>
 						</motion.div>
 					))}

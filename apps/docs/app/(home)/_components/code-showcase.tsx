@@ -227,7 +227,7 @@ export function CodeShowcase() {
 		<section className="px-6 py-24">
 			<div className="mx-auto max-w-4xl">
 				<motion.h2
-					className="font-display text-center text-3xl font-bold tracking-tight sm:text-4xl"
+					className="text-center text-3xl font-bold tracking-tight sm:text-4xl"
 					initial={{ opacity: 0, y: 20 }}
 					whileInView={{ opacity: 1, y: 0 }}
 					viewport={{ once: true, margin: "-100px" }}
@@ -271,7 +271,7 @@ export function CodeShowcase() {
 						<AnimatePresence mode="wait">
 							<motion.pre
 								key={activeTab}
-								className="font-mono-code text-sm leading-relaxed"
+								className="font-mono text-sm leading-relaxed"
 								initial={{ opacity: 0, y: 8 }}
 								animate={{ opacity: 1, y: 0 }}
 								exit={{ opacity: 0, y: -8 }}

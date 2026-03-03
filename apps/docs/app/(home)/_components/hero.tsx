@@ -96,7 +96,7 @@ export function Hero({ stars }: { stars: number | null }) {
 				{/* Left: text content */}
 				<div className="flex flex-1 flex-col items-center text-center lg:items-start lg:text-left">
 					<motion.h1
-						className="font-display text-4xl leading-tight font-extrabold tracking-tight sm:text-5xl md:text-6xl"
+						className="text-4xl leading-tight font-extrabold tracking-tight sm:text-5xl md:text-6xl"
 						initial={{ opacity: 0, y: 20 }}
 						animate={{ opacity: 1, y: 0 }}
 						transition={{ duration: 0.5, delay: 0.1 }}
@@ -155,7 +155,7 @@ export function Hero({ stars }: { stars: number | null }) {
 						</div>
 						{/* Code */}
 						<div className="overflow-x-auto px-4 py-4 sm:px-6 sm:py-5">
-							<pre className="font-mono-code text-[0.78rem] leading-6 sm:text-[0.9rem] sm:leading-7">
+							<pre className="font-mono text-[0.78rem] leading-6 sm:text-[0.9rem] sm:leading-7">
 								{codeLines.map((line, i) => (
 									<div key={i} style={{ paddingLeft: `${line.indent * 1.5}rem` }}>
 										{line.parts.map((part, j) => (
