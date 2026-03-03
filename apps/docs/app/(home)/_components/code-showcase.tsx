@@ -215,6 +215,10 @@ const tabs: CodeTab[] = [
 	},
 ];
 
+// Compute stable min-height so the layout below doesn't shift when switching tabs.
+// text-sm = 0.875rem, leading-relaxed = 1.625 line-height multiplier, p-4 = 2rem vertical padding.
+const codeBlockMinHeight = `${Math.max(...tabs.map((t) => t.lines.length)) * 0.875 * 1.625 + 2}rem`;
+
 export function CodeShowcase() {
 	const [activeTab, setActiveTab] = useState("client");
 	const activeCode = tabs.find((t) => t.id === activeTab)!;
@@ -263,7 +267,7 @@ export function CodeShowcase() {
 					</div>
 
 					{/* Code content */}
-					<div className="overflow-x-auto p-4">
+					<div className="overflow-x-auto p-4" style={{ minHeight: codeBlockMinHeight }}>
 						<AnimatePresence mode="wait">
 							<motion.pre
 								key={activeTab}
