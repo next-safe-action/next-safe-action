@@ -13,7 +13,7 @@ interface CodeTab {
 const tabs: CodeTab[] = [
 	{
 		id: "client",
-		label: "Create Client",
+		label: "Create client",
 		fileName: "safe-action.ts",
 		lines: [
 			{
@@ -34,51 +34,14 @@ const tabs: CodeTab[] = [
 					{ text: " actionClient", color: "text-amber-accent-light" },
 					{ text: " = ", color: "text-fd-muted-foreground" },
 					{ text: "createSafeActionClient", color: "text-blue-400" },
-					{ text: "({", color: "text-fd-muted-foreground" },
+					{ text: "();", color: "text-fd-muted-foreground" },
 				],
-			},
-			{
-				indent: 1,
-				parts: [
-					{ text: "handleServerError", color: "text-fd-foreground" },
-					{ text: "(e) {", color: "text-fd-muted-foreground" },
-				],
-			},
-			{
-				indent: 2,
-				parts: [
-					{ text: "console", color: "text-fd-foreground" },
-					{ text: ".", color: "text-fd-muted-foreground" },
-					{ text: "error", color: "text-blue-400" },
-					{ text: "(", color: "text-fd-muted-foreground" },
-					{ text: '"Action error:"', color: "text-green-400" },
-					{ text: ", e.", color: "text-fd-muted-foreground" },
-					{ text: "message", color: "text-fd-foreground" },
-					{ text: ");", color: "text-fd-muted-foreground" },
-				],
-			},
-			{
-				indent: 2,
-				parts: [
-					{ text: "return", color: "text-purple-400" },
-					{ text: " ", color: "text-fd-muted-foreground" },
-					{ text: '"Something went wrong."', color: "text-green-400" },
-					{ text: ";", color: "text-fd-muted-foreground" },
-				],
-			},
-			{
-				indent: 1,
-				parts: [{ text: "},", color: "text-fd-muted-foreground" }],
-			},
-			{
-				indent: 0,
-				parts: [{ text: "});", color: "text-fd-muted-foreground" }],
 			},
 		],
 	},
 	{
 		id: "action",
-		label: "Define Action",
+		label: "Define action",
 		fileName: "greet-action.ts",
 		lines: [
 			{
@@ -183,7 +146,7 @@ const tabs: CodeTab[] = [
 	},
 	{
 		id: "hooks",
-		label: "Use with Hooks",
+		label: "Use with hooks",
 		fileName: "greet-form.tsx",
 		lines: [
 			{

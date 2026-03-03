@@ -6,10 +6,10 @@ interface Sponsor {
 	monthlyAmount: number;
 	tierName: string | null;
 	isActive: boolean;
+	isOneTime: boolean;
 }
 
 interface SponsorsData {
-	tiers: { name: string; monthlyPriceInDollars: number; isOneTime: boolean }[];
 	sponsors: Sponsor[];
 }
 
@@ -37,24 +37,17 @@ export async function fetchGitHubSponsors(): Promise<SponsorsData | null> {
 	const query = `
 		query {
 			user(login: "TheEdoRan") {
-				sponsorsListing {
-					tiers(first: 20) {
-						nodes {
-							name
-							monthlyPriceInDollars
-							isOneTime
-							isCustomAmount
-						}
-					}
-				}
-				sponsorshipsAsMaintainer(first: 100, activeOnly: false, includePrivate: false) {
+				sponsorshipsAsMaintainer(first: 100, activeOnly: false) {
+					totalCount
+					pageInfo { hasNextPage endCursor }
 					nodes {
+						isActive: isActive
+						createdAt
 						sponsorEntity {
-							__typename
 							... on User { login name avatarUrl }
 							... on Organization { login name avatarUrl }
 						}
-						tier { monthlyPriceInDollars name }
+						tier { monthlyPriceInDollars name isOneTime }
 					}
 				}
 			}
@@ -82,29 +75,18 @@ export async function fetchGitHubSponsors(): Promise<SponsorsData | null> {
 			errors?: { message: string; type: string }[];
 			data?: {
 				user: {
-					sponsorsListing:
-						| {
-								tiers: {
-									nodes: {
-										name: string;
-										monthlyPriceInDollars: number;
-										isOneTime: boolean;
-										isCustomAmount: boolean;
-									}[];
-								};
-							}
-						| null;
 					sponsorshipsAsMaintainer: {
+						totalCount: number;
+						pageInfo: { hasNextPage: boolean; endCursor: string | null };
 						nodes: {
-							sponsorEntity:
-								| {
-										__typename: "User" | "Organization";
-										login: string;
-										name: string | null;
-										avatarUrl: string;
-									}
-								| null;
-							tier: { monthlyPriceInDollars: number; name: string } | null;
+							isActive: boolean;
+							createdAt: string;
+							sponsorEntity: {
+								login: string;
+								name: string | null;
+								avatarUrl: string;
+							} | null;
+							tier: { monthlyPriceInDollars: number; name: string; isOneTime: boolean } | null;
 						}[];
 					};
 				};
@@ -121,29 +103,20 @@ export async function fetchGitHubSponsors(): Promise<SponsorsData | null> {
 
 		const user = json.data.user;
 
-		const tiers = (user.sponsorsListing?.tiers.nodes ?? [])
-			.filter((t) => !t.isCustomAmount)
-			.map((t) => ({
-				name: t.name,
-				monthlyPriceInDollars: t.monthlyPriceInDollars,
-				isOneTime: t.isOneTime,
-			}));
-
-		// Current sponsors keep a tier-derived amount. Ended sponsors lose that tier, so
-		// they normalize to amount 0 with the current query shape.
 		const sponsors: Sponsor[] = user.sponsorshipsAsMaintainer.nodes
 			.filter((node) => node.sponsorEntity?.login)
 			.map((node) => ({
 				login: node.sponsorEntity!.login,
 				name: node.sponsorEntity!.name,
 				avatarUrl: node.sponsorEntity!.avatarUrl,
-				entityType: node.sponsorEntity!.__typename,
+				entityType: "User" as const,
 				monthlyAmount: node.tier?.monthlyPriceInDollars ?? 0,
 				tierName: node.tier?.name ?? null,
-				isActive: node.tier !== null,
+				isActive: node.isActive,
+				isOneTime: node.tier?.isOneTime ?? false,
 			}));
 
-		return { tiers, sponsors };
+		return { sponsors };
 	} catch (e) {
 		console.error("[github] failed to fetch sponsors:", e);
 		return null;

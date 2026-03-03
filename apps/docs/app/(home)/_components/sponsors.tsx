@@ -38,12 +38,14 @@ function buildCurrentSponsors(data: SponsorsData | null) {
 }
 
 function buildPastSponsors(data: SponsorsData | null) {
-	return (data?.sponsors ?? []).filter((sponsor) => !sponsor.isActive).sort((a, b) => a.login.localeCompare(b.login));
+	return (data?.sponsors ?? [])
+		.filter((sponsor) => !sponsor.isActive)
+		.sort((a, b) => b.monthlyAmount - a.monthlyAmount || a.login.localeCompare(b.login));
 }
 
 function formatSponsorAmount(sponsor: Sponsor) {
 	if (sponsor.monthlyAmount > 0) {
-		return `$${sponsor.monthlyAmount}/month`;
+		return sponsor.isOneTime ? `$${sponsor.monthlyAmount} one time` : `$${sponsor.monthlyAmount}/month`;
 	}
 
 	return sponsor.isActive ? "Active sponsor" : "Past sponsor";
@@ -77,9 +79,9 @@ function SponsorLink({ sponsor, size, muted = false }: { sponsor: Sponsor; size:
 						muted
 							? "border-fd-border/70 shadow-[0_8px_20px_rgba(15,23,42,0.12)]"
 							: "border-amber-border/70 shadow-[0_12px_30px_rgba(245,158,11,0.14)] group-hover:border-amber-accent/60",
-						].join(" ")}
+					].join(" ")}
 				/>
-				<div className="pointer-events-none absolute bottom-[calc(100%+0.75rem)] left-1/2 z-10 w-max min-w-36 max-w-52 -translate-x-1/2 translate-y-1 rounded-xl border border-amber-border/60 bg-fd-card/95 px-3 py-2 text-center opacity-0 shadow-[0_18px_40px_rgba(15,23,42,0.18)] backdrop-blur-sm transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100">
+				<div className="border-amber-border/60 bg-fd-card/95 pointer-events-none absolute bottom-[calc(100%+0.75rem)] left-1/2 z-10 w-max max-w-52 min-w-36 -translate-x-1/2 translate-y-1 rounded-xl border px-3 py-2 text-center opacity-0 shadow-[0_18px_40px_rgba(15,23,42,0.18)] backdrop-blur-sm transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100">
 					<p className="text-fd-foreground text-sm font-semibold">@{sponsor.login}</p>
 					<p className="text-fd-muted-foreground mt-1 text-xs">{tooltipAmount}</p>
 					<div className="border-r-amber-border/60 border-b-amber-border/60 bg-fd-card/95 absolute top-full left-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-r border-b" />
@@ -96,8 +98,7 @@ export function Sponsors({ data }: { data: SponsorsData | null }) {
 
 	return (
 		<section className="relative overflow-hidden px-6 py-24">
-			<div className="bg-amber-glow absolute top-20 left-1/2 h-64 w-[40rem] -translate-x-1/2 rounded-full blur-3xl" />
-			<div className="via-amber-border absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent to-transparent" />
+			<div className="bg-amber-glow absolute top-40 left-1/2 h-96 w-[40rem] -translate-x-1/2 rounded-full blur-3xl" />
 
 			<div className="relative mx-auto max-w-5xl">
 				<motion.div
@@ -107,7 +108,6 @@ export function Sponsors({ data }: { data: SponsorsData | null }) {
 					viewport={{ once: true, margin: "-100px" }}
 					transition={{ duration: 0.5 }}
 				>
-					<h2 className="text-amber-accent-light text-sm font-semibold tracking-[0.35em] uppercase">Our sponsors</h2>
 					<p className="text-fd-muted-foreground mt-4 text-lg">
 						These amazing people and companies help keep next-safe-action running! ❤️
 					</p>
@@ -116,17 +116,25 @@ export function Sponsors({ data }: { data: SponsorsData | null }) {
 				{hasSponsorContent && (
 					<div className="mt-14 space-y-10">
 						{currentSponsors.length > 0 && (
-							<motion.div
-								className="flex flex-wrap items-center justify-center gap-3 sm:gap-4"
-								variants={containerVariants}
-								initial="hidden"
-								whileInView="visible"
-								viewport={{ once: true, margin: "-80px" }}
-							>
-								{currentSponsors.map((sponsor) => (
-									<SponsorLink key={sponsor.login} sponsor={sponsor} size={getAvatarSize(sponsor.monthlyAmount)} />
-								))}
-							</motion.div>
+							<div>
+								<div className="space-y-2 text-center">
+									<p className="text-amber-accent-light text-sm font-semibold tracking-[0.3em] uppercase">
+										Active sponsors
+									</p>
+								</div>
+
+								<motion.div
+									className="mt-5 flex flex-wrap items-center justify-center gap-3 sm:gap-4"
+									variants={containerVariants}
+									initial="hidden"
+									whileInView="visible"
+									viewport={{ once: true, margin: "-80px" }}
+								>
+									{currentSponsors.map((sponsor) => (
+										<SponsorLink key={sponsor.login} sponsor={sponsor} size={getAvatarSize(sponsor.monthlyAmount)} />
+									))}
+								</motion.div>
+							</div>
 						)}
 
 						{pastSponsors.length > 0 && (
@@ -138,10 +146,9 @@ export function Sponsors({ data }: { data: SponsorsData | null }) {
 								transition={{ duration: 0.45 }}
 							>
 								<div className="space-y-2 text-center">
-									<p className="text-fd-muted-foreground text-sm font-semibold tracking-[0.3em] uppercase">
+									<p className="text-amber-accent-light text-sm font-semibold tracking-[0.3em] uppercase">
 										Past sponsors
 									</p>
-									<p className="text-fd-muted-foreground text-sm">Previous supporters and completed sponsorships.</p>
 								</div>
 
 								<motion.div
@@ -152,7 +159,12 @@ export function Sponsors({ data }: { data: SponsorsData | null }) {
 									viewport={{ once: true, margin: "-60px" }}
 								>
 									{pastSponsors.map((sponsor) => (
-										<SponsorLink key={sponsor.login} sponsor={sponsor} size={42} muted />
+										<SponsorLink
+											key={sponsor.login}
+											sponsor={sponsor}
+											size={getAvatarSize(sponsor.monthlyAmount)}
+											muted
+										/>
 									))}
 								</motion.div>
 							</motion.div>
