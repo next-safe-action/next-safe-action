@@ -7,8 +7,15 @@ import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
-	title: "next-safe-action playground",
+	title: "next-safe-action | Playground",
 	description: "Interactive playground for the next-safe-action library",
+	icons: {
+		icon: [
+			{ url: "/img/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+			{ url: "/img/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+		],
+		shortcut: "/img/favicon.ico",
+	},
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
