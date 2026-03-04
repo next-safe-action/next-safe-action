@@ -1,6 +1,5 @@
 import type { ValidationErrors } from "next-safe-action";
 import type { FieldError, FieldErrors } from "react-hook-form";
-import type {} from "zod";
 import type { ErrorMapperProps } from "./index.types";
 import type { InferOutputOrDefault, StandardSchemaV1 } from "./standard-schema";
 

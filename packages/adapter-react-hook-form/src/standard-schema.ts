@@ -65,16 +65,6 @@ export declare namespace StandardSchemaV1 {
 
 // custom helpers
 
-/** Infer the input type of an array of Standard Schemas. */
-export type InferInputArray<Schemas extends readonly StandardSchemaV1[]> = {
-	[K in keyof Schemas]: StandardSchemaV1.InferInput<Schemas[K]>;
-};
-
-/** Infer the output type of an array of Standard Schemas. */
-export type InferOutputArray<Schemas extends readonly StandardSchemaV1[]> = {
-	[K in keyof Schemas]: StandardSchemaV1.InferOutput<Schemas[K]>;
-};
-
 /** Infer the input type of a Standard Schema, or a default type if the schema is undefined. */
 export type InferInputOrDefault<MaybeSchema, Default> = MaybeSchema extends StandardSchemaV1
 	? StandardSchemaV1.InferInput<MaybeSchema>
@@ -84,7 +74,3 @@ export type InferInputOrDefault<MaybeSchema, Default> = MaybeSchema extends Stan
 export type InferOutputOrDefault<MaybeSchema, Default> = MaybeSchema extends StandardSchemaV1
 	? StandardSchemaV1.InferOutput<MaybeSchema>
 	: Default;
-
-export async function standardParse<Output>(schema: StandardSchemaV1<unknown, Output>, value: unknown) {
-	return schema["~standard"].validate(value);
-}

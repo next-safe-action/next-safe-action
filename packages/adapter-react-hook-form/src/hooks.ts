@@ -23,11 +23,9 @@ export function useHookFormActionErrorMapper<S extends StandardSchemaV1 | undefi
 	validationErrors: ValidationErrors<S> | undefined,
 	props?: ErrorMapperProps
 ) {
-	const propsRef = React.useRef(props);
-
 	const hookFormValidationErrors = React.useMemo(
-		() => mapToHookFormErrors<S>(validationErrors, propsRef.current),
-		[validationErrors]
+		() => mapToHookFormErrors<S>(validationErrors, props),
+		[validationErrors, props]
 	);
 
 	return {
@@ -62,12 +60,18 @@ export function useHookFormAction<ServerError, S extends StandardSchemaV1 | unde
 		errors: hookFormValidationErrors,
 	});
 
-	const handleSubmitWithAction = form.handleSubmit(action.executeAsync);
+	const { handleSubmit, reset: resetForm } = form;
+	const { executeAsync, reset: resetAction } = action;
 
-	const resetFormAndAction = () => {
-		form.reset();
-		action.reset();
-	};
+	const handleSubmitWithAction = React.useCallback(
+		(e?: React.BaseSyntheticEvent) => handleSubmit(executeAsync)(e),
+		[handleSubmit, executeAsync]
+	);
+
+	const resetFormAndAction = React.useCallback(() => {
+		resetForm();
+		resetAction();
+	}, [resetForm, resetAction]);
 
 	return {
 		action,
@@ -117,12 +121,18 @@ export function useHookFormOptimisticAction<
 		errors: hookFormValidationErrors,
 	});
 
-	const handleSubmitWithAction = form.handleSubmit(action.executeAsync);
+	const { handleSubmit, reset: resetForm } = form;
+	const { executeAsync, reset: resetAction } = action;
 
-	const resetFormAndAction = () => {
-		form.reset();
-		action.reset();
-	};
+	const handleSubmitWithAction = React.useCallback(
+		(e?: React.BaseSyntheticEvent) => handleSubmit(executeAsync)(e),
+		[handleSubmit, executeAsync]
+	);
+
+	const resetFormAndAction = React.useCallback(() => {
+		resetForm();
+		resetAction();
+	}, [resetForm, resetAction]);
 
 	return {
 		action,
