@@ -12,8 +12,10 @@ import {
 	ShieldAlertIcon,
 	SparklesIcon,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
 	Sidebar,
 	SidebarContent,
@@ -68,9 +70,8 @@ export function AppSidebar() {
 		<Sidebar>
 			<SidebarHeader>
 				<div className="flex items-center gap-2 px-2 py-1">
-					<div className="bg-primary text-primary-foreground flex size-7 items-center justify-center rounded-md">
-						<BoxIcon className="size-4" />
-					</div>
+					<Image src="/img/logo-light-mode.svg" alt="" width={26} height={20} className="dark:hidden" />
+					<Image src="/img/logo-dark-mode.svg" alt="" width={26} height={20} className="hidden dark:block" />
 					<div className="flex flex-col">
 						<span className="text-sm leading-none font-semibold">next-safe-action</span>
 						<span className="text-muted-foreground text-xs">playground</span>
@@ -99,16 +100,19 @@ export function AppSidebar() {
 				))}
 			</SidebarContent>
 			<SidebarFooter>
-				<SidebarMenu>
-					<SidebarMenuItem>
-						<SidebarMenuButton asChild>
-							<a href="https://github.com/TheEdoRan/next-safe-action" target="_blank" rel="noopener noreferrer">
-								<GithubIcon className="size-4" />
-								<span>GitHub</span>
-							</a>
-						</SidebarMenuButton>
-					</SidebarMenuItem>
-				</SidebarMenu>
+				<div className="flex w-full items-center justify-between">
+					<SidebarMenu className="w-auto flex-1">
+						<SidebarMenuItem>
+							<SidebarMenuButton asChild>
+								<a href="https://github.com/TheEdoRan/next-safe-action" target="_blank" rel="noopener noreferrer">
+									<GithubIcon className="size-4" />
+									<span>GitHub</span>
+								</a>
+							</SidebarMenuButton>
+						</SidebarMenuItem>
+					</SidebarMenu>
+					<ThemeToggle />
+				</div>
 			</SidebarFooter>
 			<SidebarRail />
 		</Sidebar>
