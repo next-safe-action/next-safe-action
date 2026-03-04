@@ -11,9 +11,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { SourceCode } from "@/lib/shiki";
 import { deleteUser } from "../_actions/delete-user-action";
 
-export function HookDemo() {
+type Props = {
+	source?: SourceCode;
+};
+
+export function HookDemo({ source }: Props) {
 	const [events, setEvents] = useState<TimelineEvent[]>([]);
 	const idRef = useRef(0);
 
@@ -61,6 +66,7 @@ export function HookDemo() {
 			<ExampleCard
 				title="useAction Full Demo"
 				description="All return properties: execute, executeAsync, result, status, reset, input, and all status flags."
+				source={source}
 			>
 				<form
 					className="space-y-4"

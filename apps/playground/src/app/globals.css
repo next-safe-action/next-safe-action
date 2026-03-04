@@ -122,3 +122,17 @@
 		@apply bg-background text-foreground;
 	}
 }
+
+/* Shiki dual-theme support (defaultColor: false) */
+html:not(.dark) .shiki span {
+	color: var(--shiki-light) !important;
+}
+html:not(.dark) .shiki {
+	background-color: var(--shiki-light-bg) !important;
+}
+html.dark .shiki span {
+	color: var(--shiki-dark) !important;
+}
+html.dark .shiki {
+	background-color: var(--shiki-dark-bg) !important;
+}

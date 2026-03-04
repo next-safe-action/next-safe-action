@@ -6,14 +6,16 @@ import { ResultDisplay } from "@/components/result-display";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { SourceCode } from "@/lib/shiki";
 import { onboardUser } from "../_actions/onboard-action";
 
 type Props = {
 	age: number;
 	userId: string;
+	source?: SourceCode;
 };
 
-export function BindArgumentsDemo({ age, userId }: Props) {
+export function BindArgumentsDemo({ age, userId, source }: Props) {
 	const boundOnboardUser = onboardUser.bind(null, userId, age);
 	const { execute, result, status, reset } = useAction(boundOnboardUser);
 
@@ -21,6 +23,7 @@ export function BindArgumentsDemo({ age, userId }: Props) {
 		<ExampleCard
 			title="Bind Arguments"
 			description={`Server-generated bind args: userId=${userId.slice(0, 8)}..., age=${age}. These are validated by bindArgsSchemas.`}
+			source={source}
 		>
 			<form
 				className="space-y-4"

@@ -10,10 +10,15 @@ import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { SourceCode } from "@/lib/shiki";
 import { buyProduct } from "../_actions/buy-product-action";
 import { buyProductSchema } from "../_validation/schemas";
 
-export function ErrorMapperDemo() {
+type Props = {
+	source?: SourceCode;
+};
+
+export function ErrorMapperDemo({ source }: Props) {
 	const { execute, result, status, reset: resetAction, isPending } = useAction(buyProduct);
 
 	const { hookFormValidationErrors } = useHookFormActionErrorMapper(result.validationErrors);
@@ -36,6 +41,7 @@ export function ErrorMapperDemo() {
 		<ExampleCard
 			title="useHookFormActionErrorMapper"
 			description="Advanced pattern: separate useAction + useForm with the error mapper hook for custom control."
+			source={source}
 		>
 			<form
 				onSubmit={handleSubmit(async (data) => {

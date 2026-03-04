@@ -7,9 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { SourceCode } from "@/lib/shiki";
 import { statefulFormAction } from "../_actions/stateful-form-action";
 
-export function StatefulFormDemo() {
+type Props = {
+	source?: SourceCode;
+};
+
+export function StatefulFormDemo({ source }: Props) {
 	const [state, formAction, isPending] = useActionState(statefulFormAction, {
 		data: { newName: "jane" },
 	});
@@ -18,6 +23,7 @@ export function StatefulFormDemo() {
 		<ExampleCard
 			title="Stateful Form"
 			description="stateAction with React useActionState — the previous result is available in the server function."
+			source={source}
 		>
 			<form action={formAction} className="space-y-4">
 				<div className="space-y-2">

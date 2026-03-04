@@ -7,15 +7,17 @@ import {
 	GithubIcon,
 	HomeIcon,
 	LayersIcon,
+	MoonIcon,
 	MousePointerClickIcon,
 	NavigationIcon,
 	ShieldAlertIcon,
 	SparklesIcon,
+	SunIcon,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ThemeToggle } from "@/components/theme-toggle";
 import {
 	Sidebar,
 	SidebarContent,
@@ -28,6 +30,7 @@ import {
 	SidebarMenuButton,
 	SidebarMenuItem,
 	SidebarRail,
+	SidebarTrigger,
 } from "@/components/ui/sidebar";
 
 const navGroups = [
@@ -65,17 +68,27 @@ const navGroups = [
 
 export function AppSidebar() {
 	const pathname = usePathname();
+	const { resolvedTheme, setTheme } = useTheme();
 
 	return (
-		<Sidebar>
+		<Sidebar collapsible="icon">
 			<SidebarHeader>
-				<div className="flex items-center gap-2 px-2 py-1">
-					<Image src="/img/logo-light-mode.svg" alt="" width={26} height={20} className="dark:hidden" />
-					<Image src="/img/logo-dark-mode.svg" alt="" width={26} height={20} className="hidden dark:block" />
-					<div className="flex flex-col">
-						<span className="text-sm leading-none font-semibold">next-safe-action</span>
-						<span className="text-muted-foreground text-xs">playground</span>
+				<div className="flex items-center justify-between px-2 py-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+					<div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
+						<Image src="/img/logo-light-mode.svg" alt="" width={26} height={20} className="dark:hidden" />
+						<Image
+							src="/img/logo-dark-mode.svg"
+							alt=""
+							width={26}
+							height={20}
+							className="hidden dark:block"
+						/>
+						<div className="flex flex-col">
+							<span className="text-sm leading-none font-semibold">next-safe-action</span>
+							<span className="text-muted-foreground text-xs">playground</span>
+						</div>
 					</div>
+					<SidebarTrigger />
 				</div>
 			</SidebarHeader>
 			<SidebarContent>
@@ -86,7 +99,7 @@ export function AppSidebar() {
 							<SidebarMenu>
 								{group.items.map((item) => (
 									<SidebarMenuItem key={item.href}>
-										<SidebarMenuButton asChild isActive={pathname === item.href}>
+										<SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.title}>
 											<Link href={item.href}>
 												<item.icon className="size-4" />
 												<span>{item.title}</span>
@@ -100,19 +113,26 @@ export function AppSidebar() {
 				))}
 			</SidebarContent>
 			<SidebarFooter>
-				<div className="flex w-full items-center justify-between">
-					<SidebarMenu className="w-auto flex-1">
-						<SidebarMenuItem>
-							<SidebarMenuButton asChild>
-								<a href="https://github.com/TheEdoRan/next-safe-action" target="_blank" rel="noopener noreferrer">
-									<GithubIcon className="size-4" />
-									<span>GitHub</span>
-								</a>
-							</SidebarMenuButton>
-						</SidebarMenuItem>
-					</SidebarMenu>
-					<ThemeToggle />
-				</div>
+				<SidebarMenu>
+					<SidebarMenuItem>
+						<SidebarMenuButton asChild tooltip="GitHub">
+							<a href="https://github.com/TheEdoRan/next-safe-action" target="_blank" rel="noopener noreferrer">
+								<GithubIcon className="size-4" />
+								<span>GitHub</span>
+							</a>
+						</SidebarMenuButton>
+					</SidebarMenuItem>
+					<SidebarMenuItem>
+						<SidebarMenuButton
+							tooltip="Toggle theme"
+							onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+						>
+							<SunIcon className="size-4 scale-100 rotate-0 transition-transform dark:scale-0 dark:-rotate-90" />
+							<MoonIcon className="absolute size-4 scale-0 rotate-90 transition-transform dark:scale-100 dark:rotate-0" />
+							<span>Toggle theme</span>
+						</SidebarMenuButton>
+					</SidebarMenuItem>
+				</SidebarMenu>
 			</SidebarFooter>
 			<SidebarRail />
 		</Sidebar>

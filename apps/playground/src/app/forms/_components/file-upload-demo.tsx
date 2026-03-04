@@ -6,13 +6,22 @@ import { ResultDisplay } from "@/components/result-display";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { SourceCode } from "@/lib/shiki";
 import { fileUploadAction } from "../_actions/file-upload-action";
 
-export function FileUploadDemo() {
+type Props = {
+	source?: SourceCode;
+};
+
+export function FileUploadDemo({ source }: Props) {
 	const { execute, result, status } = useAction(fileUploadAction);
 
 	return (
-		<ExampleCard title="File Upload" description="Using zod-form-data with zfd.file() schema to validate file uploads.">
+		<ExampleCard
+			title="File Upload"
+			description="Using zod-form-data with zfd.file() schema to validate file uploads."
+			source={source}
+		>
 			<form action={execute} className="space-y-4">
 				<div className="space-y-2">
 					<Label htmlFor="file-image">Image</Label>

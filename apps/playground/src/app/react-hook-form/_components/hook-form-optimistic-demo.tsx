@@ -7,15 +7,17 @@ import { ResultDisplay } from "@/components/result-display";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { SourceCode } from "@/lib/shiki";
 import type { Item } from "../_actions/add-item-action";
 import { addItem } from "../_actions/add-item-action";
 import { addItemSchema } from "../_validation/schemas";
 
 type Props = {
 	items: Item[];
+	source?: SourceCode;
 };
 
-export function HookFormOptimisticDemo({ items }: Props) {
+export function HookFormOptimisticDemo({ items, source }: Props) {
 	const { form, action, handleSubmitWithAction, resetFormAndAction } = useHookFormOptimisticAction(
 		addItem,
 		zodResolver(addItemSchema),
@@ -43,6 +45,7 @@ export function HookFormOptimisticDemo({ items }: Props) {
 		<ExampleCard
 			title="useHookFormOptimisticAction"
 			description="Optimistic form with currentState/updateFn — items appear instantly before server confirms."
+			source={source}
 		>
 			<form onSubmit={handleSubmitWithAction} className="space-y-4">
 				<div className="space-y-2">

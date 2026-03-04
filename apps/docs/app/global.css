@@ -13,3 +13,9 @@
 	--color-amber-glow-strong: rgba(245, 158, 11, 0.25);
 	--color-amber-border: rgba(245, 158, 11, 0.3);
 }
+
+.shiki pre,
+.shiki code {
+	tab-size: 2;
+	-moz-tab-size: 2;
+}

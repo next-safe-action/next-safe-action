@@ -7,9 +7,14 @@ import type { TimelineEvent } from "@/components/callback-timeline";
 import { ExampleCard } from "@/components/example-card";
 import { ResultDisplay } from "@/components/result-display";
 import { Button } from "@/components/ui/button";
+import type { SourceCode } from "@/lib/shiki";
 import { testRevalidation } from "../_actions/revalidation-action";
 
-export function RevalidationDemo() {
+type Props = {
+	source?: SourceCode;
+};
+
+export function RevalidationDemo({ source }: Props) {
 	const [events, setEvents] = useState<TimelineEvent[]>([]);
 	const idRef = useRef(0);
 
@@ -43,6 +48,7 @@ export function RevalidationDemo() {
 		<ExampleCard
 			title="Revalidation + Callbacks"
 			description="revalidatePath/revalidateTag with callback timeline showing transition states."
+			source={source}
 		>
 			<div className="flex flex-wrap gap-2">
 				<Button onClick={() => execute({ kind: "revalidatePath" })}>Revalidate path</Button>

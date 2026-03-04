@@ -5,9 +5,14 @@ import { useState } from "react";
 import { ExampleCard } from "@/components/example-card";
 import { ResultDisplay } from "@/components/result-display";
 import { Button } from "@/components/ui/button";
+import type { SourceCode } from "@/lib/shiki";
 import { stateUpdateAction } from "../_actions/state-update-action";
 
-export function StateUpdateDemo() {
+type Props = {
+	source?: SourceCode;
+};
+
+export function StateUpdateDemo({ source }: Props) {
 	const [localMessage, setLocalMessage] = useState<string>("(none)");
 
 	const { execute, result, status } = useAction(stateUpdateAction, {
@@ -22,6 +27,7 @@ export function StateUpdateDemo() {
 		<ExampleCard
 			title="State Update via onSuccess"
 			description="Local state updated through the onSuccess callback when the action completes."
+			source={source}
 		>
 			<div className="space-y-4">
 				<p className="text-sm">

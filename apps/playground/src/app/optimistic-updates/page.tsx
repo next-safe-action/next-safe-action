@@ -1,5 +1,7 @@
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { PageHeader } from "@/components/page-header";
+import { readAndHighlightFile } from "@/lib/shiki";
 import { getTodos } from "./_actions/add-todo-action";
 import { AddTodoForm } from "./_components/add-todo-form";
 import { RevalidationDemo } from "./_components/revalidation-demo";
@@ -29,7 +31,13 @@ async function RevalidationSnapshots() {
 }
 
 export default async function OptimisticUpdatesPage() {
-	const todos = await getTodos();
+	await connection();
+
+	const [todos, addTodoSource, revalidationSource] = await Promise.all([
+		getTodos(),
+		readAndHighlightFile("optimistic-updates/_actions/add-todo-action.ts"),
+		readAndHighlightFile("optimistic-updates/_actions/revalidation-action.ts"),
+	]);
 
 	return (
 		<div>
@@ -38,9 +46,9 @@ export default async function OptimisticUpdatesPage() {
 				description="useOptimisticAction with instant UI updates and revalidation callbacks."
 			/>
 			<div className="space-y-6">
-				<AddTodoForm todos={todos} />
+				<AddTodoForm todos={todos} source={addTodoSource} />
 				<div>
-					<RevalidationDemo />
+					<RevalidationDemo source={revalidationSource} />
 					<Suspense fallback={<p className="text-muted-foreground mt-4 text-sm">Loading snapshots...</p>}>
 						<RevalidationSnapshots />
 					</Suspense>

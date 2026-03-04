@@ -6,14 +6,16 @@ import { ResultDisplay } from "@/components/result-display";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { SourceCode } from "@/lib/shiki";
 import type { Todo } from "../_actions/add-todo-action";
 import { addTodo } from "../_actions/add-todo-action";
 
 type Props = {
 	todos: Todo[];
+	source?: SourceCode;
 };
 
-export function AddTodoForm({ todos }: Props) {
+export function AddTodoForm({ todos, source }: Props) {
 	const { execute, status, reset, optimisticState } = useOptimisticAction(addTodo, {
 		currentState: { todos },
 		updateFn: (state, newTodo) => ({
@@ -31,6 +33,7 @@ export function AddTodoForm({ todos }: Props) {
 		<ExampleCard
 			title="Optimistic Todo List"
 			description="useOptimisticAction with currentState/updateFn — items appear instantly before server confirms."
+			source={source}
 		>
 			<form
 				className="space-y-4"
