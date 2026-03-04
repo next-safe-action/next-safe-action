@@ -1,25 +1,31 @@
-import GitHubLogo from "./github-logo";
+import type { Metadata } from "next";
+import { AppSidebar } from "@/components/app-sidebar";
+import { Separator } from "@/components/ui/separator";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
-export const metadata = {
-	title: "Playground for next-safe-action",
-	description: "A basic implementation of next-safe-action library",
+export const metadata: Metadata = {
+	title: "next-safe-action playground",
+	description: "Interactive playground for the next-safe-action library",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
 	return (
 		<html lang="en">
-			<body className="flex min-h-screen flex-col items-center bg-slate-50 pt-24 text-slate-950 antialiased dark:bg-slate-950 dark:text-slate-50">
-				<a
-					id="github-link"
-					href="https://github.com/TheEdoRan/next-safe-action"
-					target="_blank"
-					rel="noopener noreferrer"
-					className="mb-8"
-				>
-					<GitHubLogo width={40} height={40} />
-				</a>
-				{children}
+			<body className="antialiased">
+				<SidebarProvider>
+					<AppSidebar />
+					<SidebarInset>
+						<header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+							<SidebarTrigger className="-ml-1" />
+							<Separator orientation="vertical" className="mr-2 h-4" />
+							<span className="text-muted-foreground text-sm font-medium">next-safe-action playground</span>
+						</header>
+						<main className="flex-1 p-6">{children}</main>
+					</SidebarInset>
+				</SidebarProvider>
+				<Toaster />
 			</body>
 		</html>
 	);
