@@ -235,12 +235,9 @@ export function actionBuilder<
 								middlewareResult.bindArgsParsedInputs = parsedBindArgsInputs;
 							}
 						} catch (e: unknown) {
-							// Only handle server errors once. If already handled, rethrow to bubble up.
-							if (serverErrorHandled) {
-								throw e;
-							}
-
 							// If error is `ActionServerValidationError`, return `validationErrors` as if schema validation would fail.
+							// This check must come before `serverErrorHandled` guard so middleware catch blocks using
+							// `returnValidationErrors` work even when `handleServerError` is configured to rethrow.
 							if (e instanceof ActionServerValidationError) {
 								const ve = e.validationErrors as ValidationErrors<IS>;
 								middlewareResult.validationErrors = await Promise.resolve(
@@ -252,6 +249,10 @@ export function actionBuilder<
 									})
 								);
 							} else {
+								// Only handle server errors once. If already handled, rethrow to bubble up.
+								if (serverErrorHandled) {
+									throw e;
+								}
 								// Mark that we're handling the server error to prevent multiple calls.
 								serverErrorHandled = true;
 
