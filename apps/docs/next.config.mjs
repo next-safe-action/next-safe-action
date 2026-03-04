@@ -4,6 +4,9 @@ const withMDX = createMDX();
 
 /** @type {import('next').NextConfig} */
 const config = {
+	experimental: {
+		turbopackFileSystemCacheForDev: true,
+	},
 	images: {
 		remotePatterns: [{ hostname: "avatars.githubusercontent.com" }],
 	},

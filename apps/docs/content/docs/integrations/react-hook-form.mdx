@@ -11,6 +11,8 @@ next-safe-action has a first-party adapter for [React Hook Form](https://react-h
 next-safe-action react-hook-form @hookform/resolvers @next-safe-action/adapter-react-hook-form
 ```
 
+## Quick start
+
 <Steps>
 <Step>
 
@@ -48,7 +50,7 @@ Use the `useHookFormAction` hook from the adapter to connect your action with Re
 ```tsx title="src/app/create-user-form.tsx"
 "use client";
 
-import { useHookFormAction } from "@next-safe-action/adapter-react-hook-form";
+import { useHookFormAction } from "@next-safe-action/adapter-react-hook-form/hooks";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createUser } from "./actions";
 import { z } from "zod";
@@ -128,9 +130,75 @@ The adapter bridges two concerns:
 When the form is submitted:
 1. React Hook Form validates client-side first
 2. If valid, the data is sent to the server action
-3. Server-side validation errors are mapped back to the form fields
+3. Server-side validation errors are automatically mapped back to the form fields via react-hook-form's `errors` prop
 
-## `useHookFormAction` return object
+## Package entry points
+
+The adapter is split into two entry points:
+
+| Entry point | Exports | Environment |
+|---|---|---|
+| `@next-safe-action/adapter-react-hook-form` | `mapToHookFormErrors`, `ErrorMapperProps` | Server & Client |
+| `@next-safe-action/adapter-react-hook-form/hooks` | `useHookFormAction`, `useHookFormOptimisticAction`, `useHookFormActionErrorMapper` | Client only |
+
+---
+
+## `useHookFormAction`
+
+The primary hook for using safe actions with React Hook Form. It combines `useAction` and `useForm` into a single hook, automatically mapping server validation errors to form field errors.
+
+```ts
+import { useHookFormAction } from "@next-safe-action/adapter-react-hook-form/hooks";
+
+const { form, action, handleSubmitWithAction, resetFormAndAction } =
+	useHookFormAction(safeAction, hookFormResolver, props?);
+```
+
+### Parameters
+
+<TypeTable
+	type={{
+		safeAction: {
+			description: "The safe action function created with .action(). When using bind arguments, pass the bound action.",
+			type: "HookSafeActionFn<ServerError, S, CVE, Data>",
+		},
+		hookFormResolver: {
+			description: "A react-hook-form validation resolver (e.g. zodResolver, valibotResolver, yupResolver).",
+			type: "Resolver<InferInput<S>, FormContext, InferOutput<S>>",
+		},
+		props: {
+			description: "Optional props for the action hook, form hook, and error mapper.",
+			type: "HookProps<ServerError, S, CVE, Data, FormContext>",
+			default: "undefined",
+		},
+	}}
+/>
+
+### Props
+
+The optional `props` object has the following shape:
+
+<TypeTable
+	type={{
+		errorMapProps: {
+			description: "Props passed to the error mapper. Currently supports joinBy — the string used to join multiple validation error messages for a single field.",
+			type: "ErrorMapperProps",
+			default: "undefined",
+		},
+		actionProps: {
+			description: "Callbacks passed to the underlying useAction hook (onSuccess, onError, onExecute, onSettled, etc.).",
+			type: "HookCallbacks<ServerError, S, CVE, Data>",
+			default: "undefined",
+		},
+		formProps: {
+			description: "Props passed to useForm (defaultValues, mode, etc.). The resolver prop is omitted since it is passed as a direct parameter.",
+			type: "Omit<UseFormProps, 'resolver'>",
+			default: "undefined",
+		},
+	}}
+/>
+
+### Return object
 
 <TypeTable
 	type={{
@@ -139,28 +207,397 @@ When the form is submitted:
 			type: "UseFormReturn",
 		},
 		action: {
-			description: "The useAction hook return object. Contains result, status, isPending, etc.",
+			description: "The useAction hook return object. Contains result, status, isPending, execute, executeAsync, etc.",
 			type: "UseActionHookReturn",
 		},
 		handleSubmitWithAction: {
-			description: "Pre-wired submit handler. Pass directly to your <form> onSubmit.",
-			type: "(e?: React.FormEvent) => void",
+			description: "Pre-wired submit handler that calls handleSubmit(executeAsync). Pass directly to your <form> onSubmit.",
+			type: "(e?: React.BaseSyntheticEvent) => Promise<void>",
 		},
 		resetFormAndAction: {
-			description: "Reset both form state and action state.",
+			description: "Reset both form state and action state in a single call.",
 			type: "() => void",
 		},
 	}}
 />
 
-## Further reading
+### Example
 
-For advanced usage, custom error mapping, and more examples, visit the adapter's GitHub repository:
+See the [Quick start](#quick-start) section above for a full example.
 
-[@next-safe-action/adapter-react-hook-form](https://github.com/TheEdoRan/next-safe-action/packages/adapter-react-hook-form)
+---
+
+## `useHookFormOptimisticAction`
+
+Combines `useOptimisticAction` and `useForm` into a single hook. Use this when you want optimistic UI updates — the form's result updates immediately before the server responds, then reverts if the action fails.
+
+```ts
+import { useHookFormOptimisticAction } from "@next-safe-action/adapter-react-hook-form/hooks";
+
+const { form, action, handleSubmitWithAction, resetFormAndAction } =
+	useHookFormOptimisticAction(safeAction, hookFormResolver, props);
+```
+
+### Parameters
+
+<TypeTable
+	type={{
+		safeAction: {
+			description: "The safe action function created with .action().",
+			type: "HookSafeActionFn<ServerError, S, CVE, Data>",
+		},
+		hookFormResolver: {
+			description: "A react-hook-form validation resolver.",
+			type: "Resolver<InferInput<S>, FormContext, InferOutput<S>>",
+		},
+		props: {
+			description: "Required props object. Must include actionProps.currentState and actionProps.updateFn.",
+			type: "HookProps & { actionProps: { currentState: State; updateFn: (state: State, input: InferInput<S>) => State } }",
+		},
+	}}
+/>
+
+### Props
+
+Same as [`useHookFormAction` props](#props), with the following required additions in `actionProps`:
+
+<TypeTable
+	type={{
+		"actionProps.currentState": {
+			description: "The current server state, typically passed as a prop from a Server Component.",
+			type: "State",
+		},
+		"actionProps.updateFn": {
+			description: "Pure function that computes the optimistic state from the current state and the form input.",
+			type: "(state: State, input: InferInput<S>) => State",
+		},
+	}}
+/>
+
+### Return object
+
+Same as [`useHookFormAction`](#return-object), but `action` is the return type of `useOptimisticAction` instead of `useAction`. This means `action` also includes `optimisticState`:
+
+<TypeTable
+	type={{
+		"action.optimisticState": {
+			description: "The optimistic state. Immediately reflects updateFn during execution, then reverts to currentState when the action settles.",
+			type: "State",
+		},
+	}}
+/>
+
+### Example
+
+<Steps>
+<Step>
+
+### Define the action
+
+```ts title="src/app/actions.ts"
+"use server";
+
+import { z } from "zod";
+import { revalidatePath } from "next/cache";
+import { actionClient } from "@/lib/safe-action";
+
+export type Item = { id: string; name: string };
+
+const addItemSchema = z.object({
+	name: z.string().min(1, "Name is required").max(50),
+});
+
+export const addItem = actionClient
+	.inputSchema(addItemSchema)
+	.action(async ({ parsedInput }) => {
+		const item = { ...parsedInput, id: crypto.randomUUID() };
+		await db.item.create({ data: item });
+		revalidatePath("/items");
+		return { newItem: item };
+	});
+```
+
+</Step>
+<Step>
+
+### Create the Server Component
+
+```tsx title="src/app/items/page.tsx"
+import { db } from "@/lib/db";
+import { ItemForm } from "./item-form";
+
+export default async function ItemsPage() {
+	const items = await db.item.findMany();
+	return <ItemForm items={items} />;
+}
+```
+
+</Step>
+<Step>
+
+### Create the Client Component with optimistic updates
+
+```tsx title="src/app/items/item-form.tsx"
+"use client";
+
+import { useHookFormOptimisticAction } from "@next-safe-action/adapter-react-hook-form/hooks";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import type { Item } from "./actions";
+import { addItem } from "./actions";
+
+const schema = z.object({
+	name: z.string().min(1, "Name is required").max(50),
+});
+
+export function ItemForm({ items }: { items: Item[] }) {
+	const { form, action, handleSubmitWithAction, resetFormAndAction } =
+		useHookFormOptimisticAction(addItem, zodResolver(schema), {
+			actionProps: {
+				currentState: { items },
+				updateFn: (state, input) => ({
+					items: [...state.items, { ...input, id: crypto.randomUUID() }],
+				}),
+				onSuccess() {
+					form.reset();
+				},
+			},
+			formProps: {
+				defaultValues: {
+					name: "",
+				},
+			},
+		});
+
+	return (
+		<div>
+			<form onSubmit={handleSubmitWithAction}>
+				<input {...form.register("name")} placeholder="Item name" />
+				{form.formState.errors.name && (
+					<p>{form.formState.errors.name.message}</p>
+				)}
+				<button type="submit" disabled={action.isPending}>
+					{action.isPending ? "Adding..." : "Add item"}
+				</button>
+			</form>
+
+			<ul>
+				{action.optimisticState.items.map((item) => (
+					<li key={item.id}>{item.name}</li>
+				))}
+			</ul>
+		</div>
+	);
+}
+```
+
+</Step>
+</Steps>
+
+---
+
+## `useHookFormActionErrorMapper`
+
+A lower-level hook for advanced use cases where you want full control over `useAction` and `useForm` separately. It takes a validation errors object and returns react-hook-form-compatible `FieldErrors` that you can pass to `useForm`'s `errors` prop.
+
+```ts
+import { useHookFormActionErrorMapper } from "@next-safe-action/adapter-react-hook-form/hooks";
+
+const { hookFormValidationErrors } = useHookFormActionErrorMapper(validationErrors, props?);
+```
+
+### Parameters
+
+<TypeTable
+	type={{
+		validationErrors: {
+			description: "The validation errors object from a safe action result (result.validationErrors).",
+			type: "ValidationErrors<S> | undefined",
+		},
+		props: {
+			description: "Optional error mapper props.",
+			type: "ErrorMapperProps",
+			default: "undefined",
+		},
+	}}
+/>
+
+### Return object
+
+<TypeTable
+	type={{
+		hookFormValidationErrors: {
+			description: "A FieldErrors object compatible with react-hook-form's useForm errors prop. Undefined when there are no validation errors.",
+			type: "FieldErrors | undefined",
+		},
+	}}
+/>
+
+### Example
+
+```tsx title="src/app/buy-product-form.tsx"
+"use client";
+
+import { useHookFormActionErrorMapper } from "@next-safe-action/adapter-react-hook-form/hooks";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useAction } from "next-safe-action/hooks";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { buyProduct } from "./actions";
+
+const schema = z.object({
+	productId: z.string().min(1, "Product ID is required"),
+	quantity: z.coerce.number().min(1, "Must order at least 1"),
+});
+
+export function BuyProductForm() {
+	// Step 1: Use the action hook separately
+	const {
+		execute,
+		result,
+		status,
+		reset: resetAction,
+		isPending,
+	} = useAction(buyProduct);
+
+	// Step 2: Map server validation errors to react-hook-form format
+	const { hookFormValidationErrors } = useHookFormActionErrorMapper(
+		result.validationErrors
+	);
+
+	// Step 3: Use the form hook separately, passing mapped errors
+	const {
+		register,
+		handleSubmit,
+		reset: resetForm,
+		formState: { errors },
+	} = useForm({
+		resolver: zodResolver(schema),
+		errors: hookFormValidationErrors,
+		defaultValues: {
+			productId: "",
+			quantity: 1,
+		},
+	});
+
+	return (
+		<form onSubmit={handleSubmit((data) => execute(data))}>
+			<div>
+				<input {...register("productId")} placeholder="Product ID" />
+				{errors.productId && <p>{errors.productId.message}</p>}
+			</div>
+			<div>
+				<input type="number" {...register("quantity")} />
+				{errors.quantity && <p>{errors.quantity.message}</p>}
+			</div>
+			<button type="submit" disabled={isPending}>
+				{isPending ? "Purchasing..." : "Buy product"}
+			</button>
+			<button
+				type="button"
+				onClick={() => {
+					resetForm();
+					resetAction();
+				}}
+			>
+				Reset
+			</button>
+		</form>
+	);
+}
+```
+
+<Callout>
+This pattern is useful when you need to customize the action hook behavior (e.g. use `execute` instead of `executeAsync`), add logic between form submission and action execution, or integrate with existing `useForm` setups.
+</Callout>
+
+---
+
+## `mapToHookFormErrors`
+
+A non-hook utility function that maps next-safe-action validation errors to react-hook-form `FieldErrors`. This is the underlying function used by `useHookFormActionErrorMapper` (which wraps it in `useMemo`).
+
+```ts
+import { mapToHookFormErrors } from "@next-safe-action/adapter-react-hook-form";
+```
+
+### Parameters
+
+<TypeTable
+	type={{
+		validationErrors: {
+			description: "The validation errors object from a safe action result.",
+			type: "ValidationErrors<S> | undefined",
+		},
+		props: {
+			description: "Optional props. joinBy controls how multiple error messages for a single field are joined into one string.",
+			type: "ErrorMapperProps",
+			default: "undefined",
+		},
+	}}
+/>
+
+### Return value
+
+Returns a `FieldErrors` object compatible with react-hook-form, or `undefined` if there are no validation errors. Each field error has `type: "validate"` and a `message` string.
+
+### Example
+
+```ts
+import { mapToHookFormErrors } from "@next-safe-action/adapter-react-hook-form";
+
+const validationErrors = {
+	email: { _errors: ["Invalid email", "Email already taken"] },
+	name: { _errors: ["Too short"] },
+};
+
+const fieldErrors = mapToHookFormErrors(validationErrors);
+// → { email: { type: "validate", message: "Invalid email Email already taken" }, name: { type: "validate", message: "Too short" } }
+
+// Use joinBy to customize how multiple errors are joined
+const fieldErrors2 = mapToHookFormErrors(validationErrors, { joinBy: ", " });
+// → { email: { type: "validate", message: "Invalid email, Email already taken" }, ... }
+```
+
+---
+
+## Type utilities
+
+The adapter exports two utility types for inferring the return type of the hooks from an action. These are useful when you need to type a variable or prop that holds the hook's return value.
+
+### `InferUseHookFormActionHookReturn`
+
+Infer the return type of `useHookFormAction` from a safe action function:
+
+```ts
+import type { InferUseHookFormActionHookReturn } from "@next-safe-action/adapter-react-hook-form/hooks";
+
+// Given a safe action:
+const myAction = actionClient.inputSchema(schema).action(async ({ parsedInput }) => {
+	return { success: true };
+});
+
+// Infer the hook return type:
+type MyHookReturn = InferUseHookFormActionHookReturn<typeof myAction>;
+```
+
+### `InferUseHookFormOptimisticActionHookReturn`
+
+Infer the return type of `useHookFormOptimisticAction` from a safe action function and a state type:
+
+```ts
+import type { InferUseHookFormOptimisticActionHookReturn } from "@next-safe-action/adapter-react-hook-form/hooks";
+
+type MyState = { items: Item[] };
+type MyOptimisticHookReturn = InferUseHookFormOptimisticActionHookReturn<typeof myAction, MyState>;
+```
+
+---
 
 ## See also
 
-- [Hooks](/docs/guides/hooks) — the `useAction` hook that the adapter builds on
+- [Hooks guide](/docs/guides/hooks) — the `useAction` hook that the adapter builds on
+- [Hooks API reference](/docs/api/hooks-api) — full type signatures for `useAction` and `useOptimisticAction`
+- [Optimistic Updates](/docs/guides/optimistic-updates) — `useOptimisticAction` in depth
 - [Form Actions](/docs/guides/form-actions) — alternative form patterns without React Hook Form
 - [Custom Validation Errors](/docs/advanced/custom-validation-errors) — customizing error shapes for form display
