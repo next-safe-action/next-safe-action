@@ -42,16 +42,16 @@ All commands run from the repository root unless noted.
 |---|---|
 | Install dependencies | `pnpm install` |
 | Build library | `pnpm run build:lib` |
-| Build all libraries | `pnpm run build:libs` |
+| Build all libraries | `pnpm run build:lib` |
 | Build + start playground | `pnpm run build:lib && pnpm run pg` |
 | Start docs dev server | `pnpm run docs` |
 | Build docs | `pnpm run build:docs` |
 | Lint library | `pnpm run lint:lib` |
-| Lint all libraries | `pnpm run lint:libs` |
+| Lint all libraries | `pnpm run lint:lib` |
 | Lint docs | `pnpm run lint:docs` |
 | Lint playground | `pnpm run lint:pg` |
 | Test library | `pnpm run test:lib` |
-| Test all libraries | `pnpm run test:libs` |
+| Test all libraries | `pnpm run test:lib` |
 | Run single test | `cd packages/next-safe-action && npx vitest run ./src/__tests__/<file>.test.ts` |
 | Format all files | `pnpm run fmt` |
 | Check formatting | `pnpm run fmt:check` |

@@ -61,12 +61,15 @@
 		"node": ">=18.17"
 	},
 	"dependencies": {
-		"deepmerge-ts": "^7.1.5"
+		"deepmerge-ts": "catalog:"
 	},
 	"devDependencies": {
-		"@types/node": "^22",
-		"@types/react": "^19",
-		"@types/react-dom": "^19",
+		"@testing-library/dom": "catalog:",
+		"@testing-library/react": "catalog:",
+		"@types/node": "catalog:",
+		"@types/react": "catalog:",
+		"@types/react-dom": "catalog:",
+		"jsdom": "catalog:",
 		"next": "catalog:",
 		"oxlint": "catalog:",
 		"oxlint-tsgolint": "catalog:",
@@ -75,7 +78,7 @@
 		"tsdown": "catalog:",
 		"vitest": "catalog:",
 		"typescript": "catalog:",
-		"yup": "^1.6.1",
+		"yup": "catalog:",
 		"zod": "catalog:"
 	},
 	"peerDependencies": {

@@ -34,8 +34,8 @@ jobs:
           node-version: "24"
           cache: "pnpm"
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run lint:libs
-      - run: pnpm run test:libs
+      - run: pnpm run lint:lib
+      - run: pnpm run test:lib
 
   check-changesets:
     runs-on: ubuntu-latest

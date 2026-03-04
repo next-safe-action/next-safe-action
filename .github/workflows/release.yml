@@ -29,9 +29,9 @@ jobs:
           cache: "pnpm"
           registry-url: "https://registry.npmjs.org"
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run lint:libs
-      - run: pnpm run test:libs
-      - run: pnpm run build:libs
+      - run: pnpm run lint:lib
+      - run: pnpm run test:lib
+      - run: pnpm run build:lib
       - name: Create Release Pull Request or Publish
         uses: changesets/action@v1
         with:
