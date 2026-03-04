@@ -18,13 +18,13 @@
 		"react-dom": "catalog:"
 	},
 	"devDependencies": {
-		"@tailwindcss/postcss": "^4",
+		"@tailwindcss/postcss": "catalog:",
 		"@types/node": "^22",
 		"@types/react": "^19",
 		"@types/react-dom": "^19",
 		"fumadocs-twoslash": "^3.1.14",
 		"oxlint": "catalog:",
-		"tailwindcss": "^4",
+		"tailwindcss": "catalog:",
 		"twoslash": "^0.3.6",
 		"typescript": "catalog:"
 	}
