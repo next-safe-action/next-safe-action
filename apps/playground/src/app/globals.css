@@ -124,6 +124,12 @@
 }
 
 /* Shiki dual-theme support (defaultColor: false) */
+.shiki pre,
+.shiki code {
+	tab-size: 2;
+	-moz-tab-size: 2;
+}
+
 html:not(.dark) .shiki span {
 	color: var(--shiki-light) !important;
 }
