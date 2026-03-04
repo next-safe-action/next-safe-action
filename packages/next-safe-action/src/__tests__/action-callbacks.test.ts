@@ -182,7 +182,7 @@ test("action with validation errors calls `onError` and `onSettled` callbacks wi
 						error: {
 							validationErrors: {
 								username: {
-									_errors: ["String must contain at least 3 character(s)"],
+									_errors: ["Too small: expected string to have >=3 characters"],
 								},
 							},
 						},
@@ -199,7 +199,7 @@ test("action with validation errors calls `onError` and `onSettled` callbacks wi
 						result: {
 							validationErrors: {
 								username: {
-									_errors: ["String must contain at least 3 character(s)"],
+									_errors: ["Too small: expected string to have >=3 characters"],
 								},
 							},
 						},

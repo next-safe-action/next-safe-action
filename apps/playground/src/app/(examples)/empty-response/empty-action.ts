@@ -4,7 +4,7 @@ import { z } from "zod";
 import { action } from "@/lib/safe-action";
 
 const schema = z.object({
-	userId: z.string().uuid(),
+	userId: z.uuid(),
 });
 
 export const emptyAction = action

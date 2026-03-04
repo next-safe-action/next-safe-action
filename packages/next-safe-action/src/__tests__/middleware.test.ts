@@ -261,7 +261,7 @@ test("validation errors in execution result from middleware are correct", async 
 		},
 		validationErrors: {
 			username: {
-				_errors: ["String must contain at most 3 character(s)"],
+				_errors: ["Too big: expected string to have <=3 characters"],
 			},
 		},
 	};
@@ -410,7 +410,7 @@ test("flattened validation errors in execution result from middleware are correc
 		validationErrors: {
 			formErrors: [],
 			fieldErrors: {
-				username: ["String must contain at most 3 character(s)"],
+				username: ["Too big: expected string to have <=3 characters"],
 			},
 		},
 	};
@@ -448,7 +448,7 @@ test("overridden formatted validation errors in execution result from middleware
 		ctx: {},
 		validationErrors: {
 			username: {
-				_errors: ["String must contain at most 3 character(s)"],
+				_errors: ["Too big: expected string to have <=3 characters"],
 			},
 		},
 	};

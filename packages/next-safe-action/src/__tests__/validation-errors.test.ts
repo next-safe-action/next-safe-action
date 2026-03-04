@@ -49,16 +49,16 @@ test("action with invalid input gives back an object with correct `validationErr
 		validationErrors: {
 			user: {
 				id: {
-					_errors: ["String must contain at least 36 character(s)", "Invalid uuid"],
+					_errors: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 				},
 			},
 			store: {
 				id: {
-					_errors: ["String must contain at least 36 character(s)", "Invalid uuid"],
+					_errors: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 				},
 				product: {
 					id: {
-						_errors: ["String must contain at least 36 character(s)", "Invalid uuid"],
+						_errors: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 					},
 				},
 			},
@@ -94,11 +94,11 @@ test("action with invalid enum input gives back an object with correct `validati
 		validationErrors: {
 			foo: {
 				bar: {
-					_errors: ['Invalid literal value, expected "a"', 'Invalid literal value, expected "b"'],
+					_errors: ["Invalid input"],
 				},
 			},
 			baz: {
-				_errors: ["String must contain at least 3 character(s)"],
+				_errors: ["Too small: expected string to have >=3 characters"],
 			},
 		},
 	};
@@ -138,7 +138,7 @@ test("action with root level schema error gives back an object with correct `val
 		validationErrors: {
 			_errors: ["Passwords do not match"],
 			userId: {
-				_errors: ["String must contain at least 36 character(s)", "Invalid uuid"],
+				_errors: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 			},
 		},
 	};
@@ -175,8 +175,8 @@ test("action with invalid input gives back an object with correct `validationErr
 		validationErrors: {
 			formErrors: ["User id and store id cannot be the same"],
 			fieldErrors: {
-				userId: ["String must contain at least 36 character(s)", "Invalid uuid"],
-				storeId: ["String must contain at least 36 character(s)", "Invalid uuid"],
+				userId: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
+				storeId: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 			},
 		},
 	};
@@ -217,7 +217,7 @@ test("action with invalid output data throws an error of the correct type", asyn
 	});
 
 	const expectedResult = {
-		serverError: "String must contain at least 3 character(s)",
+		serverError: "Too small: expected string to have >=3 characters",
 	};
 
 	const actualResult = {
@@ -277,16 +277,16 @@ test("action with invalid input gives back an object with correct `validationErr
 		validationErrors: {
 			user: {
 				id: {
-					_errors: ["String must contain at least 36 character(s)", "Invalid uuid"],
+					_errors: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 				},
 			},
 			store: {
 				id: {
-					_errors: ["String must contain at least 36 character(s)", "Invalid uuid"],
+					_errors: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 				},
 				product: {
 					id: {
-						_errors: ["String must contain at least 36 character(s)", "Invalid uuid"],
+						_errors: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 					},
 				},
 			},
@@ -328,7 +328,7 @@ test("action with root level schema error gives back an object with correct `val
 		validationErrors: {
 			_errors: ["Passwords do not match", "UUID mismatch"],
 			userId: {
-				_errors: ["Invalid uuid"],
+				_errors: ["Invalid UUID"],
 			},
 		},
 	};
@@ -365,8 +365,8 @@ test("action with invalid input gives back an object with correct `validationErr
 		validationErrors: {
 			formErrors: ["User id and store id cannot be the same"],
 			fieldErrors: {
-				userId: ["String must contain at least 36 character(s)", "Invalid uuid"],
-				storeId: ["String must contain at least 36 character(s)", "Invalid uuid"],
+				userId: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
+				storeId: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 			},
 		},
 	};
@@ -412,8 +412,8 @@ test("action with invalid input gives back an object with correct `validationErr
 		validationErrors: {
 			formErrors: [],
 			fieldErrors: {
-				userId: ["String must contain at least 36 character(s)", "Invalid uuid"],
-				storeId: ["String must contain at least 36 character(s)", "Invalid uuid"],
+				userId: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
+				storeId: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 			},
 		},
 	};
@@ -460,8 +460,8 @@ test("action with root level schema error gives back an object with correct `val
 		validationErrors: {
 			formErrors: ["User and store IDs must be different", "Another cool global error"],
 			fieldErrors: {
-				userId: ["String must contain at least 36 character(s)", "Invalid uuid"],
-				storeId: ["String must contain at least 36 character(s)", "Invalid uuid"],
+				userId: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
+				storeId: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 			},
 		},
 	};
@@ -498,10 +498,10 @@ test("action with invalid input gives back an object with correct `validationErr
 		validationErrors: {
 			_errors: ["User id and store id cannot be the same"],
 			userId: {
-				_errors: ["String must contain at least 36 character(s)", "Invalid uuid"],
+				_errors: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 			},
 			storeId: {
-				_errors: ["String must contain at least 36 character(s)", "Invalid uuid"],
+				_errors: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 			},
 		},
 	};
@@ -745,16 +745,16 @@ test("action with validation errors and overridden `throwValidationErrors` set t
 		validationErrors: {
 			user: {
 				id: {
-					_errors: ["String must contain at least 36 character(s)", "Invalid uuid"],
+					_errors: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 				},
 			},
 			store: {
 				id: {
-					_errors: ["String must contain at least 36 character(s)", "Invalid uuid"],
+					_errors: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 				},
 				product: {
 					id: {
-						_errors: ["String must contain at least 36 character(s)", "Invalid uuid"],
+						_errors: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 					},
 				},
 			},

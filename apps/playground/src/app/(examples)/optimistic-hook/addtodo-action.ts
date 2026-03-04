@@ -5,7 +5,7 @@ import { z } from "zod";
 import { ActionError, action } from "@/lib/safe-action";
 
 const schema = z.object({
-	id: z.string().uuid(),
+	id: z.uuid(),
 	body: z.string().min(1),
 	completed: z.boolean(),
 });

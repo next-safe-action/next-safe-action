@@ -75,12 +75,12 @@ test("action with invalid bind args input gives back a server error object with 
 		serverError: {
 			bindArgsValidationErrors: [
 				{
-					_errors: ["Number must be greater than 0"],
+					_errors: ["Too small: expected number to be >0"],
 				},
 				{},
 				{
 					id: {
-						_errors: ["Invalid uuid"],
+						_errors: ["Invalid UUID"],
 					},
 				},
 			],

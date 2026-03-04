@@ -6,11 +6,11 @@ import { action } from "@/lib/safe-action";
 const schema = z
 	.object({
 		user: z.object({
-			id: z.string().uuid(),
+			id: z.uuid(),
 		}),
 		product: z.object({
 			deeplyNested: z.object({
-				id: z.string().uuid(),
+				id: z.uuid(),
 			}),
 		}),
 	})
