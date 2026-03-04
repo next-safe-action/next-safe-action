@@ -9,6 +9,7 @@
 		"fmt": "oxfmt",
 		"fmt:check": "oxfmt --check",
 		"build": "turbo run build",
+		"test": "turbo run test",
 		"test:lib": "turbo run test --filter=next-safe-action",
 		"test:libs": "turbo run test --filter=./packages/*",
 		"lint:lib": "turbo run lint --filter=next-safe-action",

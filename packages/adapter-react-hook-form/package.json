@@ -34,7 +34,7 @@
 		}
 	],
 	"scripts": {
-		"test": "echo 'No tests yet'",
+		"test": "vitest run",
 		"lint": "tsc --noEmit && oxlint --type-aware .",
 		"build": "tsdown"
 	},
@@ -60,6 +60,9 @@
 	"license": "MIT",
 	"devDependencies": {
 		"@hookform/resolvers": "catalog:",
+		"@testing-library/dom": "catalog:",
+		"@testing-library/react": "catalog:",
+		"jsdom": "^26",
 		"@types/node": "^22",
 		"@types/react": "^19",
 		"@types/react-dom": "^19",
