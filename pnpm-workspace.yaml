@@ -20,7 +20,7 @@ catalog:
   react-dom: ^19
   react-hook-form: ^7.54.2
   tailwindcss: ^4
-  tsdown: ^0.20.3
+  tsdown: ^0.21.0
   typescript: 5.8.2
   vitest: ^3.1.1
   yup: ^1.6.1
