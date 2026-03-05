@@ -1,6 +1,6 @@
 {
 	"name": "next-safe-action",
-	"version": "8.1.5",
+	"version": "8.1.6",
 	"private": false,
 	"description": "Type safe and validated Server Actions in your Next.js project.",
 	"main": "./dist/index.mjs",
