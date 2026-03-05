@@ -17,8 +17,8 @@ export function CodeViewer({ code, html, url, filename }: SourceCode) {
 	};
 
 	return (
-		<Collapsible open={open} onOpenChange={setOpen}>
-			<div className="flex items-center gap-2">
+		<Collapsible open={open} onOpenChange={setOpen} className="min-w-0">
+			<div className="flex flex-wrap items-center gap-2">
 				<Button variant="ghost" size="xs" onClick={() => setOpen(!open)}>
 					{open ? <EyeOffIcon /> : <CodeIcon />}
 					{open ? "Hide Code" : "View Code"}
@@ -40,7 +40,7 @@ export function CodeViewer({ code, html, url, filename }: SourceCode) {
 			<CollapsibleContent>
 				{/* Safe: HTML is generated server-side by Shiki from local repository source files. */}
 				<div
-					className="mt-2 overflow-x-auto rounded-md border text-xs [&_pre]:p-4"
+					className="mt-2 min-w-0 overflow-x-auto rounded-md border text-xs [&_pre]:p-4"
 					dangerouslySetInnerHTML={{ __html: html }}
 				/>
 			</CollapsibleContent>
