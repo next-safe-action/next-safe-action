@@ -10,7 +10,7 @@ const codeLines = [
 	},
 	{
 		indent: 0,
-		parts: [{ text: "\n" }],
+		parts: [{ text: "\n", color: "" }],
 	},
 	{
 		indent: 0,
