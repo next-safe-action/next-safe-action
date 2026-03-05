@@ -6,12 +6,19 @@ import Link from "next/link";
 const codeLines = [
 	{
 		indent: 0,
+		parts: [{ text: '"use server";', color: "text-green-400" }],
+	},
+	{
+		indent: 0,
+		parts: [{ text: "\n" }],
+	},
+	{
+		indent: 0,
 		parts: [
 			{ text: "const", color: "text-purple-400" },
 			{ text: " action", color: "text-amber-accent-light" },
 			{ text: " = ", color: "text-fd-muted-foreground" },
-			{ text: "createSafeActionClient", color: "text-blue-400" },
-			{ text: "()", color: "text-fd-muted-foreground" },
+			{ text: "actionClient", color: "text-blue-400" },
 		],
 	},
 	{

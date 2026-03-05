@@ -14,6 +14,41 @@
 	--color-amber-border: rgba(245, 158, 11, 0.3);
 }
 
+@keyframes marquee-left {
+	from {
+		transform: translateX(0);
+	}
+	to {
+		transform: translateX(-50%);
+	}
+}
+
+@keyframes marquee-right {
+	from {
+		transform: translateX(-50%);
+	}
+	to {
+		transform: translateX(0);
+	}
+}
+
+@utility animate-marquee-left {
+	animation: marquee-left 90s linear infinite;
+}
+
+@utility animate-marquee-right {
+	animation: marquee-right 90s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.animate-marquee-left {
+		animation-duration: 120s;
+	}
+	.animate-marquee-right {
+		animation-duration: 120s;
+	}
+}
+
 .shiki pre,
 .shiki code {
 	tab-size: 2;
