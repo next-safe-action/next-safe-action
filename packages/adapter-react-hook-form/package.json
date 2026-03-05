@@ -1,0 +1,100 @@
+{
+	"name": "@next-safe-action/adapter-react-hook-form",
+	"version": "2.0.0",
+	"private": false,
+	"description": "This adapter offers a way to seamlessly integrate next-safe-action with react-hook-form.",
+	"main": "./dist/index.mjs",
+	"module": "./dist/index.mjs",
+	"types": "./dist/index.d.mts",
+	"files": [
+		"dist"
+	],
+	"exports": {
+		".": "./dist/index.mjs",
+		"./hooks": "./dist/hooks.mjs"
+	},
+	"typesVersions": {
+		"*": {
+			".": [
+				"./dist/index.d.mts"
+			],
+			"hooks": [
+				"./dist/hooks.d.mts"
+			]
+		}
+	},
+	"funding": [
+		{
+			"type": "github",
+			"url": "https://github.com/sponsors/TheEdoRan"
+		},
+		{
+			"type": "paypal",
+			"url": "https://www.paypal.com/donate/?hosted_button_id=ES9JRPSC66XKW"
+		}
+	],
+	"scripts": {
+		"test": "vitest run",
+		"lint": "tsc --noEmit && oxlint --type-aware .",
+		"build": "tsdown"
+	},
+	"keywords": [
+		"next",
+		"nextjs",
+		"react",
+		"rsc",
+		"react server components",
+		"mutation",
+		"action",
+		"actions",
+		"react actions",
+		"next actions",
+		"server actions",
+		"next-safe-action",
+		"next safe action",
+		"react-hook-form",
+		"react hook form",
+		"react forms"
+	],
+	"author": "Edoardo Ranghieri",
+	"license": "MIT",
+	"devDependencies": {
+		"@hookform/resolvers": "catalog:",
+		"@testing-library/dom": "catalog:",
+		"@testing-library/react": "catalog:",
+		"jsdom": "catalog:",
+		"@types/node": "catalog:",
+		"@types/react": "catalog:",
+		"@types/react-dom": "catalog:",
+		"next": "catalog:",
+		"next-safe-action": "workspace:*",
+		"oxlint": "catalog:",
+		"oxlint-tsgolint": "catalog:",
+		"react": "catalog:",
+		"react-dom": "catalog:",
+		"react-hook-form": "catalog:",
+		"tsdown": "catalog:",
+		"typescript": "catalog:",
+		"vitest": "catalog:",
+		"zod": "catalog:"
+	},
+	"peerDependencies": {
+		"@hookform/resolvers": ">= 5.0.0",
+		"next": ">= 14.0.0",
+		"next-safe-action": ">= 8.0.0",
+		"react": ">= 18.2.0",
+		"react-dom": ">= 18.2.0",
+		"react-hook-form": ">= 7.0.0"
+	},
+	"engines": {
+		"node": ">=18.17"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/TheEdoRan/next-safe-action.git",
+		"directory": "packages/adapter-react-hook-form"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

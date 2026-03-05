@@ -17,9 +17,6 @@ yarn-error.log*
 # Exclude .example files
 !*.example
 
-# ESLint
-.eslintcache
-
 # TypeScript stuff
 *.tsbuildinfo
 
@@ -29,6 +26,8 @@ yarn-error.log*
 # Local test file
 /packages/next-safe-action/src/test.ts
 
-# Website
-/website/.docusaurus
-/website/node_modules
+# Fumadocs generated types
+.source
+
+# Playwright
+.playwright-mcp

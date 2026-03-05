@@ -1,0 +1,171 @@
+---
+title: Validation Utilities
+description: API reference for validation error utility functions and constants.
+---
+
+next-safe-action exports several utility functions and constants for working with validation errors.
+
+All utilities are imported from the main entry point:
+
+```ts
+import {
+	returnValidationErrors,
+	flattenValidationErrors,
+	formatValidationErrors,
+	DEFAULT_SERVER_ERROR_MESSAGE,
+} from "next-safe-action";
+```
+
+## `returnValidationErrors()`
+
+Throw validation errors from server action code. This function **never returns**. It throws internally and the error is caught by the action builder and returned as `validationErrors` in the result.
+
+```ts
+function returnValidationErrors<S extends StandardSchemaV1>(
+	schema: S,
+	validationErrors: ValidationErrors<S>
+): never;
+```
+
+**Parameters:**
+
+<TypeTable
+	type={{
+		schema: {
+			description: "The input schema for the action. Used for type inference only. The schema is not executed.",
+			type: "StandardSchemaV1 | (() => Promise<StandardSchemaV1>)",
+		},
+		validationErrors: {
+			description: "Object with validation errors matching the schema structure. Each field can have an _errors array.",
+			type: "ValidationErrors<S>",
+		},
+	}}
+/>
+
+**Returns:** `never`, this function always throws.
+
+```ts
+export const signUp = actionClient
+	.inputSchema(z.object({
+		email: z.string().email(),
+		username: z.string().min(3),
+	}))
+	.action(async ({ parsedInput }) => {
+		const emailExists = await db.user.findByEmail(parsedInput.email);
+
+		if (emailExists) {
+			// Throws internally, code below this line never executes
+			return returnValidationErrors(signUpSchema, {
+				email: { _errors: ["Email already registered"] },
+			});
+		}
+
+		// Form-level errors (not tied to a specific field)
+		return returnValidationErrors(signUpSchema, {
+			_errors: ["Registration is currently disabled"],
+		});
+	});
+```
+
+<Callout>
+`returnValidationErrors` accepts both direct schemas and async schema factory functions. When using an async factory (for i18n), pass the factory function itself.
+</Callout>
+
+---
+
+## `flattenValidationErrors()`
+
+Transform formatted validation errors into a flat structure with `formErrors` and `fieldErrors`. Discards errors for nested fields (only keeps one level deep).
+
+```ts
+function flattenValidationErrors<VE extends ValidationErrors<any>>(
+	validationErrors: VE
+): FlattenedValidationErrors<VE>;
+```
+
+**Parameters:**
+
+<TypeTable
+	type={{
+		validationErrors: {
+			description: "Formatted validation errors object with nested _errors arrays.",
+			type: "ValidationErrors<S>",
+		},
+	}}
+/>
+
+**Returns:** `FlattenedValidationErrors<VE>`, an object with `formErrors: string[]` and `fieldErrors: { [key]: string[] }`.
+
+```ts
+// Input (formatted shape):
+{
+	_errors: ["Passwords don't match"],
+	name: { _errors: ["Too short"] },
+	address: { street: { _errors: ["Required"] } },
+}
+
+// Output (flattened shape):
+{
+	formErrors: ["Passwords don't match"],
+	fieldErrors: {
+		name: ["Too short"],
+		// address.street is discarded (nested)
+	},
+}
+```
+
+### Usage with `handleValidationErrorsShape`
+
+```ts
+import { flattenValidationErrors } from "next-safe-action";
+
+export const myAction = actionClient
+	.inputSchema(schema, {
+		handleValidationErrorsShape: (ve) => flattenValidationErrors(ve),
+	})
+	.action(async ({ parsedInput }) => { /* ... */ });
+```
+
+---
+
+## `formatValidationErrors()`
+
+Identity function that returns the formatted validation errors as-is. Useful as a named reference when you want to be explicit about using the default shape.
+
+```ts
+function formatValidationErrors<VE extends ValidationErrors<any>>(
+	validationErrors: VE
+): VE;
+```
+
+---
+
+## `DEFAULT_SERVER_ERROR_MESSAGE`
+
+The default error message returned to the client when a server error occurs and no custom `handleServerError` is provided.
+
+```ts
+const DEFAULT_SERVER_ERROR_MESSAGE: string;
+// Value: "Something went wrong while executing the operation."
+```
+
+This constant is useful when you want to check if the client received the default error message, or when building custom error handlers that should fall back to the default.
+
+```ts
+import { DEFAULT_SERVER_ERROR_MESSAGE } from "next-safe-action";
+
+const actionClient = createSafeActionClient({
+	handleServerError: (error) => {
+		if (error instanceof AuthError) {
+			return "Authentication failed";
+		}
+		return DEFAULT_SERVER_ERROR_MESSAGE;
+	},
+});
+```
+
+## See also
+
+- [Custom Validation Errors](/docs/advanced/custom-validation-errors) — guide for customizing error shapes
+- [Error Handling](/docs/concepts/error-handling) — the complete error taxonomy
+- [Error Classes](/docs/api/error-classes) — all exported error classes

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 130" width="860" height="130">
+	<defs>
+		<marker id="ad" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="10" markerHeight="7" orient="auto-start-reverse">
+			<polygon points="0 0, 10 3.5, 0 7" fill="#9ca3af"/>
+		</marker>
+	</defs>
+	<rect x="0" y="35" width="110" height="52" rx="8" fill="#1e3a5f" stroke="#60a5fa" stroke-width="1.5"/>
+	<text x="55" y="66" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" font-weight="600" fill="#93c5fd">Client Call</text>
+	<line x1="115" y1="61" x2="148" y2="61" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#ad)"/>
+	<rect x="153" y="35" width="110" height="52" rx="8" fill="#422006" stroke="#fbbf24" stroke-width="1.5"/>
+	<text x="208" y="66" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" font-weight="600" fill="#fde68a">Middleware</text>
+	<line x1="268" y1="61" x2="301" y2="61" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#ad)"/>
+	<rect x="306" y="35" width="120" height="52" rx="8" fill="#052e16" stroke="#4ade80" stroke-width="1.5"/>
+	<text x="366" y="58" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" font-weight="600" fill="#86efac">Validate</text>
+	<text x="366" y="74" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" font-weight="600" fill="#86efac">Input</text>
+	<line x1="431" y1="61" x2="464" y2="61" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#ad)"/>
+	<rect x="469" y="35" width="120" height="52" rx="8" fill="#3b0764" stroke="#c084fc" stroke-width="1.5"/>
+	<text x="529" y="66" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" font-weight="600" fill="#d8b4fe">Server Code</text>
+	<line x1="594" y1="61" x2="627" y2="61" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#ad)"/>
+	<rect x="632" y="35" width="120" height="52" rx="8" fill="#052e16" stroke="#4ade80" stroke-width="1.5"/>
+	<text x="692" y="58" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" font-weight="600" fill="#86efac">Validate</text>
+	<text x="692" y="74" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" font-weight="600" fill="#86efac">Output</text>
+	<text x="55" y="108" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#9ca3af">Client</text>
+	<text x="450" y="20" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#9ca3af">Server</text>
+	<line x1="134" y1="8" x2="134" y2="122" stroke="#4b5563" stroke-width="1" stroke-dasharray="4 3"/>
+</svg>

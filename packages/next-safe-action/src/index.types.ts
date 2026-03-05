@@ -97,7 +97,7 @@ export type SafeActionResult<
 	S extends StandardSchemaV1 | undefined,
 	CVE = ValidationErrors<S>,
 	Data = unknown,
-	// eslint-disable-next-line
+	// oxlint-disable-next-line
 	NextCtx = object,
 > = {
 	data?: Data;

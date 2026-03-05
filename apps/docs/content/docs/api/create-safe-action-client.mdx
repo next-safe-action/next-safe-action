@@ -1,0 +1,141 @@
+---
+title: createSafeActionClient()
+description: API reference for the createSafeActionClient() function.
+---
+
+`createSafeActionClient` creates a new safe action client instance. This is the entry point for defining type-safe server actions.
+
+```ts
+import { createSafeActionClient } from "next-safe-action";
+
+const actionClient = createSafeActionClient(opts);
+```
+
+## Parameters
+
+`createSafeActionClient` accepts an optional options object:
+
+<TypeTable
+	type={{
+		handleServerError: {
+			description: "Custom handler for errors thrown in server code. Receives the Error and a utils object containing clientInput, bindArgsClientInputs, ctx, and metadata. Must return the server error value (default type is string). If not provided, errors are logged to console and DEFAULT_SERVER_ERROR_MESSAGE is returned.",
+			type: "(error: Error, utils: ServerErrorFunctionUtils) => MaybePromise<ServerError>",
+			default: "Logs error, returns DEFAULT_SERVER_ERROR_MESSAGE",
+		},
+		defineMetadataSchema: {
+			description: "Function that returns a Standard Schema validator for action metadata. When defined, all actions must call .metadata() before .action().",
+			type: "() => MetadataSchema",
+			default: "undefined",
+		},
+		defaultValidationErrorsShape: {
+			description: "Default shape for validation errors returned to the client. 'formatted' preserves schema nesting with _errors arrays. 'flattened' separates formErrors and fieldErrors.",
+			type: '"formatted" | "flattened"',
+			default: '"formatted"',
+		},
+		throwValidationErrors: {
+			description: "When true, validation errors are thrown as ActionValidationError instead of being returned in the result object. Can be overridden per action.",
+			type: "boolean",
+			default: "false",
+		},
+	}}
+/>
+
+## Return value
+
+Returns a [`SafeActionClient`](/docs/api/safe-action-client) instance with all chainable methods available.
+
+## Examples
+
+### Minimal client
+
+```ts title="src/lib/safe-action.ts"
+import { createSafeActionClient } from "next-safe-action";
+
+export const actionClient = createSafeActionClient();
+```
+
+### Custom error handling
+
+```ts title="src/lib/safe-action.ts"
+import { createSafeActionClient } from "next-safe-action";
+
+export const actionClient = createSafeActionClient({
+	handleServerError: (error, { metadata }) => {
+		// Log to your error tracking service
+		reportError(error, { metadata });
+
+		// Return a user-friendly message
+		if (error instanceof DatabaseError) {
+			return "A database error occurred. Please try again.";
+		}
+
+		return "Something went wrong.";
+	},
+});
+```
+
+### With metadata schema
+
+```ts title="src/lib/safe-action.ts"
+import { createSafeActionClient } from "next-safe-action";
+import { z } from "zod";
+
+export const actionClient = createSafeActionClient({
+	defineMetadataSchema: () =>
+		z.object({
+			actionName: z.string(),
+		}),
+});
+
+// All actions using this client must now call .metadata()
+export const myAction = actionClient
+	.metadata({ actionName: "myAction" })
+	.action(async () => {
+		// ...
+	});
+```
+
+### Flattened validation errors
+
+```ts title="src/lib/safe-action.ts"
+import { createSafeActionClient } from "next-safe-action";
+
+export const actionClient = createSafeActionClient({
+	defaultValidationErrorsShape: "flattened",
+});
+
+// All actions using this client return flattened errors:
+// { formErrors: string[], fieldErrors: { [field]: string[] } }
+```
+
+## `ServerErrorFunctionUtils`
+
+The second argument passed to `handleServerError`:
+
+<TypeTable
+	type={{
+		clientInput: {
+			description: "The raw input sent from the client before validation.",
+			type: "unknown",
+		},
+		bindArgsClientInputs: {
+			description: "Array of raw bind argument inputs before validation.",
+			type: "unknown[]",
+		},
+		ctx: {
+			description: "The context object built by the middleware chain.",
+			type: "object",
+		},
+		metadata: {
+			description: "The metadata set via .metadata(), typed according to defineMetadataSchema.",
+			type: "InferOutput<MetadataSchema> | undefined",
+		},
+	}}
+/>
+
+## See also
+
+- [Action Client](/docs/concepts/action-client) — conceptual overview of the client pattern
+- [SafeActionClient methods](/docs/api/safe-action-client) — all chainable methods available on the returned client
+- [Metadata](/docs/advanced/metadata) — using `defineMetadataSchema` for type-safe action metadata
+- [Error Handling](/docs/concepts/error-handling) — understanding `handleServerError` in context

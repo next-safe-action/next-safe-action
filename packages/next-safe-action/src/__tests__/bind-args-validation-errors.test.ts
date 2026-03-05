@@ -1,7 +1,4 @@
-/* eslint-disable @typescript-eslint/no-floating-promises */
-
-import assert from "node:assert";
-import { test } from "node:test";
+import { expect, test } from "vitest";
 import { z } from "zod";
 import { createSafeActionClient, DEFAULT_SERVER_ERROR_MESSAGE } from "..";
 import { ActionBindArgsValidationError } from "../validation-errors";
@@ -38,7 +35,7 @@ test("action with invalid bind args input and valid main input gives back a serv
 		serverError: DEFAULT_SERVER_ERROR_MESSAGE,
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 // Unmasked server error client.
@@ -78,17 +75,17 @@ test("action with invalid bind args input gives back a server error object with 
 		serverError: {
 			bindArgsValidationErrors: [
 				{
-					_errors: ["Number must be greater than 0"],
+					_errors: ["Too small: expected number to be >0"],
 				},
 				{},
 				{
 					id: {
-						_errors: ["Invalid uuid"],
+						_errors: ["Invalid UUID"],
 					},
 				},
 			],
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });

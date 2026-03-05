@@ -1,0 +1,167 @@
+---
+title: createMiddleware()
+description: API reference for the createMiddleware() function.
+---
+
+`createMiddleware` creates a standalone middleware function that can be shared across multiple action clients. It provides type constraints so TypeScript can verify the middleware is only used with compatible clients.
+
+```ts
+import { createMiddleware } from "next-safe-action";
+
+const myMiddleware = createMiddleware<Constraints>().define(middlewareFn);
+```
+
+## Signature
+
+```ts
+function createMiddleware<
+	BaseData extends {
+		serverError?: any;
+		ctx?: object;
+		metadata?: any;
+	}
+>(): {
+	define: <NextCtx extends object>(middlewareFn: MiddlewareFn) => MiddlewareFn;
+};
+```
+
+## Generic parameter
+
+`createMiddleware` accepts a single generic parameter `BaseData` that declares the **minimum** requirements for the middleware. The client using this middleware must have at least these properties available.
+
+<TypeTable
+	type={{
+		"BaseData.serverError": {
+			description: "Required server error type. If not specified, accepts any server error type.",
+			type: "any",
+			default: "any",
+		},
+		"BaseData.ctx": {
+			description: "Required minimum shape of the context object. The actual context can have additional properties.",
+			type: "object",
+			default: "object (empty)",
+		},
+		"BaseData.metadata": {
+			description: "Required minimum shape of the metadata. The actual metadata can have additional properties.",
+			type: "any",
+			default: "any",
+		},
+	}}
+/>
+
+## `.define()` method
+
+The `define` method accepts a middleware function and returns it with proper typing. The middleware function receives the same options as inline `.use()` middleware:
+
+<TypeTable
+	type={{
+		clientInput: {
+			description: "The raw input sent from the client, before validation.",
+			type: "unknown",
+		},
+		bindArgsClientInputs: {
+			description: "Array of raw bind argument inputs, before validation.",
+			type: "unknown[]",
+		},
+		ctx: {
+			description: "The context object accumulated from previous middleware in the chain.",
+			type: "Ctx",
+		},
+		metadata: {
+			description: "The metadata set via .metadata() on the action.",
+			type: "MD",
+		},
+		next: {
+			description: "Call to proceed to the next middleware or server code. Optionally pass { ctx } to extend the context.",
+			type: "(opts?: { ctx?: NextCtx }) => Promise<MiddlewareResult>",
+		},
+	}}
+/>
+
+## Examples
+
+### No constraints (universal middleware)
+
+```ts title="src/lib/middleware/logging.ts"
+import { createMiddleware } from "next-safe-action";
+
+export const loggingMiddleware = createMiddleware().define(
+	async ({ next, metadata }) => {
+		const start = Date.now();
+		const result = await next();
+		console.log(`Action took ${Date.now() - start}ms`, metadata);
+		return result;
+	}
+);
+```
+
+### With context constraints
+
+```ts title="src/lib/middleware/admin-guard.ts"
+import { createMiddleware } from "next-safe-action";
+
+// Requires ctx.user with a role property
+export const adminGuard = createMiddleware<{
+	ctx: { user: { id: string; role: string } };
+}>().define(async ({ next, ctx }) => {
+	if (ctx.user.role !== "admin") {
+		throw new Error("Admin access required");
+	}
+	// ctx.user is fully typed here
+	return next();
+});
+```
+
+### With metadata constraints
+
+```ts title="src/lib/middleware/rate-limit.ts"
+import { createMiddleware } from "next-safe-action";
+
+export const rateLimitMiddleware = createMiddleware<{
+	metadata: { actionName: string };
+}>().define(async ({ next, metadata }) => {
+	await checkRateLimit(metadata.actionName);
+	return next();
+});
+```
+
+### Extending context
+
+```ts title="src/lib/middleware/with-db.ts"
+import { createMiddleware } from "next-safe-action";
+
+export const withDb = createMiddleware().define(async ({ next }) => {
+	const db = await getDbConnection();
+
+	return next({
+		ctx: { db }, // Adds db to context for downstream middleware/actions
+	});
+});
+```
+
+## Usage with clients
+
+```ts title="src/lib/safe-action.ts"
+import { createSafeActionClient } from "next-safe-action";
+import { loggingMiddleware } from "./middleware/logging";
+import { adminGuard } from "./middleware/admin-guard";
+
+const baseClient = createSafeActionClient().use(loggingMiddleware);
+
+// ✅ Works — adminGuard requires ctx.user, which authMiddleware provides
+const adminClient = baseClient
+	.use(async ({ next }) => {
+		const user = await getUser();
+		return next({ ctx: { user } });
+	})
+	.use(adminGuard);
+
+// ❌ Type error — adminGuard requires ctx.user, but baseClient doesn't have it
+const broken = baseClient.use(adminGuard);
+```
+
+## See also
+
+- [Middleware guide](/docs/guides/middleware) — foundational middleware concepts
+- [Standalone Middleware](/docs/advanced/standalone-middleware) — guide with more patterns and use cases
+- [`.use()` method](/docs/api/safe-action-client#use) — how standalone middleware is consumed by clients

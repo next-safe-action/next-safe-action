@@ -1,0 +1,342 @@
+---
+title: Types
+description: Comprehensive reference for all exported TypeScript types.
+---
+
+This page documents all the TypeScript types exported by next-safe-action. Types are exported from the main `next-safe-action` entry point unless otherwise noted.
+
+## Core types
+
+### `SafeActionResult`
+
+The result object returned by every action execution. Each field is optional, and the presence of fields indicates the action's outcome.
+
+```ts
+type SafeActionResult<ServerError, S, CVE, Data> = {
+	data?: Data;
+	serverError?: ServerError;
+	validationErrors?: CVE;
+};
+```
+
+<TypeTable
+	type={{
+		data: {
+			description: "The successful return value from the action's server code. Present when the action completes without errors.",
+			type: "Data | undefined",
+		},
+		serverError: {
+			description: "Error value from handleServerError when server code throws. Default type is string.",
+			type: "ServerError | undefined",
+		},
+		validationErrors: {
+			description: "Validation errors when input doesn't match the schema or when returnValidationErrors is called. Shape depends on defaultValidationErrorsShape.",
+			type: "CVE | undefined",
+		},
+	}}
+/>
+
+---
+
+### `SafeActionFn`
+
+The callable function type returned by `.action()`.
+
+```ts
+type SafeActionFn<ServerError, S, BAS, CVE, Data> = (
+	...clientInputs: [...bindArgsInputs: InferInputArray<BAS>, input: InferInput<S>]
+) => Promise<SafeActionResult<ServerError, S, CVE, Data>>;
+```
+
+When bind args are defined, they appear as leading parameters. The main input is always the last parameter.
+
+---
+
+### `SafeStateActionFn`
+
+The callable function type returned by `.stateAction()`.
+
+```ts
+type SafeStateActionFn<ServerError, S, BAS, CVE, Data> = (
+	...clientInputs: [
+		...bindArgsInputs: InferInputArray<BAS>,
+		prevResult: SafeActionResult<ServerError, S, CVE, Data>,
+		input: InferInput<S>,
+	]
+) => Promise<SafeActionResult<ServerError, S, CVE, Data>>;
+```
+
+Same as `SafeActionFn` but includes `prevResult` as the second-to-last parameter, before the main input.
+
+---
+
+## Middleware types
+
+### `MiddlewareFn`
+
+The function type for middleware defined via `.use()` or `createMiddleware().define()`.
+
+```ts
+type MiddlewareFn<ServerError, MD, Ctx, NextCtx> = (opts: {
+	clientInput: unknown;
+	bindArgsClientInputs: unknown[];
+	ctx: Ctx;
+	metadata: MD;
+	next: <NC extends object = {}>(opts?: { ctx?: NC }) => Promise<MiddlewareResult<ServerError, NC>>;
+}) => Promise<MiddlewareResult<ServerError, NextCtx>>;
+```
+
+---
+
+### `MiddlewareResult`
+
+The result type returned by the `next()` function inside middleware. Extends `SafeActionResult` with execution metadata.
+
+```ts
+type MiddlewareResult<ServerError, NextCtx> = SafeActionResult<ServerError, any, any, any, NextCtx> & {
+	navigationKind?: NavigationKind;
+	parsedInput?: unknown;
+	bindArgsParsedInputs?: unknown[];
+	ctx?: object;
+	success: boolean;
+};
+```
+
+<TypeTable
+	type={{
+		success: {
+			description: "Whether the downstream execution (middleware chain + server code) completed without errors.",
+			type: "boolean",
+		},
+		navigationKind: {
+			description: "Set when a framework navigation function was called. See NavigationKind.",
+			type: "NavigationKind | undefined",
+		},
+		parsedInput: {
+			description: "The validated input, available after input validation runs.",
+			type: "unknown | undefined",
+		},
+		bindArgsParsedInputs: {
+			description: "The validated bind arguments, available after bind args validation runs.",
+			type: "unknown[] | undefined",
+		},
+		ctx: {
+			description: "The final context object after the full middleware chain.",
+			type: "object | undefined",
+		},
+	}}
+/>
+
+---
+
+## Server code types
+
+### `ServerCodeFn`
+
+The function type for the server code passed to `.action()`.
+
+```ts
+type ServerCodeFn<MD, Ctx, S, BAS, Data> = (args: {
+	parsedInput: InferOutput<S> | undefined;
+	clientInput: InferInput<S> | undefined;
+	bindArgsParsedInputs: InferOutputArray<BAS>;
+	bindArgsClientInputs: InferInputArray<BAS>;
+	ctx: Ctx;
+	metadata: MD;
+}) => Promise<Data>;
+```
+
+---
+
+### `StateServerCodeFn`
+
+The function type for the server code passed to `.stateAction()`. Same as `ServerCodeFn` but with a second `utils` argument.
+
+```ts
+type StateServerCodeFn<ServerError, MD, Ctx, S, BAS, CVE, Data> = (
+	args: {
+		parsedInput: InferOutput<S> | undefined;
+		clientInput: InferInput<S> | undefined;
+		bindArgsParsedInputs: InferOutputArray<BAS>;
+		bindArgsClientInputs: InferInputArray<BAS>;
+		ctx: Ctx;
+		metadata: MD;
+	},
+	utils: {
+		prevResult: SafeActionResult<ServerError, S, CVE, Data>;
+	}
+) => Promise<Data>;
+```
+
+---
+
+## Configuration types
+
+### `CreateClientOpts`
+
+Options passed to [`createSafeActionClient()`](/docs/api/create-safe-action-client).
+
+```ts
+type CreateClientOpts<ODVES, ServerError, MetadataSchema> = {
+	defineMetadataSchema?: () => MetadataSchema;
+	handleServerError?: HandleServerErrorFn<ServerError, MetadataSchema>;
+	defaultValidationErrorsShape?: ODVES;
+	throwValidationErrors?: boolean;
+};
+```
+
+---
+
+### `SafeActionUtils`
+
+Server-side callbacks and options passed as the second argument to `.action()` and `.stateAction()`.
+
+```ts
+type SafeActionUtils<ServerError, MD, Ctx, S, BAS, CVE, Data> = {
+	throwServerError?: boolean;
+	throwValidationErrors?: boolean | {
+		overrideErrorMessage: (validationErrors: CVE) => Promise<string>;
+	};
+	onSuccess?: (args: { data?, metadata, ctx?, clientInput, bindArgsClientInputs, parsedInput, bindArgsParsedInputs }) => Promise<unknown>;
+	onNavigation?: (args: { metadata, ctx?, clientInput, bindArgsClientInputs, navigationKind }) => Promise<unknown>;
+	onError?: (args: { error, metadata, ctx?, clientInput, bindArgsClientInputs }) => Promise<unknown>;
+	onSettled?: (args: { result, metadata, ctx?, clientInput, bindArgsClientInputs, navigationKind? }) => Promise<unknown>;
+};
+```
+
+---
+
+### `HandleServerErrorFn`
+
+The type for the `handleServerError` callback.
+
+```ts
+type HandleServerErrorFn<ServerError, MetadataSchema> = (
+	error: Error,
+	utils: ServerErrorFunctionUtils<MetadataSchema>
+) => MaybePromise<ServerError>;
+```
+
+---
+
+### `ServerErrorFunctionUtils`
+
+Utils passed to `handleServerError`.
+
+```ts
+type ServerErrorFunctionUtils<MetadataSchema> = {
+	clientInput: unknown;
+	bindArgsClientInputs: unknown[];
+	ctx: object;
+	metadata: InferOutput<MetadataSchema> | undefined;
+};
+```
+
+---
+
+## Validation error types
+
+### `ValidationErrors`
+
+The formatted validation errors type, mirroring the schema structure.
+
+```ts
+type ValidationErrors<S> = S extends StandardSchemaV1
+	? InferOutput<S> extends NotObject
+		? { _errors?: string[] }
+		: { _errors?: string[] } & SchemaErrors<InferOutput<S>>
+	: undefined;
+```
+
+Each level of the schema can have an `_errors` array. Nested objects create nested error objects.
+
+---
+
+### `FlattenedValidationErrors`
+
+The flattened validation errors type, with top-level `formErrors` and `fieldErrors`.
+
+```ts
+type FlattenedValidationErrors<VE> = {
+	formErrors: string[];
+	fieldErrors: {
+		[K in keyof Omit<VE, "_errors">]?: string[];
+	};
+};
+```
+
+---
+
+### `HandleValidationErrorsShapeFn`
+
+Function type for custom validation error shaping.
+
+```ts
+type HandleValidationErrorsShapeFn<S, BAS, MD, Ctx, CVE> = (
+	validationErrors: ValidationErrors<S>,
+	utils: {
+		clientInput: InferInput<S> | undefined;
+		bindArgsClientInputs: InferInputArray<BAS>;
+		metadata: MD;
+		ctx: Ctx;
+	}
+) => Promise<CVE>;
+```
+
+---
+
+## Navigation types
+
+### `NavigationKind`
+
+Union type representing framework navigation functions.
+
+```ts
+type NavigationKind = "redirect" | "notFound" | "forbidden" | "unauthorized" | "other";
+```
+
+---
+
+## Enums and constants
+
+### `DVES`
+
+The default validation errors shape type.
+
+```ts
+type DVES = "formatted" | "flattened";
+```
+
+---
+
+## Utility types
+
+### `Prettify`
+
+Makes complex intersection types readable in IDE hover tooltips.
+
+```ts
+type Prettify<T> = { [K in keyof T]: T[K] } & {};
+```
+
+### `MaybePromise`
+
+Accepts a value or a promise of a value.
+
+```ts
+type MaybePromise<T> = Promise<T> | T;
+```
+
+### `MaybeArray`
+
+Accepts a value or an array of values.
+
+```ts
+type MaybeArray<T> = T | T[];
+```
+
+## See also
+
+- [Type Utilities](/docs/api/type-utilities) — `Infer*` types for extracting types from actions and clients
+- [Action Result](/docs/concepts/action-result) — understanding `SafeActionResult`
+- [Hooks API](/docs/api/hooks-api) — `HookCallbacks`, `HookActionStatus`, and hook return types

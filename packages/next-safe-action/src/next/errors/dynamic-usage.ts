@@ -32,10 +32,10 @@ function isDynamicPostpone(err: unknown) {
 	if (
 		typeof err === "object" &&
 		err !== null &&
-		// eslint-disable-next-line
+		// oxlint-disable-next-line
 		typeof (err as any).message === "string"
 	) {
-		// eslint-disable-next-line
+		// oxlint-disable-next-line
 		return isDynamicPostponeReason((err as any).message);
 	}
 	return false;

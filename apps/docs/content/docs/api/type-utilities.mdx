@@ -1,0 +1,215 @@
+---
+title: Type Utilities
+description: API reference for type inference utilities.
+---
+
+next-safe-action exports several utility types for inferring types from action functions, clients, and middleware. These are useful when you need to reference action types in other parts of your code.
+
+All type utilities are imported from the main entry point:
+
+```ts
+import type {
+	InferSafeActionFnInput,
+	InferSafeActionFnResult,
+	InferMiddlewareFnNextCtx,
+	InferCtx,
+	InferMetadata,
+	InferServerError,
+} from "next-safe-action";
+```
+
+## `InferSafeActionFnInput`
+
+Infer the input types (both client-side and parsed) from an action function.
+
+```ts
+type InferSafeActionFnInput<T extends Function>
+```
+
+**Produces:**
+
+```ts
+{
+	clientInput: StandardSchemaV1.InferInput<S>;
+	bindArgsClientInputs: InferInputArray<BAS>;
+	parsedInput: StandardSchemaV1.InferOutput<S>;
+	bindArgsParsedInputs: InferOutputArray<BAS>;
+}
+```
+
+**Works with:** `SafeActionFn`, `SafeStateActionFn`
+
+```ts
+import type { InferSafeActionFnInput } from "next-safe-action";
+import { myAction } from "./actions";
+
+type MyInput = InferSafeActionFnInput<typeof myAction>;
+// MyInput.clientInput — what you pass to execute()
+// MyInput.parsedInput — what the server code receives
+// MyInput.bindArgsClientInputs — bound arg types (input side)
+// MyInput.bindArgsParsedInputs — bound arg types (parsed side)
+```
+
+---
+
+## `InferSafeActionFnResult`
+
+Infer the result type from an action function.
+
+```ts
+type InferSafeActionFnResult<T extends Function>
+```
+
+**Produces:** `SafeActionResult<ServerError, S, CVE, Data>`
+
+**Works with:** `SafeActionFn`, `SafeStateActionFn`
+
+```ts
+import type { InferSafeActionFnResult } from "next-safe-action";
+import { myAction } from "./actions";
+
+type MyResult = InferSafeActionFnResult<typeof myAction>;
+// MyResult.data — the successful return type
+// MyResult.serverError — the server error type
+// MyResult.validationErrors — the validation errors type
+```
+
+---
+
+## `InferMiddlewareFnNextCtx`
+
+Infer the next context type that a middleware function provides via `next({ ctx })`.
+
+```ts
+type InferMiddlewareFnNextCtx<T>
+```
+
+**Produces:** The `NextCtx` type parameter from `MiddlewareFn`.
+
+**Works with:** `MiddlewareFn`
+
+```ts
+import type { InferMiddlewareFnNextCtx } from "next-safe-action";
+import { authMiddleware } from "./middleware";
+
+type AuthCtx = InferMiddlewareFnNextCtx<typeof authMiddleware>;
+// { user: { id: string; role: string } }
+```
+
+---
+
+## `InferCtx`
+
+Infer the current context type from a safe action client or middleware function.
+
+```ts
+type InferCtx<T>
+```
+
+**Produces:** The `Ctx` type, the accumulated context up to that point in the chain.
+
+**Works with:** `SafeActionClient`, `MiddlewareFn`
+
+```ts
+import type { InferCtx } from "next-safe-action";
+import { authClient } from "./safe-action";
+
+type AuthClientCtx = InferCtx<typeof authClient>;
+// { user: { id: string; role: string } }
+```
+
+---
+
+## `InferMetadata`
+
+Infer the metadata type from a safe action client or middleware function.
+
+```ts
+type InferMetadata<T>
+```
+
+**Produces:** The `MD` type, inferred from the metadata schema or `undefined` if none.
+
+**Works with:** `SafeActionClient`, `MiddlewareFn`
+
+```ts
+import type { InferMetadata } from "next-safe-action";
+import { actionClient } from "./safe-action";
+
+type MyMetadata = InferMetadata<typeof actionClient>;
+// { actionName: string } (if defineMetadataSchema was set)
+// undefined (if no metadata schema)
+```
+
+---
+
+## `InferServerError`
+
+Infer the server error type from a client, middleware, or action function.
+
+```ts
+type InferServerError<T>
+```
+
+**Produces:** The `ServerError` type, which defaults to `string` unless customized via `handleServerError`.
+
+**Works with:** `SafeActionClient`, `MiddlewareFn`, `SafeActionFn`, `SafeStateActionFn`
+
+```ts
+import type { InferServerError } from "next-safe-action";
+import { actionClient } from "./safe-action";
+import { myAction } from "./actions";
+
+type ClientError = InferServerError<typeof actionClient>; // string (default)
+type ActionError = InferServerError<typeof myAction>; // string (inherited)
+```
+
+---
+
+## Hook inference types
+
+These are imported from `next-safe-action/hooks`:
+
+```ts
+import type {
+	InferUseActionHookReturn,
+	InferUseOptimisticActionHookReturn,
+	InferUseStateActionHookReturn,
+} from "next-safe-action/hooks";
+```
+
+### `InferUseActionHookReturn`
+
+Infer the return type of `useAction` for a given action function.
+
+```ts
+type InferUseActionHookReturn<T extends Function>
+```
+
+**Works with:** `SafeActionFn`
+
+### `InferUseOptimisticActionHookReturn`
+
+Infer the return type of `useOptimisticAction` for a given action function and state type.
+
+```ts
+type InferUseOptimisticActionHookReturn<T extends Function, State = any>
+```
+
+**Works with:** `SafeActionFn`
+
+### `InferUseStateActionHookReturn` (deprecated)
+
+Infer the return type of `useStateAction` for a given stateful action function.
+
+```ts
+type InferUseStateActionHookReturn<T extends Function>
+```
+
+**Works with:** `SafeStateActionFn`
+
+## See also
+
+- [Types reference](/docs/api/types) — all exported TypeScript types
+- [Hooks API](/docs/api/hooks-api) — the hooks these types infer from
+- [Action Result](/docs/concepts/action-result) — understanding `InferSafeActionFnResult`

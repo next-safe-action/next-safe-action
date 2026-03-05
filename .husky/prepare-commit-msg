@@ -1,3 +1,0 @@
-#!/usr/bin/env sh
-
-exec < /dev/tty && pnpm exec cz --hook || true

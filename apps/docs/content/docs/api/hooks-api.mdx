@@ -1,0 +1,316 @@
+---
+title: Hooks API
+description: API reference for useAction, useOptimisticAction, and useStateAction hooks.
+---
+
+next-safe-action provides React hooks for executing server actions from client components. All hooks are imported from `next-safe-action/hooks` (or `next-safe-action/stateful-hooks` for `useStateAction`).
+
+## `useAction`
+
+The primary hook for executing server actions from client components.
+
+```ts
+import { useAction } from "next-safe-action/hooks";
+
+const { execute, result, status, ... } = useAction(safeActionFn, callbacks?);
+```
+
+### Parameters
+
+<TypeTable
+	type={{
+		safeActionFn: {
+			description: "The server action function created with .action(). When using bind arguments, pass the bound action (action.bind(null, ...args)).",
+			type: "HookSafeActionFn<ServerError, S, CVE, Data>",
+		},
+		callbacks: {
+			description: "Optional object with lifecycle callbacks.",
+			type: "HookCallbacks<ServerError, S, CVE, Data>",
+			default: "undefined",
+		},
+	}}
+/>
+
+### Return object
+
+<TypeTable
+	type={{
+		execute: {
+			description: "Call the action. Fires and forgets, does not return a promise. Errors are caught and set in result.",
+			type: "(input: InferInput<S>) => void",
+		},
+		executeAsync: {
+			description: "Call the action and await the result. Throws on framework errors (redirect, notFound) and re-throws server/validation errors when throwServerError/throwValidationErrors is enabled.",
+			type: "(input: InferInput<S>) => Promise<SafeActionResult>",
+		},
+		input: {
+			description: "The input passed to the most recent execute/executeAsync call.",
+			type: "InferInput<S> | undefined",
+		},
+		result: {
+			description: "The result of the most recent action execution. Contains data, serverError, and/or validationErrors.",
+			type: "SafeActionResult<ServerError, S, CVE, Data>",
+		},
+		reset: {
+			description: "Reset the hook state back to idle. Clears result, input, and status.",
+			type: "() => void",
+		},
+		status: {
+			description: "Current action status string.",
+			type: "HookActionStatus",
+		},
+		isIdle: {
+			description: "True when no action has been executed yet (or after reset).",
+			type: "boolean",
+		},
+		isExecuting: {
+			description: "True while the server action is running.",
+			type: "boolean",
+		},
+		isTransitioning: {
+			description: "True while React is transitioning after the action completes.",
+			type: "boolean",
+		},
+		isPending: {
+			description: "True when either isExecuting or isTransitioning is true.",
+			type: "boolean",
+		},
+		hasSucceeded: {
+			description: "True when the action completed with data and no errors.",
+			type: "boolean",
+		},
+		hasErrored: {
+			description: "True when the action completed with serverError or validationErrors.",
+			type: "boolean",
+		},
+		hasNavigated: {
+			description: "True when a framework navigation function (redirect, notFound, etc.) was called.",
+			type: "boolean",
+		},
+	}}
+/>
+
+### Example
+
+```tsx
+"use client";
+
+import { useAction } from "next-safe-action/hooks";
+import { createUser } from "./actions";
+
+export function CreateUserForm() {
+	const { execute, result, isPending, hasSucceeded } = useAction(createUser, {
+		onSuccess: ({ data }) => {
+			console.log("Created user:", data.id);
+		},
+		onError: ({ error }) => {
+			console.error("Failed:", error.serverError);
+		},
+	});
+
+	return (
+		<form onSubmit={(e) => {
+			e.preventDefault();
+			execute({ name: "John", email: "john@example.com" });
+		}}>
+			{result.validationErrors?.name && <p>{result.validationErrors.name._errors[0]}</p>}
+			<button disabled={isPending}>
+				{isPending ? "Creating..." : "Create User"}
+			</button>
+		</form>
+	);
+}
+```
+
+---
+
+## `useOptimisticAction`
+
+Execute actions with optimistic UI updates. The state updates immediately on execute and reverts if the action fails.
+
+```ts
+import { useOptimisticAction } from "next-safe-action/hooks";
+
+const { execute, optimisticState, ... } = useOptimisticAction(safeActionFn, utils);
+```
+
+### Parameters
+
+<TypeTable
+	type={{
+		safeActionFn: {
+			description: "The server action function.",
+			type: "HookSafeActionFn<ServerError, S, CVE, Data>",
+		},
+		"utils.currentState": {
+			description: "The current server state. When the action succeeds, this should be the fresh data from the server.",
+			type: "State",
+		},
+		"utils.updateFn": {
+			description: "Pure function that computes the optimistic state from the current state and the input being sent.",
+			type: "(state: State, input: InferInput<S>) => State",
+		},
+	}}
+/>
+
+The `utils` object also accepts all [HookCallbacks](#hookcallbacks) (`onExecute`, `onSuccess`, `onError`, `onNavigation`, `onSettled`).
+
+### Return object
+
+Same as [`useAction`](#return-object) plus:
+
+<TypeTable
+	type={{
+		optimisticState: {
+			description: "The optimistic state. Immediately reflects updateFn during execution, then reverts to currentState when the action settles.",
+			type: "State",
+		},
+	}}
+/>
+
+### Example
+
+```tsx
+"use client";
+
+import { useOptimisticAction } from "next-safe-action/hooks";
+import { toggleTodo } from "./actions";
+
+export function TodoItem({ todo }: { todo: Todo }) {
+	const { execute, optimisticState } = useOptimisticAction(toggleTodo, {
+		currentState: todo,
+		updateFn: (state, input) => ({
+			...state,
+			completed: !state.completed,
+		}),
+	});
+
+	return (
+		<li
+			style={{ textDecoration: optimisticState.completed ? "line-through" : "none" }}
+			onClick={() => execute({ id: todo.id })}
+		>
+			{optimisticState.title}
+		</li>
+	);
+}
+```
+
+---
+
+## `useStateAction` (deprecated)
+
+<Callout type="warn">
+`useStateAction` is deprecated. Use React's built-in `useActionState` hook instead.
+</Callout>
+
+A stateful hook wrapping React's `useActionState`. For use with actions defined via `.stateAction()`.
+
+```ts
+import { useStateAction } from "next-safe-action/stateful-hooks";
+
+const { execute, result, status, ... } = useStateAction(safeStatefulActionFn, utils?);
+```
+
+### Parameters
+
+<TypeTable
+	type={{
+		safeStatefulActionFn: {
+			description: "A stateful action function created with .stateAction().",
+			type: "HookSafeStateActionFn<ServerError, S, CVE, Data>",
+		},
+		"utils.initResult": {
+			description: "Initial result before the first execution.",
+			type: "SafeActionResult<ServerError, S, CVE, Data>",
+			default: "{}",
+		},
+		"utils.permalink": {
+			description: "Permalink passed to React's useActionState for progressive enhancement.",
+			type: "string",
+			default: "undefined",
+		},
+	}}
+/>
+
+The `utils` object also accepts [HookCallbacks](#hookcallbacks) (except `onNavigation`).
+
+### Return object
+
+Same as [`useAction`](#return-object) but **without** `executeAsync` and `reset`.
+
+---
+
+## `HookCallbacks`
+
+Lifecycle callbacks shared by all hooks:
+
+<TypeTable
+	type={{
+		onExecute: {
+			description: "Called immediately when execute/executeAsync is invoked, before the action runs.",
+			type: "(args: { input }) => MaybePromise<unknown>",
+		},
+		onSuccess: {
+			description: "Called when the action completes with data and no errors. Not called when a navigation function (redirect, notFound) is triggered.",
+			type: "(args: { data, input }) => MaybePromise<unknown>",
+		},
+		onError: {
+			description: "Called when the action completes with serverError, validationErrors, or a thrown error.",
+			type: "(args: { error, input }) => MaybePromise<unknown>",
+		},
+		onNavigation: {
+			description: "Called when a framework navigation function is triggered inside the action (redirect, notFound, forbidden, unauthorized).",
+			type: "(args: { input, navigationKind }) => MaybePromise<unknown>",
+		},
+		onSettled: {
+			description: "Called after every action execution, regardless of outcome. Receives the result and optional navigationKind.",
+			type: "(args: { result, input, navigationKind? }) => MaybePromise<unknown>",
+		},
+	}}
+/>
+
+<Callout>
+`onNavigation` is not available in `useStateAction`. Framework navigation functions are handled differently in stateful actions.
+</Callout>
+
+---
+
+## `HookActionStatus`
+
+Union type representing all possible hook states:
+
+```ts
+type HookActionStatus =
+	| "idle"           // No action executed yet (or after reset)
+	| "executing"      // Action is running on the server
+	| "transitioning"  // React transition after action completes
+	| "hasSucceeded"   // Action completed with data, no errors
+	| "hasErrored"     // Action completed with errors
+	| "hasNavigated";  // Navigation function was called
+```
+
+---
+
+## `HookShorthandStatus`
+
+Object of boolean status flags returned alongside the `status` string:
+
+```ts
+type HookShorthandStatus = {
+	isIdle: boolean;
+	isExecuting: boolean;
+	isTransitioning: boolean;
+	isPending: boolean;       // isExecuting || isTransitioning
+	hasSucceeded: boolean;
+	hasErrored: boolean;
+	hasNavigated: boolean;
+};
+```
+
+## See also
+
+- [Hooks guide](/docs/guides/hooks) — practical guide with patterns and examples
+- [Optimistic Updates](/docs/guides/optimistic-updates) — `useOptimisticAction` in depth
+- [Framework Errors](/docs/advanced/framework-errors) — `onNavigation` and `hasNavigated` behavior
+- [Type Utilities](/docs/api/type-utilities) — `InferUseActionHookReturn` and related types

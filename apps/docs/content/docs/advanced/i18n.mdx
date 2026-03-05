@@ -1,0 +1,91 @@
+---
+title: Internationalization (i18n)
+description: Use async schema functions to integrate next-safe-action with i18n solutions.
+---
+
+next-safe-action supports async schema functions, which lets you load translations before building your validation schema. This means validation error messages can be in the user's language.
+
+## How it works
+
+Instead of passing a schema directly to `inputSchema()`, pass an **async function** that returns a schema. This function runs on the server before validation, giving you a chance to load translations:
+
+<Steps>
+<Step>
+
+### Set up the async schema
+
+```ts title="src/app/actions.ts"
+"use server";
+
+import { z } from "zod";
+import { actionClient } from "@/lib/safe-action";
+import { getTranslations } from "@/lib/i18n";
+
+export const createUser = actionClient
+	.inputSchema(async () => {
+		// Load translations for the current locale
+		const t = await getTranslations("validation");
+
+		return z.object({
+			name: z.string().min(2, t("name.tooShort")),
+			email: z.string().email(t("email.invalid")),
+			age: z.number().min(18, t("age.tooYoung")),
+		});
+	})
+	.action(async ({ parsedInput }) => {
+		// parsedInput is typed based on the returned schema
+		await db.user.create({ data: parsedInput });
+	});
+```
+
+</Step>
+<Step>
+
+### Use with your i18n library
+
+This works with any i18n solution, including `next-intl`, `i18next`, `react-i18next`, custom solutions, etc. The only requirement is that the translation function is available server-side:
+
+```ts
+// next-intl example
+import { getTranslations } from "next-intl/server";
+
+.inputSchema(async () => {
+	const t = await getTranslations("validation");
+	return z.object({
+		name: z.string().min(2, t("name.min")),
+	});
+})
+```
+
+</Step>
+</Steps>
+
+<Callout>
+The async function runs **every time** the action is called, so it always uses the current locale. This is important because the locale might change between calls.
+</Callout>
+
+## Combining with schema extension
+
+You can combine i18n with [schema extension](/docs/advanced/extend-schemas) to build on a base schema:
+
+```ts
+const baseClient = actionClient
+	.inputSchema(z.object({ orgId: z.string() }));
+
+export const createTeam = baseClient
+	.inputSchema(async (prevSchema) => {
+		const t = await getTranslations("validation");
+		return prevSchema.extend({
+			teamName: z.string().min(3, t("teamName.tooShort")),
+		});
+	})
+	.action(async ({ parsedInput }) => {
+		// parsedInput: { orgId: string, teamName: string }
+	});
+```
+
+## See also
+
+- [Extend Schemas](/docs/advanced/extend-schemas) — the async schema factory pattern used by i18n
+- [Input Validation](/docs/concepts/input-validation) — foundational guide to schema validation
+- [Standard Schema](/docs/integrations/standard-schema) — validation libraries compatible with i18n

@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-floating-promises */
-
 /**
  * Tests for the fix: Navigation errors should be thrown immediately (synchronously)
  * instead of being deferred to useLayoutEffect.
@@ -18,8 +16,7 @@
  */
 
 import { notFound, redirect } from "next/navigation";
-import assert from "node:assert";
-import { test } from "node:test";
+import { expect, test } from "vitest";
 import { z } from "zod";
 import { createSafeActionClient } from "..";
 import { FrameworkErrorHandler } from "../next/errors";
@@ -45,8 +42,8 @@ test("redirect error is thrown immediately, not deferred", async () => {
 		}
 	}
 
-	assert.strictEqual(errorCaught, true, "Error should be caught");
-	assert.strictEqual(errorThrownImmediately, true, "Navigation error should be thrown immediately");
+	expect(errorCaught).toBe(true);
+	expect(errorThrownImmediately).toBe(true);
 });
 
 test("redirect error timing - thrown before returning result", async () => {
@@ -65,7 +62,7 @@ test("redirect error timing - thrown before returning result", async () => {
 		}
 	});
 
-	assert.strictEqual(actionCompleted, false, "Code after redirect should not execute");
+	expect(actionCompleted).toBe(false);
 });
 
 test("navigation error is propagated synchronously through promise chain", async () => {
@@ -87,7 +84,7 @@ test("navigation error is propagated synchronously through promise chain", async
 	// Wait for microtasks to complete
 	await new Promise((resolve) => setImmediate(resolve));
 
-	assert.strictEqual(caughtSynchronously, true, "Error should be catchable in next microtask");
+	expect(caughtSynchronously).toBe(true);
 });
 
 test("notFound error is also thrown immediately", async () => {
@@ -105,7 +102,7 @@ test("notFound error is also thrown immediately", async () => {
 		}
 	}
 
-	assert.strictEqual(errorThrownImmediately, true, "notFound error should be thrown immediately");
+	expect(errorThrownImmediately).toBe(true);
 });
 
 test("callbacks execute before error is re-thrown on server", async () => {
@@ -134,7 +131,7 @@ test("callbacks execute before error is re-thrown on server", async () => {
 	});
 
 	const expectedOrder = ["action-start", "onNavigation", "onSettled", "error-caught"];
-	assert.deepStrictEqual(executionOrder, expectedOrder, "Callbacks should execute before error is caught");
+	expect(executionOrder).toStrictEqual(expectedOrder);
 });
 
 test("redirect with validation - error thrown after validation passes", async () => {
@@ -157,7 +154,7 @@ test("redirect with validation - error thrown after validation passes", async ()
 	});
 
 	const expectedOrder = ["validation-passed", "before-redirect", "error-caught"];
-	assert.deepStrictEqual(executionOrder, expectedOrder);
+	expect(executionOrder).toStrictEqual(expectedOrder);
 });
 
 test("redirect in middleware is thrown immediately", async () => {
@@ -179,8 +176,8 @@ test("redirect in middleware is thrown immediately", async () => {
 		}
 	});
 
-	assert.strictEqual(middlewareExecuted, true);
-	assert.strictEqual(errorCaught, true);
+	expect(middlewareExecuted).toBe(true);
+	expect(errorCaught).toBe(true);
 });
 
 test("no double-throwing of navigation errors", async () => {
@@ -206,7 +203,7 @@ test("no double-throwing of navigation errors", async () => {
 	// Wait a bit to ensure no delayed/deferred throws
 	await new Promise((resolve) => setTimeout(resolve, 100));
 
-	assert.strictEqual(catchCount, 1, "Error should only be thrown once, not deferred and re-thrown");
+	expect(catchCount).toBe(1);
 });
 
 test("redirect preserves error digest format", async () => {
@@ -214,12 +211,13 @@ test("redirect preserves error digest format", async () => {
 		redirect("/test-path");
 	});
 
-	await action().catch((e) => {
+	await action().catch((e: unknown) => {
 		if (FrameworkErrorHandler.isNavigationError(e)) {
+			const err = e as unknown as Record<string, unknown>;
 			// Verify the error has the expected Next.js redirect format
-			assert.ok("digest" in e, "Error should have digest property");
-			assert.strictEqual(typeof e.digest, "string", "Digest should be a string");
-			assert.ok((e.digest as string).includes("NEXT_REDIRECT"), "Digest should contain NEXT_REDIRECT");
+			expect("digest" in err).toBe(true);
+			expect(typeof err.digest).toBe("string");
+			expect((err.digest as string).includes("NEXT_REDIRECT")).toBe(true);
 		}
 	});
 });

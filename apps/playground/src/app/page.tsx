@@ -1,35 +1,91 @@
-import { ExampleLink } from "./_components/example-link";
+import {
+	BoxIcon,
+	CircuitBoardIcon,
+	FileTextIcon,
+	LayersIcon,
+	MousePointerClickIcon,
+	NavigationIcon,
+	ShieldAlertIcon,
+	SparklesIcon,
+} from "lucide-react";
+import Link from "next/link";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
+const pages = [
+	{
+		title: "Core Actions",
+		description: "Direct calls, async schemas, auth context, output schemas",
+		href: "/core-actions",
+		icon: BoxIcon,
+	},
+	{
+		title: "Validation Errors",
+		description: "Formatted, flattened, nested, custom error shapes",
+		href: "/validation-errors",
+		icon: ShieldAlertIcon,
+	},
+	{
+		title: "Middleware",
+		description: "Logging, auth chains, standalone middleware, rate limiting",
+		href: "/middleware",
+		icon: LayersIcon,
+	},
+	{
+		title: "React Hooks",
+		description: "useAction, callbacks, stateless forms, state updates",
+		href: "/hooks",
+		icon: MousePointerClickIcon,
+	},
+	{
+		title: "Optimistic Updates",
+		description: "useOptimisticAction with instant UI updates and revalidation",
+		href: "/optimistic-updates",
+		icon: SparklesIcon,
+	},
+	{
+		title: "Form Integration",
+		description: "Stateful forms, file uploads, bind arguments",
+		href: "/forms",
+		icon: FileTextIcon,
+	},
+	{
+		title: "React Hook Form",
+		description: "Adapter hooks for react-hook-form integration",
+		href: "/react-hook-form",
+		icon: CircuitBoardIcon,
+	},
+	{
+		title: "Navigation & Framework",
+		description: "Redirects, notFound, forbidden, unauthorized",
+		href: "/navigation-framework",
+		icon: NavigationIcon,
+	},
+];
 
 export default function Home() {
 	return (
-		<main className="text-center">
-			<h1 className="text-4xl font-semibold">Playground</h1>
-			<div className="mt-4 flex flex-col space-y-2">
-				<ExampleLink href="/direct">Direct call</ExampleLink>
-				<ExampleLink href="/async-schema">Direct call (async schema)</ExampleLink>
-				<ExampleLink href="/with-context">With Context</ExampleLink>
-				<ExampleLink href="/nested-schema">Nested schema</ExampleLink>
-				<ExampleLink href="/hook">
-					<span className="font-mono">useAction()</span> hook
-				</ExampleLink>
-				<ExampleLink href="/optimistic-hook">
-					<span className="font-mono">useOptimisticAction()</span> hook
-				</ExampleLink>
-				<ExampleLink href="/stateless-form">
-					Stateless form (<span className="font-mono">useAction()</span> hook)
-				</ExampleLink>
-				<ExampleLink href="/stateful-form">
-					Stateful form (<span className="font-mono">useActionState()</span> hook)
-				</ExampleLink>
-				<ExampleLink href="/state-update">State update</ExampleLink>
-				<ExampleLink href="/navigation">Navigation</ExampleLink>
-				<ExampleLink href="/revalidation-callbacks">Revalidation callbacks</ExampleLink>
-				<ExampleLink href="/file-upload">File upload</ExampleLink>
-				<ExampleLink href="/bind-arguments">Bind arguments</ExampleLink>
-				<ExampleLink href="/no-arguments">No arguments</ExampleLink>
-				<ExampleLink href="/empty-response">Empty response</ExampleLink>
-				<ExampleLink href="/react-hook-form">React Hook Form</ExampleLink>
+		<div>
+			<div className="mb-8">
+				<h1 className="text-3xl font-bold tracking-tight">Playground</h1>
+				<p className="text-muted-foreground mt-2">
+					Interactive examples showcasing every feature of the next-safe-action library.
+				</p>
 			</div>
-		</main>
+			<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+				{pages.map((page) => (
+					<Link key={page.href} href={page.href}>
+						<Card className="hover:bg-muted/50 transition-colors">
+							<CardHeader>
+								<div className="flex items-center gap-2">
+									<page.icon className="text-muted-foreground size-5" />
+									<CardTitle className="text-base">{page.title}</CardTitle>
+								</div>
+								<CardDescription>{page.description}</CardDescription>
+							</CardHeader>
+						</Card>
+					</Link>
+				))}
+			</div>
+		</div>
 	);
 }

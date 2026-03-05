@@ -1,6 +1,0 @@
-node_modules
-dist
-.turbo
-.next
-*.md
-*.mdx

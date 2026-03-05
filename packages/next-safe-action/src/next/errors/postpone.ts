@@ -6,7 +6,7 @@ export function isPostpone(error: any): boolean {
 	return (
 		typeof error === "object" &&
 		error !== null &&
-		// eslint-disable-next-line
+		// oxlint-disable-next-line
 		error.$$typeof === REACT_POSTPONE_TYPE
 	);
 }

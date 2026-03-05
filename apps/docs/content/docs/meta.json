@@ -1,0 +1,16 @@
+{
+	"pages": [
+		"introduction",
+		"quick-start",
+		"concepts",
+		"guides",
+		"advanced",
+		"integrations",
+		"ai-skills",
+		"api",
+		"troubleshooting",
+		"migrations",
+		"playground",
+		"contributing"
+	]
+}

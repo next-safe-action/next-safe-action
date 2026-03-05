@@ -1,25 +1,41 @@
-import GitHubLogo from "./github-logo";
+import type { Metadata } from "next";
+import { Suspense } from "react";
+import { AppSidebar } from "@/components/app-sidebar";
+import { ThemeProvider } from "@/components/theme-provider";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
-export const metadata = {
-	title: "Playground for next-safe-action",
-	description: "A basic implementation of next-safe-action library",
+export const metadata: Metadata = {
+	title: "next-safe-action | Playground",
+	description: "Interactive playground for the next-safe-action library",
+	icons: {
+		icon: [
+			{ url: "/img/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+			{ url: "/img/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+		],
+		shortcut: "/img/favicon.ico",
+	},
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
 	return (
-		<html lang="en">
-			<body className="antialiased bg-slate-50 dark:bg-slate-950 dark:text-slate-50 text-slate-950 flex flex-col min-h-screen items-center pt-24">
-				<a
-					id="github-link"
-					href="https://github.com/TheEdoRan/next-safe-action"
-					target="_blank"
-					rel="noopener noreferrer"
-					className="mb-8"
-				>
-					<GitHubLogo width={40} height={40} />
-				</a>
-				{children}
+		<html lang="en" suppressHydrationWarning>
+			<body className="antialiased">
+				<ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+					<SidebarProvider>
+						<AppSidebar />
+						<SidebarInset>
+							<div className="flex h-14 shrink-0 items-center px-4 md:hidden">
+								<SidebarTrigger />
+							</div>
+							<main className="flex-1 p-6">
+								<Suspense>{children}</Suspense>
+							</main>
+						</SidebarInset>
+					</SidebarProvider>
+					<Toaster />
+				</ThemeProvider>
 			</body>
 		</html>
 	);

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 160" width="660" height="160">
+	<rect x="0" y="0" width="200" height="150" rx="10" fill="#052e16" stroke="#4ade80" stroke-width="1.5"/>
+	<text x="100" y="28" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" font-weight="700" fill="#86efac">Direct Call</text>
+	<text x="100" y="50" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" fill="#4ade80">await myAction(input)</text>
+	<line x1="16" y1="62" x2="184" y2="62" stroke="#166534" stroke-width="1"/>
+	<text x="100" y="82" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#86efac">Simple one-off calls</text>
+	<text x="100" y="98" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#86efac">Server Components</text>
+	<text x="100" y="114" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#86efac">Event handlers</text>
+	<text x="100" y="138" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" font-style="italic" fill="#9ca3af">No status tracking</text>
+	<rect x="230" y="0" width="200" height="150" rx="10" fill="#1e3a5f" stroke="#60a5fa" stroke-width="1.5"/>
+	<text x="330" y="28" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" font-weight="700" fill="#93c5fd">useAction</text>
+	<text x="330" y="50" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" fill="#60a5fa">execute(input)</text>
+	<line x1="246" y1="62" x2="414" y2="62" stroke="#1e3a5f" stroke-width="1"/>
+	<text x="330" y="82" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#93c5fd">Status tracking</text>
+	<text x="330" y="98" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#93c5fd">Lifecycle callbacks</text>
+	<text x="330" y="114" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#93c5fd">Loading states</text>
+	<text x="330" y="138" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" font-style="italic" fill="#9ca3af">Best for most UI</text>
+	<rect x="460" y="0" width="200" height="150" rx="10" fill="#3b0764" stroke="#c084fc" stroke-width="1.5"/>
+	<text x="560" y="28" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" font-weight="700" fill="#d8b4fe">Form Action</text>
+	<text x="560" y="50" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" fill="#c084fc">&lt;form action={myAction}&gt;</text>
+	<line x1="476" y1="62" x2="644" y2="62" stroke="#3b0764" stroke-width="1"/>
+	<text x="560" y="82" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#d8b4fe">Progressive enhancement</text>
+	<text x="560" y="98" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#d8b4fe">Works without JS</text>
+	<text x="560" y="114" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#d8b4fe">FormData input</text>
+	<text x="560" y="138" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" font-style="italic" fill="#9ca3af">Best for forms</text>
+</svg>

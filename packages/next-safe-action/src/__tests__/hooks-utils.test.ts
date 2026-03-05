@@ -1,61 +1,202 @@
-/* eslint-disable @typescript-eslint/no-floating-promises */
-
-import assert from "node:assert";
-import { test } from "node:test";
+import { describe, expect, test } from "vitest";
 import { getActionShorthandStatusObject, getActionStatus } from "../hooks-utils";
 import type { SafeActionResult } from "../index.types";
 
 type TestResult = SafeActionResult<string, undefined, undefined, { ok: boolean }>;
 
-test("getActionStatus returns hasSucceeded after execution completes", () => {
-	const result: TestResult = {
-		data: {
-			ok: true,
-		},
-	};
+// ─── getActionStatus ─────────────────────────────────────────────────────────
 
-	const status = getActionStatus({
-		isIdle: false,
-		isExecuting: false,
-		hasNavigated: false,
-		hasThrownError: false,
-		result,
+describe("getActionStatus", () => {
+	test("returns hasSucceeded after execution completes", () => {
+		const result: TestResult = {
+			data: {
+				ok: true,
+			},
+		};
+
+		const status = getActionStatus({
+			isIdle: false,
+			isExecuting: false,
+			hasNavigated: false,
+			hasThrownError: false,
+			result,
+		});
+
+		expect(status).toBe("hasSucceeded");
 	});
 
-	assert.strictEqual(status, "hasSucceeded");
+	test("keeps error precedence over success", () => {
+		const status = getActionStatus({
+			isIdle: false,
+			isExecuting: false,
+			hasNavigated: false,
+			hasThrownError: true,
+			result: {},
+		});
+
+		expect(status).toBe("hasErrored");
+	});
+
+	test("executing status remains executing", () => {
+		const status = getActionStatus({
+			isIdle: false,
+			isExecuting: true,
+			hasNavigated: false,
+			hasThrownError: false,
+			result: {},
+		});
+
+		expect(status).toBe("executing");
+	});
+
+	test("returns idle when isIdle is true even with data in result", () => {
+		const result: TestResult = { data: { ok: true } };
+
+		const status = getActionStatus({
+			isIdle: true,
+			isExecuting: false,
+			hasNavigated: false,
+			hasThrownError: false,
+			result,
+		});
+
+		expect(status).toBe("idle");
+	});
+
+	test("idle takes precedence over everything", () => {
+		const status = getActionStatus({
+			isIdle: true,
+			isExecuting: true,
+			hasNavigated: true,
+			hasThrownError: true,
+			result: { serverError: "boom" as string },
+		});
+
+		expect(status).toBe("idle");
+	});
+
+	test("returns hasErrored when validationErrors present", () => {
+		const result: TestResult = {
+			validationErrors: { _errors: ["Invalid"] } as any,
+		};
+
+		const status = getActionStatus({
+			isIdle: false,
+			isExecuting: false,
+			hasNavigated: false,
+			hasThrownError: false,
+			result,
+		});
+
+		expect(status).toBe("hasErrored");
+	});
+
+	test("returns hasErrored when serverError present", () => {
+		const status = getActionStatus({
+			isIdle: false,
+			isExecuting: false,
+			hasNavigated: false,
+			hasThrownError: false,
+			result: { serverError: "Internal error" as string },
+		});
+
+		expect(status).toBe("hasErrored");
+	});
+
+	test("returns hasNavigated when hasNavigated and no errors", () => {
+		const status = getActionStatus({
+			isIdle: false,
+			isExecuting: false,
+			hasNavigated: true,
+			hasThrownError: false,
+			result: {},
+		});
+
+		expect(status).toBe("hasNavigated");
+	});
+
+	test("error takes precedence over navigation", () => {
+		const status = getActionStatus({
+			isIdle: false,
+			isExecuting: false,
+			hasNavigated: true,
+			hasThrownError: true,
+			result: {},
+		});
+
+		expect(status).toBe("hasErrored");
+	});
 });
 
-test("getActionStatus keeps error precedence over success", () => {
-	const status = getActionStatus({
-		isIdle: false,
-		isExecuting: false,
-		hasNavigated: false,
-		hasThrownError: true,
-		result: {},
+// ─── getActionShorthandStatusObject ──────────────────────────────────────────
+
+describe("getActionShorthandStatusObject", () => {
+	test("idle status maps correctly", () => {
+		const shorthand = getActionShorthandStatusObject({
+			status: "idle",
+			isTransitioning: false,
+		});
+
+		expect(shorthand.isIdle).toBe(true);
+		expect(shorthand.isExecuting).toBe(false);
+		expect(shorthand.isTransitioning).toBe(false);
+		expect(shorthand.isPending).toBe(false);
+		expect(shorthand.hasSucceeded).toBe(false);
+		expect(shorthand.hasErrored).toBe(false);
+		expect(shorthand.hasNavigated).toBe(false);
 	});
 
-	assert.strictEqual(status, "hasErrored");
-});
+	test("executing status maps correctly", () => {
+		const shorthand = getActionShorthandStatusObject({
+			status: "executing",
+			isTransitioning: false,
+		});
 
-test("shorthand status can be succeeded while still transitioning", () => {
-	const shorthand = getActionShorthandStatusObject({
-		status: "hasSucceeded",
-		isTransitioning: true,
+		expect(shorthand.isExecuting).toBe(true);
+		expect(shorthand.isPending).toBe(true);
+		expect(shorthand.isIdle).toBe(false);
 	});
 
-	assert.strictEqual(shorthand.hasSucceeded, true);
-	assert.strictEqual(shorthand.isTransitioning, true);
-	assert.strictEqual(shorthand.isPending, true);
-});
+	test("can be succeeded while still transitioning", () => {
+		const shorthand = getActionShorthandStatusObject({
+			status: "hasSucceeded",
+			isTransitioning: true,
+		});
 
-test("executing status remains executing", () => {
-	const status = getActionStatus({
-		isIdle: false,
-		isExecuting: true,
-		hasNavigated: false,
-		hasThrownError: false,
-		result: {},
+		expect(shorthand.hasSucceeded).toBe(true);
+		expect(shorthand.isTransitioning).toBe(true);
+		expect(shorthand.isPending).toBe(true);
 	});
 
-	assert.strictEqual(status, "executing");
+	test("hasErrored status maps correctly", () => {
+		const shorthand = getActionShorthandStatusObject({
+			status: "hasErrored",
+			isTransitioning: false,
+		});
+
+		expect(shorthand.hasErrored).toBe(true);
+		expect(shorthand.isPending).toBe(false);
+		expect(shorthand.hasSucceeded).toBe(false);
+	});
+
+	test("hasNavigated status maps correctly", () => {
+		const shorthand = getActionShorthandStatusObject({
+			status: "hasNavigated",
+			isTransitioning: false,
+		});
+
+		expect(shorthand.hasNavigated).toBe(true);
+		expect(shorthand.hasErrored).toBe(false);
+		expect(shorthand.hasSucceeded).toBe(false);
+	});
+
+	test("isPending true when only transitioning", () => {
+		const shorthand = getActionShorthandStatusObject({
+			status: "hasSucceeded",
+			isTransitioning: true,
+		});
+
+		expect(shorthand.isPending).toBe(true);
+		expect(shorthand.isExecuting).toBe(false);
+	});
 });

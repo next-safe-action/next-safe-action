@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
+/* oxlint-disable typescript/no-unsafe-member-access, typescript/no-unsafe-assignment */
 import type { StandardSchemaV1 } from "./standard-schema";
 import type { FlattenedValidationErrors, IssueWithUnionErrors, ValidationErrors } from "./validation-errors.types";
 

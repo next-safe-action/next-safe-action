@@ -1,0 +1,384 @@
+---
+title: SafeActionClient
+description: API reference for all chainable methods and action callbacks.
+---
+
+The `SafeActionClient` class is the core of next-safe-action. It provides a chainable, immutable API for building type-safe server actions. Each method returns a **new** client instance, the original is never modified.
+
+```ts
+import { createSafeActionClient } from "next-safe-action";
+
+const actionClient = createSafeActionClient();
+```
+
+## `.use()`
+
+Add a middleware function to the action execution chain.
+
+```ts
+client.use(middlewareFn)
+```
+
+**Parameters:**
+
+<TypeTable
+	type={{
+		middlewareFn: {
+			description: "A middleware function that receives options and must call next() to continue the chain.",
+			type: "MiddlewareFn<ServerError, MD, Ctx, Ctx & NextCtx>",
+		},
+	}}
+/>
+
+The middleware function receives:
+
+<TypeTable
+	type={{
+		clientInput: {
+			description: "Raw input from the client, before validation.",
+			type: "unknown",
+		},
+		bindArgsClientInputs: {
+			description: "Array of raw bind argument inputs, before validation.",
+			type: "unknown[]",
+		},
+		ctx: {
+			description: "Context object from previous middleware.",
+			type: "Ctx",
+		},
+		metadata: {
+			description: "Action metadata set via .metadata().",
+			type: "MD",
+		},
+		next: {
+			description: "Call to proceed to the next middleware. Pass { ctx } to extend context.",
+			type: "(opts?: { ctx?: NextCtx }) => Promise<MiddlewareResult>",
+		},
+	}}
+/>
+
+**Returns:** A new `SafeActionClient` with `NextCtx` merged into the context type.
+
+```ts
+const authClient = actionClient.use(async ({ next }) => {
+	const session = await getSession();
+	if (!session) throw new Error("Unauthorized");
+	return next({ ctx: { user: session.user } });
+});
+// authClient now has ctx: { user: User }
+```
+
+---
+
+## `.metadata()`
+
+Set metadata for the action. Only available when a metadata schema has been defined via `defineMetadataSchema` in [`createSafeActionClient`](/docs/api/create-safe-action-client).
+
+```ts
+client.metadata(data)
+```
+
+**Parameters:**
+
+<TypeTable
+	type={{
+		data: {
+			description: "Metadata value matching the schema defined by defineMetadataSchema.",
+			type: "MD (inferred from metadata schema)",
+		},
+	}}
+/>
+
+**Returns:** A new `SafeActionClient` with metadata provided.
+
+```ts
+const myAction = actionClient
+	.metadata({ actionName: "createUser" })
+	.action(async ({ parsedInput, metadata }) => {
+		console.log(metadata.actionName); // "createUser"
+	});
+```
+
+<Callout>
+When a metadata schema is defined, you **must** call `.metadata()` before `.action()` or `.stateAction()`. TypeScript will error if you forget.
+</Callout>
+
+---
+
+## `.inputSchema()`
+
+Define the input validation schema. Accepts a Standard Schema validator (Zod, Valibot, ArkType, etc.) or an async factory function that returns one.
+
+```ts
+client.inputSchema(schema, utils?)
+```
+
+**Parameters:**
+
+<TypeTable
+	type={{
+		schema: {
+			description: "A Standard Schema validator, or an async function that receives the previous schema (if chained) and returns a new schema.",
+			type: "StandardSchemaV1 | (prevSchema, opts) => Promise<StandardSchemaV1>",
+		},
+		"utils.handleValidationErrorsShape": {
+			description: "Custom function to transform the validation errors shape for this action. Overrides the client's defaultValidationErrorsShape.",
+			type: "(ve: ValidationErrors, utils) => Promise<CVE>",
+			default: "undefined (uses client default)",
+		},
+	}}
+/>
+
+**Returns:** A new `SafeActionClient` with typed `parsedInput`.
+
+```ts
+// Direct schema
+const action = actionClient
+	.inputSchema(z.object({ name: z.string() }))
+	.action(async ({ parsedInput }) => {
+		// parsedInput: { name: string }
+	});
+
+// Async factory (for i18n or extending previous schemas)
+const action = actionClient
+	.inputSchema(async () => {
+		const t = await getTranslations();
+		return z.object({ name: z.string().min(2, t("name.tooShort")) });
+	})
+	.action(async ({ parsedInput }) => { /* ... */ });
+```
+
+<Callout>
+`.schema()` is a deprecated alias for `.inputSchema()`. Use `.inputSchema()` instead.
+</Callout>
+
+---
+
+## `.outputSchema()`
+
+Define the output data validation schema. The action's return value is validated against this schema.
+
+```ts
+client.outputSchema(schema)
+```
+
+**Parameters:**
+
+<TypeTable
+	type={{
+		schema: {
+			description: "A Standard Schema validator for the action's return data.",
+			type: "StandardSchemaV1",
+		},
+	}}
+/>
+
+**Returns:** A new `SafeActionClient` with typed and validated output data.
+
+```ts
+const action = actionClient
+	.outputSchema(z.object({ id: z.string(), created: z.boolean() }))
+	.action(async () => {
+		return { id: "123", created: true };
+		// TypeScript + runtime validation ensures this shape
+	});
+```
+
+---
+
+## `.bindArgsSchemas()`
+
+Define validation schemas for [bind arguments](/docs/advanced/bind-arguments). Bind args are additional arguments bound to the action function before the main input.
+
+```ts
+client.bindArgsSchemas(schemas)
+```
+
+**Parameters:**
+
+<TypeTable
+	type={{
+		schemas: {
+			description: "Readonly tuple of Standard Schema validators, one per bind argument.",
+			type: "readonly StandardSchemaV1[]",
+		},
+	}}
+/>
+
+**Returns:** A new `SafeActionClient` with typed bind argument inputs.
+
+```ts
+const action = actionClient
+	.inputSchema(z.object({ title: z.string() }))
+	.bindArgsSchemas([z.string().uuid()]) // bind arg: projectId
+	.action(async ({ parsedInput, bindArgsParsedInputs: [projectId] }) => {
+		// parsedInput: { title: string }
+		// projectId: string
+	});
+
+// In a component:
+const boundAction = action.bind(null, projectId);
+```
+
+---
+
+## `.action()`
+
+Define the server-side code for the action. This terminates the builder chain and returns the callable action function.
+
+```ts
+client.action(serverCodeFn, utils?)
+```
+
+**Parameters:**
+
+<TypeTable
+	type={{
+		serverCodeFn: {
+			description: "Async function containing your server logic. Receives an args object.",
+			type: "ServerCodeFn<MD, Ctx, IS, BAS, Data>",
+		},
+		utils: {
+			description: "Optional server-side callbacks and configuration.",
+			type: "SafeActionUtils",
+			default: "undefined",
+		},
+	}}
+/>
+
+The `serverCodeFn` receives a single argument object:
+
+<TypeTable
+	type={{
+		parsedInput: {
+			description: "The validated input data (output of the schema).",
+			type: "InferOutput<InputSchema> | undefined",
+		},
+		clientInput: {
+			description: "The raw input before validation.",
+			type: "InferInput<InputSchema> | undefined",
+		},
+		bindArgsParsedInputs: {
+			description: "Tuple of validated bind argument values.",
+			type: "InferOutputArray<BAS>",
+		},
+		bindArgsClientInputs: {
+			description: "Tuple of raw bind argument values before validation.",
+			type: "InferInputArray<BAS>",
+		},
+		ctx: {
+			description: "Context object accumulated from the middleware chain.",
+			type: "Ctx",
+		},
+		metadata: {
+			description: "Metadata set via .metadata().",
+			type: "MD",
+		},
+	}}
+/>
+
+**Returns:** A `SafeActionFn`, a callable async function.
+
+---
+
+## `.stateAction()`
+
+Define a stateful server action for use with the `useStateAction` hook (deprecated) or React's `useActionState`.
+
+```ts
+client.stateAction(serverCodeFn, utils?)
+```
+
+Same as `.action()`, but the `serverCodeFn` receives a second argument `utils` with access to `prevResult`:
+
+<TypeTable
+	type={{
+		"utils.prevResult": {
+			description: "The result of the previous action execution. Empty object {} on first call.",
+			type: "SafeActionResult<ServerError, S, CVE, Data>",
+		},
+	}}
+/>
+
+**Returns:** A `SafeStateActionFn`, a callable async function compatible with `useActionState`.
+
+---
+
+## `SafeActionUtils` (action callbacks)
+
+The optional second argument to `.action()` and `.stateAction()`:
+
+<TypeTable
+	type={{
+		throwServerError: {
+			description: "When true, server errors are thrown instead of returned in the result. Overrides the client-level setting.",
+			type: "boolean",
+			default: "false",
+		},
+		throwValidationErrors: {
+			description: "When true (or an object with overrideErrorMessage), validation errors are thrown as ActionValidationError. When an object, overrideErrorMessage receives the validation errors and returns a custom error message.",
+			type: "boolean | { overrideErrorMessage: (ve: CVE) => Promise<string> }",
+			default: "false",
+		},
+		onSuccess: {
+			description: "Called on the server when the action completes without errors.",
+			type: "(args: { data, metadata, ctx, clientInput, bindArgsClientInputs, parsedInput, bindArgsParsedInputs }) => Promise<unknown>",
+		},
+		onNavigation: {
+			description: "Called on the server when a framework navigation function (redirect, notFound, etc.) is triggered.",
+			type: "(args: { metadata, ctx, clientInput, bindArgsClientInputs, navigationKind }) => Promise<unknown>",
+		},
+		onError: {
+			description: "Called on the server when the action errors (validation or server error).",
+			type: "(args: { error, metadata, ctx, clientInput, bindArgsClientInputs }) => Promise<unknown>",
+		},
+		onSettled: {
+			description: "Called on the server after every action execution, regardless of outcome.",
+			type: "(args: { result, metadata, ctx, clientInput, bindArgsClientInputs, navigationKind? }) => Promise<unknown>",
+		},
+	}}
+/>
+
+```ts
+export const myAction = actionClient
+	.inputSchema(schema)
+	.action(
+		async ({ parsedInput }) => {
+			return await doSomething(parsedInput);
+		},
+		{
+			onSuccess: async ({ data, metadata }) => {
+				console.log("Success:", data);
+			},
+			onError: async ({ error }) => {
+				await reportError(error.serverError);
+			},
+		}
+	);
+```
+
+## Method chaining order
+
+Methods can be called in any order, with these constraints:
+
+1. `.metadata()` must be called before `.action()` / `.stateAction()` when a metadata schema is defined
+2. `.action()` or `.stateAction()` must be the last method, as it terminates the chain
+
+Typical order:
+
+```ts
+actionClient
+	.use(middleware)        // 1. Add middleware (repeatable)
+	.metadata(data)         // 2. Set metadata (if schema defined)
+	.inputSchema(schema)    // 3. Define input validation
+	.outputSchema(schema)   // 4. Define output validation (optional)
+	.bindArgsSchemas([...]) // 5. Define bind args (optional)
+	.action(fn, utils)      // 6. Define server code (terminal)
+```
+
+## See also
+
+- [Action Client](/docs/concepts/action-client) — conceptual overview and immutability pattern
+- [Middleware guide](/docs/guides/middleware) — practical patterns for `.use()`
+- [`createSafeActionClient()`](/docs/api/create-safe-action-client) — creating the client instance
+- [Types reference](/docs/api/types) — all exported TypeScript types

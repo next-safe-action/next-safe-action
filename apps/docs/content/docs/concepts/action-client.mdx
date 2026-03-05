@@ -1,0 +1,142 @@
+---
+title: Action Client
+description: Learn how to create and configure the safe action client.
+---
+
+The **safe action client** is the starting point for defining all your actions. You create one with `createSafeActionClient()`, then use its chainable methods to add middleware, input schemas, and server code.
+
+## Creating a client
+
+```ts title="src/lib/safe-action.ts"
+import { createSafeActionClient } from "next-safe-action";
+
+export const actionClient = createSafeActionClient();
+```
+
+This creates a client with sensible defaults. You can customize its behavior by passing options, see the [API reference](/docs/api/create-safe-action-client) for the full list.
+
+### Common options
+
+```ts title="src/lib/safe-action.ts"
+import { createSafeActionClient } from "next-safe-action";
+
+export const actionClient = createSafeActionClient({
+	// Customize how server errors are handled and what's sent to the client
+	handleServerError(e) {
+		console.error("Action error:", e.message);
+		return "Something went wrong";
+	},
+	// Define a metadata schema (makes metadata type-safe)
+	defineMetadataSchema() {
+		return z.object({
+			actionName: z.string(),
+		});
+	},
+	// Change the default validation error shape
+	defaultValidationErrorsShape: "flattened",
+});
+```
+
+<Callout>
+`handleServerError` controls what the client sees when an error is thrown in your server code. By default, it logs the error and returns a generic `"Something went wrong"` message, preventing sensitive error details from leaking to the client.
+</Callout>
+
+## The immutability pattern
+
+Every chainable method returns a **new client instance**, the original is never modified. This is the key design principle that enables client hierarchies:
+
+```ts
+// This doesn't modify actionClient — it returns a new instance
+const authClient = actionClient.use(authMiddleware);
+
+// actionClient still has no middleware
+// authClient has authMiddleware
+```
+
+This means you can safely build on top of any client without worrying about side effects.
+
+## Client hierarchy
+
+In real applications, you typically create a tree of clients with increasingly specific middleware:
+
+<picture>
+	<source srcSet="/img/diagrams/client-hierarchy-dark.svg" media="(prefers-color-scheme: dark)" />
+	<img src="/img/diagrams/client-hierarchy-light.svg" alt="Client hierarchy: actionClient → authClient / publicClient, authClient → adminClient" />
+</picture>
+
+```ts title="src/lib/safe-action.ts"
+import { createSafeActionClient } from "next-safe-action";
+
+// Base client — error handling, logging, metadata
+export const actionClient = createSafeActionClient({
+	handleServerError(e) {
+		console.error("Action error:", e.message);
+		return e.message;
+	},
+});
+
+// Authenticated client — requires valid session
+export const authClient = actionClient.use(async ({ next }) => {
+	const session = await getSession();
+	if (!session) throw new Error("Unauthorized");
+	return next({ ctx: { user: session.user } });
+});
+
+// Admin client — requires admin role
+export const adminClient = authClient.use(async ({ next, ctx }) => {
+	// ctx.user is available here (typed!) from the auth middleware
+	if (ctx.user.role !== "admin") throw new Error("Forbidden");
+	return next({ ctx: { isAdmin: true } });
+});
+```
+
+Then use the appropriate client for each action:
+
+```ts title="src/app/actions.ts"
+"use server";
+
+// Public action — no auth needed
+export const getPublicData = actionClient
+	.action(async () => { /* ... */ });
+
+// Authenticated action — user must be logged in
+export const updateProfile = authClient
+	.inputSchema(profileSchema)
+	.action(async ({ parsedInput, ctx }) => {
+		// ctx.user is typed and available
+	});
+
+// Admin action — user must be admin
+export const deleteUser = adminClient
+	.inputSchema(z.object({ userId: z.string() }))
+	.action(async ({ parsedInput, ctx }) => {
+		// ctx.user and ctx.isAdmin are both available
+	});
+```
+
+## Chainable methods
+
+The client provides these methods, each returning a new instance:
+
+| Method | Purpose |
+|---|---|
+| `.use(middleware)` | Add a middleware function |
+| `.metadata(data)` | Set action metadata (requires `defineMetadataSchema` in client options) |
+| `.inputSchema(schema)` | Define input validation schema |
+| `.outputSchema(schema)` | Define output validation schema |
+| `.bindArgsSchemas(schemas)` | Define schemas for bound arguments |
+| `.action(serverCode)` | Define the action (returns a callable function) |
+| `.stateAction(serverCode)` | Define a stateful action (for React's `useActionState`) |
+
+See the [API reference](/docs/api/safe-action-client) for detailed signatures and parameters.
+
+## What's next?
+
+<Cards>
+	<Card href="/docs/concepts/input-validation" title="Input Validation">
+		Learn how Standard Schema validation works with your actions.
+	</Card>
+	<Card href="/docs/guides/middleware" title="Middleware Guide">
+		Deep dive into writing and composing middleware functions.
+	</Card>
+</Cards>

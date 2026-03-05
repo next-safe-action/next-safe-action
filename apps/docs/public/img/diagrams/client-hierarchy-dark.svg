@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 200" width="520" height="200">
+	<defs>
+		<marker id="ch-d" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="10" markerHeight="7" orient="auto-start-reverse">
+			<polygon points="0 0, 10 3.5, 0 7" fill="#9ca3af"/>
+		</marker>
+	</defs>
+	<!-- Base client -->
+	<rect x="160" y="0" width="200" height="44" rx="8" fill="#052e16" stroke="#4ade80" stroke-width="1.5"/>
+	<text x="260" y="18" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" font-weight="600" fill="#86efac">actionClient</text>
+	<text x="260" y="34" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#4ade80">handleServerError, metadata</text>
+	<!-- Arrows down -->
+	<line x1="180" y1="49" x2="120" y2="75" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#ch-d)"/>
+	<line x1="340" y1="49" x2="400" y2="75" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#ch-d)"/>
+	<!-- Auth client -->
+	<rect x="20" y="80" width="200" height="44" rx="8" fill="#1e3a5f" stroke="#60a5fa" stroke-width="1.5"/>
+	<text x="120" y="98" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" font-weight="600" fill="#93c5fd">authClient</text>
+	<text x="120" y="114" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#60a5fa">.use(authMiddleware)</text>
+	<!-- Public client -->
+	<rect x="300" y="80" width="200" height="44" rx="8" fill="#422006" stroke="#fbbf24" stroke-width="1.5"/>
+	<text x="400" y="98" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" font-weight="600" fill="#fde68a">publicClient</text>
+	<text x="400" y="114" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#fbbf24">.use(rateLimitMiddleware)</text>
+	<!-- Arrow down from auth -->
+	<line x1="120" y1="129" x2="120" y2="152" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#ch-d)"/>
+	<!-- Admin client -->
+	<rect x="20" y="157" width="200" height="44" rx="8" fill="#3b0764" stroke="#c084fc" stroke-width="1.5"/>
+	<text x="120" y="175" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" font-weight="600" fill="#d8b4fe">adminClient</text>
+	<text x="120" y="191" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#c084fc">.use(adminOnlyMiddleware)</text>
+</svg>

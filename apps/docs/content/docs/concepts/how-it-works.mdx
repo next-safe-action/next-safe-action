@@ -1,0 +1,95 @@
+---
+title: How It Works
+description: Understand the action lifecycle, middleware pipeline, and entry points.
+---
+
+## The action lifecycle
+
+When you call a safe action, it goes through a well-defined pipeline on the server before returning a result to the client:
+
+<picture>
+	<source srcSet="/img/diagrams/action-lifecycle-dark.svg" media="(prefers-color-scheme: dark)" />
+	<img src="/img/diagrams/action-lifecycle-light.svg" alt="Action lifecycle diagram showing: Client Call → Middleware → Validate Input → Server Code → Validate Output" />
+</picture>
+
+1. **Client Call** — the action function is called from a Client Component (directly, via `useAction`, or via a form)
+2. **Middleware** — the middleware stack runs in order, each layer can short-circuit or extend the context
+3. **Validate Input** — the raw client input is parsed and validated against the input schema via [Standard Schema](https://github.com/standard-schema/standard-schema)
+4. **Server Code** — your async function runs with the validated `parsedInput` and accumulated `ctx`
+5. **Validate Output** — if an `outputSchema` is defined, the return value is validated before being sent to the client
+
+If any step fails, the pipeline stops and returns an appropriate error in the [action result](/docs/concepts/action-result).
+
+## Server vs client
+
+next-safe-action has three entry points, each designed for a specific environment:
+
+| Entry point | Environment | Purpose |
+|---|---|---|
+| `next-safe-action` | Server only | Define actions with `createSafeActionClient`, middleware, validation |
+| `next-safe-action/hooks` | Client only | `useAction` and `useOptimisticAction` hooks |
+| `next-safe-action/stateful-hooks` | Client only | Deprecated `useStateAction` hook (use React's `useActionState` instead) |
+
+Server code (your action function) **never runs on the client**. Next.js ensures this by replacing the server function with a network call when the `"use server"` directive is present.
+
+## The middleware pipeline
+
+Middleware functions wrap your server code like layers of an onion. Each middleware can run code **before** calling `next()`, and **after** the inner layers complete:
+
+<picture>
+	<source srcSet="/img/diagrams/middleware-pipeline-dark.svg" media="(prefers-color-scheme: dark)" />
+	<img src="/img/diagrams/middleware-pipeline-light.svg" alt="Middleware pipeline diagram showing nested layers: Logging wraps Auth wraps Server Code" />
+</picture>
+
+```ts title="Example: Two middleware layers"
+const actionClient = createSafeActionClient()
+	// Layer 1: Logging
+	.use(async ({ next }) => {
+		const start = Date.now();
+		const result = await next();
+		console.log(`Action took ${Date.now() - start}ms`);
+		return result;
+	})
+	// Layer 2: Auth
+	.use(async ({ next }) => {
+		const session = await getSession();
+		if (!session) throw new Error("Unauthorized");
+		return next({ ctx: { user: session.user } });
+	});
+```
+
+Key concepts:
+- **`next()`** calls the next layer (or the server code if there are no more middleware)
+- **`ctx`** (context) accumulates through the chain, each middleware can add to it via `next({ ctx: { ... } })`
+- **Short-circuiting**: throwing an error in middleware stops the pipeline and returns a server error
+- The returned result flows **outward** through each middleware, so logging middleware can measure total time
+
+Learn more in the [Middleware guide](/docs/guides/middleware).
+
+## How actions are defined
+
+Every action starts from a **safe action client**, a builder object that accumulates configuration:
+
+```ts
+const myAction = actionClient          // 1. Start from client
+	.use(authMiddleware)                  // 2. Add middleware (optional)
+	.metadata({ role: "admin" })          // 3. Set metadata (optional)
+	.inputSchema(z.object({ id: z.string() }))  // 4. Define input
+	.outputSchema(z.object({ ok: z.boolean() })) // 5. Define output (optional)
+	.action(async ({ parsedInput, ctx }) => {     // 6. Server code
+		return { ok: true };
+	});
+```
+
+Each method returns a **new immutable client instance**, the original is never modified. This lets you build a hierarchy of increasingly specialized clients. See [Action Client](/docs/concepts/action-client) for more.
+
+## What's next?
+
+<Cards>
+	<Card href="/docs/concepts/action-client" title="Action Client">
+		Learn how to create and configure the safe action client.
+	</Card>
+	<Card href="/docs/concepts/input-validation" title="Input Validation">
+		Understand how Standard Schema validation works with your actions.
+	</Card>
+</Cards>

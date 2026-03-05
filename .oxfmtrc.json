@@ -1,0 +1,17 @@
+{
+	"$schema": "./node_modules/oxfmt/configuration_schema.json",
+	"trailingComma": "es5",
+	"printWidth": 120,
+	"useTabs": true,
+	"arrowParens": "always",
+	"tabWidth": 2,
+	"semi": true,
+	"singleQuote": false,
+	"quoteProps": "consistent",
+	"sortImports": {
+		"newlinesBetween": false
+	},
+	"sortTailwindcss": {},
+	"sortPackageJson": false,
+	"ignorePatterns": ["node_modules", "dist", ".turbo", ".next", ".source", "*.md", "*.mdx"]
+}

@@ -1,0 +1,14 @@
+{
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+	"extends": ["../../.oxlintrc.base.json"],
+	"plugins": ["oxc", "eslint", "unicorn", "typescript", "react", "react-perf", "nextjs"],
+	"categories": {
+		"correctness": "error",
+		"suspicious": "warn"
+	},
+	"rules": {
+		"typescript/consistent-type-imports": "error",
+		"typescript/no-unsafe-type-assertion": "off",
+		"react/react-in-jsx-scope": "off"
+	}
+}

@@ -1,0 +1,193 @@
+---
+title: Middleware
+description: Add logging, authentication, and context to your actions with middleware.
+---
+
+Middleware lets you run code before and after your action's server code. Common uses include authentication, logging, rate limiting, and enriching the context with shared data.
+
+## How middleware executes
+
+Middleware functions wrap your server code in layers. Each layer calls `next()` to invoke the next layer, and the result flows back outward:
+
+<picture>
+	<source srcSet="/img/diagrams/middleware-execution-flow-dark.svg" media="(prefers-color-scheme: dark)" />
+	<img src="/img/diagrams/middleware-execution-flow-light.svg" alt="Middleware execution flow: Logging MW calls next() → Auth MW calls next() → Server Code returns → results flow back" />
+</picture>
+
+## Building middleware step by step
+
+<Steps>
+<Step>
+
+### Add logging
+
+The simplest middleware: log when actions start and finish:
+
+```ts title="src/lib/safe-action.ts"
+import { createSafeActionClient } from "next-safe-action";
+
+export const actionClient = createSafeActionClient().use(async ({ next, metadata }) => {
+	const start = Date.now();
+	const result = await next();
+	console.log(`Action ${JSON.stringify(metadata)} took ${Date.now() - start}ms`);
+	return result;
+});
+```
+
+The key pattern: do something **before** `next()`, await the result, do something **after**.
+
+</Step>
+<Step>
+
+### Add authentication
+
+Check the session and pass the user into the context:
+
+```ts title="src/lib/safe-action.ts"
+export const authClient = actionClient.use(async ({ next }) => {
+	const session = await getSession();
+
+	if (!session?.user) {
+		throw new Error("Not authenticated");
+	}
+
+	// Pass user data to the next layer via ctx
+	return next({ ctx: { user: session.user } });
+});
+```
+
+When you pass `{ ctx: { user } }` to `next()`, it **merges** with the existing context. The next middleware (or your server code) can access `ctx.user`.
+
+</Step>
+<Step>
+
+### Use the context in actions
+
+Now actions defined with `authClient` have typed access to `ctx.user`:
+
+```ts title="src/app/actions.ts"
+"use server";
+
+import { authClient } from "@/lib/safe-action";
+import { z } from "zod";
+
+export const updateProfile = authClient
+	.inputSchema(z.object({ name: z.string().min(2) }))
+	.action(async ({ parsedInput, ctx }) => {
+		// ctx.user is typed — TypeScript knows it exists
+		await db.user.update({
+			where: { id: ctx.user.id },
+			data: { name: parsedInput.name },
+		});
+		return { success: true };
+	});
+```
+
+</Step>
+</Steps>
+
+## Instance-level vs action-level middleware
+
+Middleware added with `.use()` applies to different scopes depending on where you add it:
+
+### Instance-level (shared across actions)
+
+```ts
+// All actions using authClient will run this middleware
+const authClient = actionClient.use(async ({ next }) => {
+	const session = await getSession();
+	if (!session) throw new Error("Unauthorized");
+	return next({ ctx: { user: session.user } });
+});
+```
+
+### Action-level (specific to one action)
+
+```ts
+// Only this action runs the rate limit middleware
+export const sensitiveAction = authClient
+	.use(async ({ next, ctx }) => {
+		await checkRateLimit(ctx.user.id);
+		return next();
+	})
+	.inputSchema(schema)
+	.action(async ({ parsedInput, ctx }) => {
+		// ...
+	});
+```
+
+## Middleware function arguments
+
+Each middleware function receives a single object with these properties:
+
+| Property | Type | Description |
+|---|---|---|
+| `clientInput` | `unknown` | The raw, unvalidated input from the client |
+| `bindArgsClientInputs` | `unknown[]` | Raw bound argument values |
+| `ctx` | `Ctx` | Accumulated context from previous middleware |
+| `metadata` | `MD` | Action metadata (if `defineMetadataSchema` is configured) |
+| `next` | `(opts?) => Promise<MiddlewareResult>` | Call the next middleware or server code |
+
+The `next()` function accepts an optional `{ ctx: { ... } }` to extend the context for downstream layers.
+
+## Common patterns
+
+### Combining before/after logic
+
+```ts
+.use(async ({ next, metadata }) => {
+	// BEFORE: runs before server code
+	console.log("Starting:", metadata);
+	const startTime = performance.now();
+
+	const result = await next();
+
+	// AFTER: runs after server code (even if it failed)
+	const duration = performance.now() - startTime;
+	console.log(`Finished: ${metadata} in ${duration}ms`);
+
+	return result;
+})
+```
+
+### Short-circuiting
+
+Throwing an error in middleware stops the entire pipeline:
+
+```ts
+.use(async ({ next, ctx }) => {
+	if (ctx.user.isBanned) {
+		throw new Error("Account suspended");
+		// Server code never runs
+	}
+	return next();
+})
+```
+
+### Passing data through context
+
+Each middleware can add to the context, building up a rich object:
+
+```ts
+const actionClient = createSafeActionClient()
+	.use(async ({ next }) => {
+		return next({ ctx: { requestId: crypto.randomUUID() } });
+	})
+	.use(async ({ next }) => {
+		const session = await getSession();
+		return next({ ctx: { user: session?.user ?? null } });
+	});
+
+// In your action: ctx = { requestId: string, user: User | null }
+```
+
+## What's next?
+
+<Cards>
+	<Card href="/docs/advanced/standalone-middleware" title="Standalone Middleware">
+		Create reusable middleware with createMiddleware() for sharing across clients.
+	</Card>
+	<Card href="/docs/api/safe-action-client" title="API Reference">
+		Full .use() method signature and middleware type definitions.
+	</Card>
+</Cards>

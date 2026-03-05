@@ -1,0 +1,4 @@
+.next
+.source
+.env
+!.env.example

@@ -4,43 +4,44 @@
 	"private": true,
 	"description": "next-safe-action monorepo",
 	"scripts": {
-		"prepare": "is-ci || husky",
 		"pg": "turbo run dev --filter=@apps/playground",
 		"lint": "turbo run lint",
+		"fmt": "oxfmt",
+		"fmt:check": "oxfmt --check",
 		"build": "turbo run build",
-		"test:lib": "turbo run test --filter=next-safe-action",
-		"lint:lib": "turbo run lint --filter=next-safe-action",
+		"test": "turbo run test",
+		"test:lib": "turbo run test --filter=./packages/*",
+		"lint:lib": "turbo run lint --filter=./packages/*",
+		"build:lib": "turbo run build --filter=./packages/* --force",
+		"docs": "turbo run dev --filter=@apps/docs",
 		"lint:pg": "turbo run lint --filter=@apps/playground",
-		"build:lib": "turbo run build --filter=next-safe-action --force",
-		"deploy:lib": "turbo run deploy --filter=next-safe-action",
-		"build:pg": "turbo run build --filter=@apps/playground --force"
+		"lint:docs": "turbo run lint --filter=@apps/docs",
+		"build:pg": "turbo run build --filter=@apps/playground --force",
+		"build:docs": "turbo run build --filter=@apps/docs --force",
+		"changeset": "changeset",
+		"changeset:empty": "changeset --empty",
+		"version-packages": "changeset version",
+		"release": "changeset publish"
 	},
 	"author": "Edoardo Ranghieri",
 	"license": "MIT",
 	"engines": {
 		"node": ">=18.17"
 	},
-	"config": {
-		"commitizen": {
-			"path": "./node_modules/cz-conventional-changelog"
-		}
-	},
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/TheEdoRan/next-safe-action.git"
 	},
 	"dependencies": {
-		"@commitlint/cli": "^19.7.1",
-		"@commitlint/config-conventional": "^19.7.1",
 		"@manypkg/cli": "^0.23.0",
-		"commitizen": "^4.3.1",
-		"cz-conventional-changelog": "^3.3.0",
-		"husky": "^9.1.7",
-		"is-ci": "^4.1.0",
-		"prettier": "^3.4.2",
-		"prettier-plugin-tailwindcss": "^0.6.11",
-		"turbo": "^2.8.11",
+		"oxfmt": "catalog:",
+		"oxlint": "catalog:",
+		"turbo": "^2.8.12",
 		"typescript": "catalog:"
+	},
+	"devDependencies": {
+		"@changesets/changelog-github": "^0.5.2",
+		"@changesets/cli": "^2.29.8"
 	},
 	"packageManager": "pnpm@10.30.3"
 }

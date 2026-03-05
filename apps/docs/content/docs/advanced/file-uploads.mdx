@@ -1,0 +1,125 @@
+---
+title: File Uploads
+description: Upload files using next-safe-action with FormData and zod-form-data.
+---
+
+You can upload files through safe actions using `FormData` input. This guide shows how to validate and process file uploads.
+
+<Callout title="Requirements">
+- Node.js >= 20 (for native `File` support)
+- Next.js default body size limit is **1 MB**. For larger files, configure `bodyParser` in your route or use a separate upload endpoint.
+</Callout>
+
+<Steps>
+<Step>
+
+### Install zod-form-data
+
+```package-install
+zod-form-data
+```
+
+</Step>
+<Step>
+
+### Define the upload action
+
+Use `zod-form-data` to validate the `FormData` input, including file fields:
+
+```ts title="src/app/actions.ts"
+"use server";
+
+import { z } from "zod";
+import { zfd } from "zod-form-data";
+import { actionClient } from "@/lib/safe-action";
+
+const uploadSchema = zfd.formData({
+	name: zfd.text(z.string().min(1)),
+	file: zfd.file(z.instanceof(File).refine(
+		(f) => f.size < 1_000_000,
+		"File must be under 1MB"
+	)),
+});
+
+export const uploadFile = actionClient
+	.inputSchema(uploadSchema)
+	.action(async ({ parsedInput: { name, file } }) => {
+		// `file` is a validated File object
+		const bytes = await file.arrayBuffer();
+		const buffer = Buffer.from(bytes);
+
+		// Save to disk, S3, etc.
+		await saveFile(name, buffer);
+
+		return { fileName: file.name, size: file.size };
+	});
+```
+
+</Step>
+<Step>
+
+### Create the upload form
+
+```tsx title="src/app/upload.tsx"
+"use client";
+
+import { useAction } from "next-safe-action/hooks";
+import { useRef } from "react";
+import { uploadFile } from "./actions";
+
+export default function UploadForm() {
+	const formRef = useRef<HTMLFormElement>(null);
+	const { execute, result, isExecuting } = useAction(uploadFile, {
+		onSuccess: ({ data }) => {
+			alert(`Uploaded ${data.fileName} (${data.size} bytes)`);
+			formRef.current?.reset();
+		},
+	});
+
+	return (
+		<form
+			ref={formRef}
+			onSubmit={(e) => {
+				e.preventDefault();
+				execute(new FormData(e.currentTarget));
+			}}
+		>
+			<input name="name" placeholder="File description" />
+			<input name="file" type="file" accept="image/*" />
+
+			{result.validationErrors?.file && (
+				<p>{result.validationErrors.file._errors[0]}</p>
+			)}
+
+			<button type="submit" disabled={isExecuting}>
+				{isExecuting ? "Uploading..." : "Upload"}
+			</button>
+		</form>
+	);
+}
+```
+
+</Step>
+</Steps>
+
+## Multiple files
+
+For multiple file uploads, use an array schema:
+
+```ts
+const schema = zfd.formData({
+	files: zfd.repeatableOfType(
+		zfd.file(z.instanceof(File).refine((f) => f.size < 5_000_000, "Max 5MB per file"))
+	),
+});
+```
+
+<Callout type="warn">
+Remember the 1MB default body size limit in Next.js. For larger uploads, consider using presigned URLs (S3, Cloudflare R2) instead of sending files through Server Actions.
+</Callout>
+
+## See also
+
+- [Form Actions](/docs/guides/form-actions) — using FormData with server actions
+- [Hooks](/docs/guides/hooks) — the `useAction` hook used in the upload form example
+- [Input Validation](/docs/concepts/input-validation) — how `zod-form-data` integrates with Standard Schema

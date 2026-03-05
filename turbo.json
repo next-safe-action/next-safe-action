@@ -1,17 +1,15 @@
 {
 	"$schema": "https://turborepo.dev/schema.json",
-	"ui": "stream",
+	"ui": "stream-with-experimental-timestamps",
 	"tasks": {
 		"build": {
 			"dependsOn": ["^build"],
-			"outputs": [".next/**", "!.next/cache/**", "dist/**", "build/**"]
+			"outputs": [".next/**", "!.next/cache/**", "dist/**", "build/**"],
+			"env": ["SPONSORS_GITHUB_TOKEN"]
 		},
 		"test": {},
-		"lint": {},
-		"deploy": {
-			"cache": false,
-			"dependsOn": ["build", "lint"],
-			"passThroughEnv": ["GITHUB_TOKEN", "ACTIONS_ID_TOKEN_REQUEST_URL", "ACTIONS_ID_TOKEN_REQUEST_TOKEN"]
+		"lint": {
+			"dependsOn": ["^build"]
 		},
 		"dev": {
 			"cache": false,

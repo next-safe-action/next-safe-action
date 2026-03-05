@@ -1,0 +1,70 @@
+---
+title: Extend Schemas
+description: Build on previous input schemas to create action templates.
+---
+
+The `.inputSchema()` method can accept an **async function** instead of a direct schema. This function receives the previous schema (if any) as an argument, letting you build on top of it. This is useful for creating action templates that share a base schema.
+
+## Basic usage
+
+Pass an async function to `inputSchema()` that returns a new schema:
+
+```ts title="src/lib/safe-action.ts"
+import { z } from "zod";
+import { actionClient } from "@/lib/safe-action";
+
+// Template: all CRUD actions need an ID
+const crudClient = actionClient
+	.inputSchema(z.object({ id: z.string().uuid() }));
+
+// Extend: update action adds name and email
+export const updateUser = crudClient
+	.inputSchema(async (prevSchema) => {
+		// prevSchema is z.object({ id: z.string().uuid() })
+		return prevSchema.extend({
+			name: z.string().min(2),
+			email: z.string().email(),
+		});
+	})
+	.action(async ({ parsedInput }) => {
+		// parsedInput is typed as { id: string, name: string, email: string }
+	});
+```
+
+## Multiple extensions
+
+You can chain multiple `inputSchema()` calls, each building on the last:
+
+```ts
+const baseAction = actionClient
+	.inputSchema(z.object({ orgId: z.string() }));
+
+const teamAction = baseAction
+	.inputSchema(async (prevSchema) => {
+		return prevSchema.extend({ teamId: z.string() });
+	});
+
+const memberAction = teamAction
+	.inputSchema(async (prevSchema) => {
+		return prevSchema.extend({ memberId: z.string() });
+	})
+	.action(async ({ parsedInput }) => {
+		// parsedInput: { orgId: string, teamId: string, memberId: string }
+	});
+```
+
+<Callout>
+The async function signature is key, as it lets you `await` other operations before returning the schema. This is useful for [i18n](/docs/advanced/i18n) where you need to load translations before building the schema.
+</Callout>
+
+## Use cases
+
+- **CRUD templates**: Define a base schema with an ID field, then extend for create/update
+- **Multi-tenant apps**: Start with `orgId`, extend with resource-specific fields
+- **i18n validation**: Await translations before defining error messages in schemas
+
+## See also
+
+- [Input Validation](/docs/concepts/input-validation) — foundational guide to schema validation
+- [i18n](/docs/advanced/i18n) — combine async schemas with translation loading
+- [`.inputSchema()` method](/docs/api/safe-action-client#inputschema) — API reference for the async factory signature

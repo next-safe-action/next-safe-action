@@ -1,0 +1,131 @@
+---
+title: "Troubleshooting"
+description: Troubleshoot common issues with next-safe-action.
+---
+
+Common issues and their solutions. Click on an issue to expand the answer.
+
+<Accordions>
+<Accordion title="TypeScript error in monorepo: 'The inferred type cannot be named'">
+
+If you use next-safe-action in a monorepo, you may see this error:
+
+```
+Type error: The inferred type of 'action' cannot be named without a reference to '...'.
+This is likely not portable. A type annotation is necessary.
+```
+
+**Fix:** Set `baseUrl` in your `tsconfig.json`:
+
+```json title="tsconfig.json"
+{
+	"compilerOptions": {
+		"baseUrl": "."
+	}
+}
+```
+
+Find more information in [this GitHub issue](https://github.com/TheEdoRan/next-safe-action/issues/64).
+
+</Accordion>
+<Accordion title="Validation errors are typed 'any' or not inferred correctly">
+
+This usually means one of:
+
+1. **You're on v7.1.3 or earlier**, these versions used TypeSchema, which had inference issues with TypeScript >= 5.5. Upgrade to v7.2.0+ where Standard Schema replaced TypeSchema.
+
+2. **Your schema library doesn't implement Standard Schema v1**, make sure you're using a compatible version of Zod (3.23+), Valibot (1.0+), or ArkType (2.0+). See [Standard Schema](/docs/integrations/standard-schema) for details.
+
+3. **Missing `"strict": true`** in your `tsconfig.json`, next-safe-action relies on strict mode for correct inference.
+
+</Accordion>
+<Accordion title="Actions don't work with Edge Runtime">
+
+If you're on v7.1.3 or earlier, this was a known issue with TypeSchema's dynamic imports. **Upgrade to v7.2.0+** where Standard Schema replaced TypeSchema. Standard Schema works with all runtimes.
+
+On v7.2.0+, Edge Runtime is fully supported.
+
+</Accordion>
+<Accordion title="redirect() doesn't work inside actions">
+
+`redirect()` works inside actions, but it behaves differently than you might expect:
+
+- `redirect()` throws a special error internally. next-safe-action catches it and re-throws it so Next.js can handle the navigation.
+- **`onSuccess` does NOT fire** when `redirect()` is called. Use `onNavigation` instead.
+- When calling actions directly (not via hooks), code after `redirect()` never executes.
+
+See [Framework Errors](/docs/advanced/framework-errors) for the full guide on `redirect()`, `notFound()`, `forbidden()`, and `unauthorized()`.
+
+</Accordion>
+<Accordion title="'Expected component Step/Tabs/Accordion to be defined' error in docs development">
+
+If you're contributing to the docs and see component resolution errors, make sure your `app/docs/[...slug]/page.tsx` uses `useMDXComponents({})` from `@/mdx-components` instead of `defaultMdxComponents`:
+
+```tsx
+import { useMDXComponents } from "@/mdx-components";
+
+// In your page component:
+<MDXContent components={useMDXComponents({})} />
+```
+
+The explicit `components` prop takes precedence over the `useMDXComponents` fallback in `mdx-components.tsx`.
+
+</Accordion>
+<Accordion title="Server error handler receives the wrong error type">
+
+`handleServerError` always receives an `Error` object. If your action code throws a non-Error value (like a string), it will be wrapped in a generic `Error`.
+
+To use custom error classes:
+
+```ts
+class DatabaseError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "DatabaseError";
+	}
+}
+
+const actionClient = createSafeActionClient({
+	handleServerError: (error) => {
+		if (error instanceof DatabaseError) {
+			return "Database error occurred";
+		}
+		return DEFAULT_SERVER_ERROR_MESSAGE;
+	},
+});
+```
+
+See [Error Handling](/docs/concepts/error-handling) for the full error taxonomy and [Error Classes](/docs/api/error-classes) for all exported error types.
+
+</Accordion>
+<Accordion title="useAction callbacks fire multiple times or at unexpected moments">
+
+Hook callbacks fire based on status transitions, not on every render. Common issues:
+
+1. **`onSuccess` fires on mount**, this can happen if `result` already has data from a previous execution. Call `reset()` when appropriate.
+2. **`onSettled` fires twice**, this shouldn't happen. Check that you're not rendering the component that calls `useAction` twice (e.g., in React Strict Mode, callbacks may appear to fire twice in development).
+3. **`onSuccess` doesn't fire after redirect**, this is by design. When `redirect()` is called, `onNavigation` fires instead. See [Framework Errors](/docs/advanced/framework-errors).
+
+See [Hooks](/docs/guides/hooks) for callback lifecycle details and [Hooks API](/docs/api/hooks-api) for the full reference.
+
+</Accordion>
+<Accordion title="Form action doesn't receive validation errors">
+
+When using form actions (stateless `<form action={myAction}>`), make sure:
+
+1. Your form field `name` attributes match the schema field names exactly
+2. You're reading errors from the correct place, form actions return `validationErrors` in the result, not as thrown errors
+3. If using flattened errors, check `result.validationErrors.fieldErrors.fieldName` instead of `result.validationErrors.fieldName._errors`
+
+See [Form Actions](/docs/guides/form-actions) and [Custom Validation Errors](/docs/advanced/custom-validation-errors) for more details.
+
+</Accordion>
+</Accordions>
+
+## Still stuck?
+
+If your issue isn't listed here:
+
+- Search [existing GitHub issues](https://github.com/TheEdoRan/next-safe-action/issues)
+- Open a [new issue](https://github.com/TheEdoRan/next-safe-action/issues/new/choose) with a minimal reproduction
+- Start a [GitHub discussion](https://github.com/TheEdoRan/next-safe-action/discussions) for questions

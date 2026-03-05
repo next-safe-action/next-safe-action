@@ -1,0 +1,128 @@
+---
+title: Executing Actions
+description: Choose the right execution method for your use case.
+---
+
+There are three ways to execute a safe action from a Client Component. Each approach serves different needs:
+
+<picture>
+	<source srcSet="/img/diagrams/execution-method-decision-dark.svg" media="(prefers-color-scheme: dark)" />
+	<img src="/img/diagrams/execution-method-decision-light.svg" alt="Three execution methods: Direct Call, useAction, Form Action" />
+</picture>
+
+## Comparison
+
+Given the same action:
+
+```ts title="src/app/actions.ts"
+"use server";
+
+import { z } from "zod";
+import { actionClient } from "@/lib/safe-action";
+
+export const greetUser = actionClient
+	.inputSchema(z.object({ name: z.string() }))
+	.action(async ({ parsedInput }) => {
+		return { greeting: `Hello, ${parsedInput.name}!` };
+	});
+```
+
+Here's how each method calls it:
+
+<Tabs items={["Direct call", "useAction", "Form action"]} persist>
+<Tab value="Direct call">
+
+```tsx title="src/app/page.tsx"
+"use client";
+
+import { greetUser } from "./actions";
+
+export default function Page() {
+	const handleClick = async () => {
+		const result = await greetUser({ name: "Alice" });
+
+		if (result?.data) {
+			alert(result.data.greeting);
+		}
+	};
+
+	return <button onClick={handleClick}>Greet</button>;
+}
+```
+
+**Use when**: You need a simple one-off call, or you're calling from a Server Component or event handler where you don't need reactive UI updates.
+
+</Tab>
+<Tab value="useAction">
+
+```tsx title="src/app/page.tsx"
+"use client";
+
+import { useAction } from "next-safe-action/hooks";
+import { greetUser } from "./actions";
+
+export default function Page() {
+	const { execute, result, isExecuting } = useAction(greetUser, {
+		onSuccess: ({ data }) => alert(data.greeting),
+	});
+
+	return (
+		<button onClick={() => execute({ name: "Alice" })} disabled={isExecuting}>
+			{isExecuting ? "Loading..." : "Greet"}
+		</button>
+	);
+}
+```
+
+**Use when**: You need loading states, status tracking, lifecycle callbacks, or any reactive UI behavior. This is the most common approach for interactive Client Components.
+
+</Tab>
+<Tab value="Form action">
+
+```tsx title="src/app/page.tsx"
+"use client";
+
+import { useActionState } from "react";
+import { greetUser } from "./actions";
+
+export default function Page() {
+	const [result, dispatch] = useActionState(greetUser, {});
+
+	return (
+		<form action={dispatch}>
+			<input name="name" defaultValue="Alice" />
+			<button type="submit">Greet</button>
+			{result?.data && <p>{result.data.greeting}</p>}
+		</form>
+	);
+}
+```
+
+**Use when**: You need progressive enhancement (form works without JavaScript), or you want to use HTML form patterns with `FormData` input. See the [Form Actions guide](/docs/guides/form-actions) for details.
+
+</Tab>
+</Tabs>
+
+## Which method should I use?
+
+| Need | Method |
+|---|---|
+| Simple call, no loading UI | Direct call |
+| Loading states, callbacks, reactive result | `useAction` hook |
+| Optimistic UI updates | `useOptimisticAction` hook |
+| Progressive enhancement / no-JS forms | Form action |
+| Server Component calling an action | Direct call |
+
+## What's next?
+
+<Cards>
+	<Card href="/docs/guides/hooks" title="Hooks">
+		Deep dive into useAction with status tracking, callbacks, and async execution.
+	</Card>
+	<Card href="/docs/guides/form-actions" title="Form Actions">
+		Build forms with progressive enhancement using next-safe-action.
+	</Card>
+	<Card href="/docs/guides/optimistic-updates" title="Optimistic Updates">
+		Update the UI instantly while the server processes your action.
+	</Card>
+</Cards>

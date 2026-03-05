@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 250" width="680" height="250">
+	<defs>
+		<marker id="mf-l" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="10" markerHeight="7" orient="auto-start-reverse">
+			<polygon points="0 0, 10 3.5, 0 7" fill="#6b7280"/>
+		</marker>
+	</defs>
+	<!-- Timeline labels -->
+	<text x="80" y="16" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="600" fill="#64748b">Logging MW</text>
+	<text x="280" y="16" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="600" fill="#64748b">Auth MW</text>
+	<text x="480" y="16" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="600" fill="#64748b">Server Code</text>
+	<!-- Vertical lines -->
+	<line x1="80" y1="24" x2="80" y2="240" stroke="#d1d5db" stroke-width="1" stroke-dasharray="4 3"/>
+	<line x1="280" y1="24" x2="280" y2="240" stroke="#d1d5db" stroke-width="1" stroke-dasharray="4 3"/>
+	<line x1="480" y1="24" x2="480" y2="240" stroke="#d1d5db" stroke-width="1" stroke-dasharray="4 3"/>
+	<!-- Step 1: Log start -->
+	<rect x="20" y="36" width="120" height="28" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1"/>
+	<text x="80" y="55" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#92400e">console.log(start)</text>
+	<!-- Arrow: call next -->
+	<line x1="145" y1="60" x2="218" y2="80" stroke="#6b7280" stroke-width="1.5" marker-end="url(#mf-l)"/>
+	<text x="185" y="68" font-family="system-ui,sans-serif" font-size="9" fill="#6b7280">next()</text>
+	<!-- Step 2: Get session -->
+	<rect x="220" y="84" width="120" height="28" rx="6" fill="#eff6ff" stroke="#3b82f6" stroke-width="1"/>
+	<text x="280" y="103" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#1e40af">getSession()</text>
+	<!-- Arrow: call next with ctx -->
+	<line x1="345" y1="108" x2="418" y2="128" stroke="#6b7280" stroke-width="1.5" marker-end="url(#mf-l)"/>
+	<text x="395" y="114" font-family="system-ui,sans-serif" font-size="9" fill="#6b7280">next({ctx})</text>
+	<!-- Step 3: Server code -->
+	<rect x="420" y="132" width="120" height="28" rx="6" fill="#faf5ff" stroke="#a855f7" stroke-width="1"/>
+	<text x="480" y="151" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#6b21a8">return { data }</text>
+	<!-- Arrow: result flows back -->
+	<line x1="418" y1="168" x2="345" y2="188" stroke="#22c55e" stroke-width="1.5" marker-end="url(#mf-l)"/>
+	<text x="395" y="182" font-family="system-ui,sans-serif" font-size="9" fill="#22c55e">result</text>
+	<!-- Step 4: Auth returns -->
+	<rect x="220" y="192" width="120" height="28" rx="6" fill="#eff6ff" stroke="#3b82f6" stroke-width="1"/>
+	<text x="280" y="211" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#1e40af">return result</text>
+	<!-- Arrow: result flows back -->
+	<line x1="218" y1="216" x2="145" y2="228" stroke="#22c55e" stroke-width="1.5" marker-end="url(#mf-l)"/>
+	<text x="185" y="226" font-family="system-ui,sans-serif" font-size="9" fill="#22c55e">result</text>
+	<!-- Step 5: Log end -->
+	<rect x="20" y="212" width="120" height="28" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1"/>
+	<text x="80" y="231" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#92400e">console.log(end)</text>
+</svg>

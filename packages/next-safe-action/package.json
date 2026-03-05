@@ -1,6 +1,6 @@
 {
 	"name": "next-safe-action",
-	"version": "0.0.0-development",
+	"version": "8.1.5",
 	"private": false,
 	"description": "Type safe and validated Server Actions in your Next.js project.",
 	"main": "./dist/index.mjs",
@@ -38,10 +38,9 @@
 		}
 	],
 	"scripts": {
-		"lint": "tsc --noEmit && eslint .",
-		"test": "node --import tsx --test ./src/__tests__/*.test.ts",
-		"build": "tsdown",
-		"deploy": "semantic-release"
+		"lint": "tsc --noEmit && oxlint --type-aware .",
+		"test": "vitest run",
+		"build": "tsdown"
 	},
 	"keywords": [
 		"next",
@@ -62,27 +61,25 @@
 		"node": ">=18.17"
 	},
 	"dependencies": {
-		"deepmerge-ts": "^7.1.5"
+		"deepmerge-ts": "catalog:"
 	},
 	"devDependencies": {
-		"@eslint/js": "^9.19.0",
-		"@types/node": "^22",
-		"@types/react": "^19",
-		"@types/react-dom": "^19",
-		"@typescript-eslint/eslint-plugin": "^8.26.1",
-		"@typescript-eslint/parser": "^8.26.1",
-		"eslint": "catalog:",
-		"eslint-plugin-react-hooks": "^5.1.0",
+		"@testing-library/dom": "catalog:",
+		"@testing-library/react": "catalog:",
+		"@types/node": "catalog:",
+		"@types/react": "catalog:",
+		"@types/react-dom": "catalog:",
+		"jsdom": "catalog:",
 		"next": "catalog:",
+		"oxlint": "catalog:",
+		"oxlint-tsgolint": "catalog:",
 		"react": "catalog:",
 		"react-dom": "catalog:",
-		"semantic-release": "^25.0.3",
-		"tsdown": "^0.20.3",
-		"tsx": "^4.19.2",
+		"tsdown": "catalog:",
+		"vitest": "catalog:",
 		"typescript": "catalog:",
-		"typescript-eslint": "^8.22.0",
-		"yup": "^1.6.1",
-		"zod": "^3.24.1"
+		"yup": "catalog:",
+		"zod": "catalog:"
 	},
 	"peerDependencies": {
 		"next": ">= 14.0.0",
@@ -92,5 +89,8 @@
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/TheEdoRan/next-safe-action.git"
+	},
+	"publishConfig": {
+		"access": "public"
 	}
 }

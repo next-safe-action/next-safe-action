@@ -116,6 +116,7 @@ export class SafeActionClient<
 	/**
 	 * @deprecated Alias for `inputSchema` method. Use that instead.
 	 */
+	// oxlint-disable-next-line typescript/unbound-method
 	schema = this.inputSchema;
 
 	/**

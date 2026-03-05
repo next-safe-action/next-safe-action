@@ -1,7 +1,4 @@
-/* eslint-disable @typescript-eslint/no-floating-promises */
-
-import assert from "node:assert";
-import { test } from "node:test";
+import { expect, test } from "vitest";
 import { z } from "zod";
 import { DEFAULT_SERVER_ERROR_MESSAGE, createSafeActionClient, returnValidationErrors } from "..";
 
@@ -38,7 +35,7 @@ test("action with no input schema and no server errors calls `onSuccess` and `on
 	);
 
 	await action();
-	assert.strictEqual(executed, 2);
+	expect(executed).toBe(2);
 });
 
 test("action with input schemas and no errors calls `onSuccess` and `onSettled` callbacks with correct arguments", async () => {
@@ -66,20 +63,25 @@ test("action with input schemas and no errors calls `onSuccess` and `onSettled` 
 				}) => {
 					executed++;
 
-					assert.deepStrictEqual(
-						{ clientInput, bindArgsClientInputs, parsedInput, bindArgsParsedInputs, data, metadata, ctx },
-						{
-							metadata: { actionName: "test" },
-							ctx: { foo: "bar" },
-							clientInput: inputs[2],
-							bindArgsClientInputs: inputs.slice(0, 2),
-							parsedInput: inputs[2],
-							bindArgsParsedInputs: inputs.slice(0, 2),
-							data: {
-								ok: true,
-							},
-						}
-					);
+					expect({
+						clientInput,
+						bindArgsClientInputs,
+						parsedInput,
+						bindArgsParsedInputs,
+						data,
+						metadata,
+						ctx,
+					}).toStrictEqual({
+						metadata: { actionName: "test" },
+						ctx: { foo: "bar" },
+						clientInput: inputs[2],
+						bindArgsClientInputs: inputs.slice(0, 2),
+						parsedInput: inputs[2],
+						bindArgsParsedInputs: inputs.slice(0, 2),
+						data: {
+							ok: true,
+						},
+					});
 				},
 				onError: async () => {
 					executed++; // should not be called
@@ -87,26 +89,23 @@ test("action with input schemas and no errors calls `onSuccess` and `onSettled` 
 				onSettled: async ({ clientInput, bindArgsClientInputs, result, metadata, ctx }) => {
 					executed++;
 
-					assert.deepStrictEqual(
-						{ clientInput, bindArgsClientInputs, result, metadata, ctx },
-						{
-							metadata: { actionName: "test" },
-							ctx: { foo: "bar" },
-							clientInput: inputs[2],
-							bindArgsClientInputs: inputs.slice(0, 2),
-							result: {
-								data: {
-									ok: true,
-								},
+					expect({ clientInput, bindArgsClientInputs, result, metadata, ctx }).toStrictEqual({
+						metadata: { actionName: "test" },
+						ctx: { foo: "bar" },
+						clientInput: inputs[2],
+						bindArgsClientInputs: inputs.slice(0, 2),
+						result: {
+							data: {
+								ok: true,
 							},
-						}
-					);
+						},
+					});
 				},
 			}
 		);
 
 	await action(...inputs);
-	assert.strictEqual(executed, 2);
+	expect(executed).toBe(2);
 });
 
 test("action with input schemas and server error calls `onError` and `onSettled` callbacks with correct arguments", async () => {
@@ -127,40 +126,34 @@ test("action with input schemas and server error calls `onError` and `onSettled`
 				onError: async ({ error, clientInput, bindArgsClientInputs, metadata, ctx }) => {
 					executed++;
 
-					assert.deepStrictEqual(
-						{ error, clientInput, bindArgsClientInputs, metadata, ctx },
-						{
-							metadata: { actionName: "test" },
-							ctx: { foo: "bar" },
-							error: {
-								serverError: DEFAULT_SERVER_ERROR_MESSAGE,
-							},
-							clientInput: inputs[2],
-							bindArgsClientInputs: inputs.slice(0, 2),
-						}
-					);
+					expect({ error, clientInput, bindArgsClientInputs, metadata, ctx }).toStrictEqual({
+						metadata: { actionName: "test" },
+						ctx: { foo: "bar" },
+						error: {
+							serverError: DEFAULT_SERVER_ERROR_MESSAGE,
+						},
+						clientInput: inputs[2],
+						bindArgsClientInputs: inputs.slice(0, 2),
+					});
 				},
 				onSettled: async ({ clientInput, bindArgsClientInputs, result, metadata, ctx }) => {
 					executed++;
 
-					assert.deepStrictEqual(
-						{ result, clientInput, bindArgsClientInputs, metadata, ctx },
-						{
-							metadata: { actionName: "test" },
-							ctx: { foo: "bar" },
-							result: {
-								serverError: DEFAULT_SERVER_ERROR_MESSAGE,
-							},
-							clientInput: inputs[2],
-							bindArgsClientInputs: inputs.slice(0, 2),
-						}
-					);
+					expect({ result, clientInput, bindArgsClientInputs, metadata, ctx }).toStrictEqual({
+						metadata: { actionName: "test" },
+						ctx: { foo: "bar" },
+						result: {
+							serverError: DEFAULT_SERVER_ERROR_MESSAGE,
+						},
+						clientInput: inputs[2],
+						bindArgsClientInputs: inputs.slice(0, 2),
+					});
 				},
 			}
 		);
 
 	await action(...inputs);
-	assert.strictEqual(executed, 2);
+	expect(executed).toBe(2);
 });
 
 test("action with validation errors calls `onError` and `onSettled` callbacks with correct arguments", async () => {
@@ -183,48 +176,42 @@ test("action with validation errors calls `onError` and `onSettled` callbacks wi
 				onError: async ({ error, clientInput, bindArgsClientInputs, metadata, ctx }) => {
 					executed++;
 
-					assert.deepStrictEqual(
-						{ error, clientInput, bindArgsClientInputs, metadata, ctx },
-						{
-							metadata: { actionName: "test" },
-							ctx: { foo: "bar" },
-							error: {
-								validationErrors: {
-									username: {
-										_errors: ["String must contain at least 3 character(s)"],
-									},
+					expect({ error, clientInput, bindArgsClientInputs, metadata, ctx }).toStrictEqual({
+						metadata: { actionName: "test" },
+						ctx: { foo: "bar" },
+						error: {
+							validationErrors: {
+								username: {
+									_errors: ["Too small: expected string to have >=3 characters"],
 								},
 							},
-							clientInput: inputs[2],
-							bindArgsClientInputs: inputs.slice(0, 2),
-						}
-					);
+						},
+						clientInput: inputs[2],
+						bindArgsClientInputs: inputs.slice(0, 2),
+					});
 				},
 				onSettled: async ({ clientInput, bindArgsClientInputs, result, metadata, ctx }) => {
 					executed++;
 
-					assert.deepStrictEqual(
-						{ result, clientInput, bindArgsClientInputs, metadata, ctx },
-						{
-							metadata: { actionName: "test" },
-							ctx: { foo: "bar" },
-							result: {
-								validationErrors: {
-									username: {
-										_errors: ["String must contain at least 3 character(s)"],
-									},
+					expect({ result, clientInput, bindArgsClientInputs, metadata, ctx }).toStrictEqual({
+						metadata: { actionName: "test" },
+						ctx: { foo: "bar" },
+						result: {
+							validationErrors: {
+								username: {
+									_errors: ["Too small: expected string to have >=3 characters"],
 								},
 							},
-							clientInput: inputs[2],
-							bindArgsClientInputs: inputs.slice(0, 2),
-						}
-					);
+						},
+						clientInput: inputs[2],
+						bindArgsClientInputs: inputs.slice(0, 2),
+					});
 				},
 			}
 		);
 
 	await action(...inputs);
-	assert.strictEqual(executed, 2);
+	expect(executed).toBe(2);
 });
 
 test("action with server validation error calls `onError` and `onSettled` callbacks with correct arguments", async () => {
@@ -248,46 +235,40 @@ test("action with server validation error calls `onError` and `onSettled` callba
 			onError: async ({ error, clientInput, bindArgsClientInputs, metadata, ctx }) => {
 				executed++;
 
-				assert.deepStrictEqual(
-					{ error, clientInput, bindArgsClientInputs, metadata, ctx },
-					{
-						metadata: { actionName: "test" },
-						ctx: { foo: "bar" },
-						error: {
-							validationErrors: {
-								username: {
-									_errors: ["Invalid username"],
-								},
+				expect({ error, clientInput, bindArgsClientInputs, metadata, ctx }).toStrictEqual({
+					metadata: { actionName: "test" },
+					ctx: { foo: "bar" },
+					error: {
+						validationErrors: {
+							username: {
+								_errors: ["Invalid username"],
 							},
 						},
-						clientInput: { username: "johndoe" },
-						bindArgsClientInputs: [],
-					}
-				);
+					},
+					clientInput: { username: "johndoe" },
+					bindArgsClientInputs: [],
+				});
 			},
 			onSettled: async ({ clientInput, bindArgsClientInputs, result, metadata, ctx }) => {
 				executed++;
 
-				assert.deepStrictEqual(
-					{ result, clientInput, bindArgsClientInputs, metadata, ctx },
-					{
-						metadata: { actionName: "test" },
-						ctx: { foo: "bar" },
-						result: {
-							validationErrors: {
-								username: {
-									_errors: ["Invalid username"],
-								},
+				expect({ result, clientInput, bindArgsClientInputs, metadata, ctx }).toStrictEqual({
+					metadata: { actionName: "test" },
+					ctx: { foo: "bar" },
+					result: {
+						validationErrors: {
+							username: {
+								_errors: ["Invalid username"],
 							},
 						},
-						clientInput: { username: "johndoe" },
-						bindArgsClientInputs: [],
-					}
-				);
+					},
+					clientInput: { username: "johndoe" },
+					bindArgsClientInputs: [],
+				});
 			},
 		}
 	);
 
 	await action({ username: "johndoe" });
-	assert.strictEqual(executed, 2);
+	expect(executed).toBe(2);
 });

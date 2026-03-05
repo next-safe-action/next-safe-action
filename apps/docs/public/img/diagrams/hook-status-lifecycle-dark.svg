@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 140" width="720" height="140">
+	<defs>
+		<marker id="hs-d" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="10" markerHeight="7" orient="auto-start-reverse">
+			<polygon points="0 0, 10 3.5, 0 7" fill="#9ca3af"/>
+		</marker>
+	</defs>
+	<rect x="0" y="44" width="90" height="44" rx="8" fill="#1e293b" stroke="#94a3b8" stroke-width="1.5"/>
+	<text x="45" y="71" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" font-weight="600" fill="#e2e8f0">idle</text>
+	<line x1="95" y1="66" x2="138" y2="66" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#hs-d)"/>
+	<text x="116" y="58" text-anchor="middle" font-family="system-ui,sans-serif" font-size="9" fill="#9ca3af">execute()</text>
+	<rect x="143" y="44" width="110" height="44" rx="8" fill="#422006" stroke="#fbbf24" stroke-width="1.5"/>
+	<text x="198" y="71" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" font-weight="600" fill="#fde68a">executing</text>
+	<line x1="258" y1="54" x2="360" y2="26" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#hs-d)"/>
+	<line x1="258" y1="66" x2="360" y2="66" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#hs-d)"/>
+	<line x1="258" y1="78" x2="360" y2="110" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#hs-d)"/>
+	<rect x="365" y="4" width="130" height="40" rx="8" fill="#052e16" stroke="#4ade80" stroke-width="1.5"/>
+	<text x="430" y="29" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" font-weight="600" fill="#86efac">hasSucceeded</text>
+	<rect x="365" y="48" width="130" height="40" rx="8" fill="#450a0a" stroke="#f87171" stroke-width="1.5"/>
+	<text x="430" y="73" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" font-weight="600" fill="#fecaca">hasErrored</text>
+	<rect x="365" y="92" width="130" height="40" rx="8" fill="#1e3a5f" stroke="#60a5fa" stroke-width="1.5"/>
+	<text x="430" y="117" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" font-weight="600" fill="#93c5fd">hasNavigated</text>
+	<line x1="500" y1="24" x2="548" y2="24" stroke="#9ca3af" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#hs-d)"/>
+	<line x1="500" y1="68" x2="548" y2="68" stroke="#9ca3af" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#hs-d)"/>
+	<line x1="500" y1="112" x2="548" y2="112" stroke="#9ca3af" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#hs-d)"/>
+	<rect x="553" y="44" width="80" height="44" rx="8" fill="#1e293b" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4 3"/>
+	<text x="593" y="62" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#94a3b8">reset()</text>
+	<text x="593" y="76" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#94a3b8">→ idle</text>
+</svg>

@@ -9,13 +9,17 @@ This is a monorepo, that uses:
 - [pnpm](https://pnpm.io/) as package manager;
 - [Turborepo](https://turbo.build/repo) as build system;
 - [TypeScript](https://www.typescriptlang.org/) as primary language;
-- [ESLint](https://eslint.org/) as linter;
-- [Prettier](https://prettier.io/) as formatter;
-- [Husky](https://github.com/typicode/husky) as Git hooks manager;
-- [Commitizen](https://github.com/commitizen/cz-cli) as commit message manager;
-- [Commitlint](https://commitlint.js.org/) as commit message linter;
-- [semantic-release](https://github.com/semantic-release/semantic-release) as release manager.
-- [Docusaurus](https://docusaurus.io/) for the documentation website.
+- [Oxlint](https://oxc.rs/docs/guide/usage/linter) as linter;
+- [Oxfmt](https://oxc.rs/docs/guide/usage/formatter) as formatter;
+- [Vitest](https://vitest.dev/) as test framework;
+- [tsdown](https://tsdown.dev/) as library bundler;
+- [Changesets](https://github.com/changesets/changesets) for versioning and release PR management;
+- [Fumadocs](https://fumadocs.vercel.app/) for the documentation website.
+
+Lint and format configuration files are organized as:
+- root `.oxlintrc.base.json` as shared Oxlint base config;
+- package-level `.oxlintrc.json` files for package-specific Oxlint rules;
+- root `.oxfmtrc.json` for shared formatting rules across workspace packages.
 
 ### What you need to install
 
@@ -28,7 +32,7 @@ This is a monorepo, that uses:
 
 - [`packages/next-safe-action`](./packages/next-safe-action): contains the source code of the library;
 - [`apps/playground`](./apps/playground): contains the source code of the Next.js playground app, which is a basic implementation of the library;
-- [`website`](./website): contains the source code of the [next-safe-action website](https://next-safe-action.dev).
+- [`apps/docs`](./apps/docs): contains the source code of the [next-safe-action documentation website](https://next-safe-action.dev), built with Fumadocs (content in `content/docs/`).
 
 ## How to contribute
 
@@ -56,34 +60,35 @@ pnpm run build:lib && pnpm run pg
 > [!TIP]
 > If you see many type errors in the playground app after running the `build:lib` command, try to restart the TS Server of VS Code. This should fix the errors.
 
-If you updated user facing APIs of the library, you're **not required**, but **highly incouraged** to:
-- update [the documentation](./website/docs) of the library to reflect the changes you've made.
+If you updated user facing APIs of the library, you're **not required**, but **highly encouraged** to:
+- update [the documentation](./apps/docs/content/docs) of the library to reflect the changes you've made.
 - write tests for the changes you've made. They should be placed in the appropriate file inside [`__tests__`](./packages/next-safe-action/src/__tests__) directory (`next-safe-action` package).
+- add a Changeset file using `pnpm run changeset`.
 
 These steps can be done in later stages of the PR too, for instance when a maintainer already approved your code updates.
 
-Note that the [`website`](./website) project is not part of the monorepo packages, so you need to `cd` into it and then run this command to install its dependencies:
+The documentation site is part of the monorepo, so dependencies are already installed. You can start the Fumadocs development server with:
 
 ```sh
-pnpm install
-```
-
-Then you can start the Docusaurus development server with:
-
-```sh
-pnpm run start
+pnpm run docs
 ```
 
 ### Committing changes
 
 Once you're done with your code changes, you can finally commit and push them to the remote repository.
 
-Committing is very easy, thanks to both `commitizen` and `commitlint` utilities. Each commit message **must** follow the [Conventional Commits](https://www.conventionalcommits.org/) format, to allow for automated release management via `semantic-release`. You can commit your code using:
+There is no enforced commit message format in the repository. Use clear commit messages that describe the change.
+
+For PRs targeting `main` that touch package or release-related files, include a Changeset file in your PR:
 
 ```sh
-git commit --no-edit
+pnpm run changeset
 ```
 
-This command will bring up the `commitizen` interface to help you write a proper commit message, without also bringing up the default editor. If you want to, you can set up an alias for it, to make it easier to type and remember. The commit message is then run through `commitlint` to validate it.
+If you need to keep the PR in the Changesets flow without producing a version bump, create an empty Changeset:
 
-Changes made in `website` or `playground` scopes **must** be typed `chore(<scope>)`, since they are not part of the library code.
+```sh
+pnpm run changeset:empty
+```
+
+PR CI runs linting/tests and checks for changesets before merge. The release workflow uses Changesets to create version PRs and publish from `main`.

@@ -1,7 +1,4 @@
-/* eslint-disable @typescript-eslint/no-floating-promises */
-
-import assert from "node:assert";
-import { test } from "node:test";
+import { expect, test } from "vitest";
 import { z } from "zod";
 import type { ValidationErrors } from "..";
 import {
@@ -52,23 +49,23 @@ test("action with invalid input gives back an object with correct `validationErr
 		validationErrors: {
 			user: {
 				id: {
-					_errors: ["String must contain at least 36 character(s)", "Invalid uuid"],
+					_errors: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 				},
 			},
 			store: {
 				id: {
-					_errors: ["String must contain at least 36 character(s)", "Invalid uuid"],
+					_errors: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 				},
 				product: {
 					id: {
-						_errors: ["String must contain at least 36 character(s)", "Invalid uuid"],
+						_errors: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 					},
 				},
 			},
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("action with invalid enum input gives back an object with correct `validationErrors` (default formatted shape)", async () => {
@@ -97,16 +94,16 @@ test("action with invalid enum input gives back an object with correct `validati
 		validationErrors: {
 			foo: {
 				bar: {
-					_errors: ['Invalid literal value, expected "a"', 'Invalid literal value, expected "b"'],
+					_errors: ["Invalid input"],
 				},
 			},
 			baz: {
-				_errors: ["String must contain at least 3 character(s)"],
+				_errors: ["Too small: expected string to have >=3 characters"],
 			},
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("action with root level schema error gives back an object with correct `validationErrors` (default formatted shape)", async () => {
@@ -141,12 +138,12 @@ test("action with root level schema error gives back an object with correct `val
 		validationErrors: {
 			_errors: ["Passwords do not match"],
 			userId: {
-				_errors: ["String must contain at least 36 character(s)", "Invalid uuid"],
+				_errors: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 			},
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("action with invalid input gives back an object with correct `validationErrors` (default formatted shape overridden by custom flattened shape)", async () => {
@@ -178,13 +175,13 @@ test("action with invalid input gives back an object with correct `validationErr
 		validationErrors: {
 			formErrors: ["User id and store id cannot be the same"],
 			fieldErrors: {
-				userId: ["String must contain at least 36 character(s)", "Invalid uuid"],
-				storeId: ["String must contain at least 36 character(s)", "Invalid uuid"],
+				userId: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
+				storeId: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 			},
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("action with invalid output data returns the default `serverError`", async () => {
@@ -200,7 +197,7 @@ test("action with invalid output data returns the default `serverError`", async 
 		serverError: DEFAULT_SERVER_ERROR_MESSAGE,
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("action with invalid output data throws an error of the correct type", async () => {
@@ -220,7 +217,7 @@ test("action with invalid output data throws an error of the correct type", asyn
 	});
 
 	const expectedResult = {
-		serverError: "String must contain at least 3 character(s)",
+		serverError: "Too small: expected string to have >=3 characters",
 	};
 
 	const actualResult = {
@@ -236,7 +233,7 @@ test("action with invalid output data throws an error of the correct type", asyn
 		}
 	}
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 // Formatted shape tests (same as default).
@@ -280,23 +277,23 @@ test("action with invalid input gives back an object with correct `validationErr
 		validationErrors: {
 			user: {
 				id: {
-					_errors: ["String must contain at least 36 character(s)", "Invalid uuid"],
+					_errors: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 				},
 			},
 			store: {
 				id: {
-					_errors: ["String must contain at least 36 character(s)", "Invalid uuid"],
+					_errors: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 				},
 				product: {
 					id: {
-						_errors: ["String must contain at least 36 character(s)", "Invalid uuid"],
+						_errors: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 					},
 				},
 			},
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("action with root level schema error gives back an object with correct `validationErrors` (set formatted shape)", async () => {
@@ -331,12 +328,12 @@ test("action with root level schema error gives back an object with correct `val
 		validationErrors: {
 			_errors: ["Passwords do not match", "UUID mismatch"],
 			userId: {
-				_errors: ["Invalid uuid"],
+				_errors: ["Invalid UUID"],
 			},
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("action with invalid input gives back an object with correct `validationErrors` (set formatted shape overridden by custom flattened shape)", async () => {
@@ -368,13 +365,13 @@ test("action with invalid input gives back an object with correct `validationErr
 		validationErrors: {
 			formErrors: ["User id and store id cannot be the same"],
 			fieldErrors: {
-				userId: ["String must contain at least 36 character(s)", "Invalid uuid"],
-				storeId: ["String must contain at least 36 character(s)", "Invalid uuid"],
+				userId: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
+				storeId: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 			},
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 // Flattened shape tests.
@@ -415,13 +412,13 @@ test("action with invalid input gives back an object with correct `validationErr
 		validationErrors: {
 			formErrors: [],
 			fieldErrors: {
-				userId: ["String must contain at least 36 character(s)", "Invalid uuid"],
-				storeId: ["String must contain at least 36 character(s)", "Invalid uuid"],
+				userId: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
+				storeId: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 			},
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("action with root level schema error gives back an object with correct `validationErrors` (set flattened shape)", async () => {
@@ -463,13 +460,13 @@ test("action with root level schema error gives back an object with correct `val
 		validationErrors: {
 			formErrors: ["User and store IDs must be different", "Another cool global error"],
 			fieldErrors: {
-				userId: ["String must contain at least 36 character(s)", "Invalid uuid"],
-				storeId: ["String must contain at least 36 character(s)", "Invalid uuid"],
+				userId: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
+				storeId: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 			},
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 test("action with invalid input gives back an object with correct `validationErrors` (set flattened shape overridden by custom formatted shape)", async () => {
@@ -501,135 +498,15 @@ test("action with invalid input gives back an object with correct `validationErr
 		validationErrors: {
 			_errors: ["User id and store id cannot be the same"],
 			userId: {
-				_errors: ["String must contain at least 36 character(s)", "Invalid uuid"],
+				_errors: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 			},
 			storeId: {
-				_errors: ["String must contain at least 36 character(s)", "Invalid uuid"],
+				_errors: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 			},
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
-});
-
-// `returnValidationErrors` tests.
-
-test("action with errors set via `returnValidationErrors` gives back an object with correct `validationErrors` (default formatted shape)", async () => {
-	const schema = z.object({
-		username: z.string(),
-		password: z.string(),
-	});
-
-	const errorsObject = {
-		_errors: ["incorrect_credentials", "another_error"],
-		username: {
-			_errors: ["user_suspended"],
-		},
-		password: {
-			_errors: ["invalid_password"],
-		},
-	};
-
-	const action = dac.inputSchema(schema).action(async ({ parsedInput }) => {
-		if (parsedInput.username !== "johndoe" && parsedInput.password !== "password") {
-			returnValidationErrors(schema, structuredClone(errorsObject));
-		}
-
-		return {
-			ok: true,
-		};
-	});
-
-	const actualResult = await action({
-		username: "123",
-		password: "456",
-	});
-
-	const expectedResult = {
-		validationErrors: structuredClone(errorsObject),
-	};
-
-	assert.deepStrictEqual(actualResult, expectedResult);
-});
-
-test("action with errors set via `returnValidationErrors` gives back an object with correct `validationErrors` (set formatted shape)", async () => {
-	const schema = z.object({
-		username: z.string(),
-		password: z.string(),
-	});
-
-	const errorsObject = {
-		_errors: ["incorrect_credentials", "another_error"],
-		username: {
-			_errors: ["user_suspended"],
-		},
-		password: {
-			_errors: ["invalid_password"],
-		},
-	};
-
-	const action = foac.inputSchema(schema).action(async ({ parsedInput }) => {
-		if (parsedInput.username !== "johndoe" && parsedInput.password !== "password") {
-			returnValidationErrors(schema, structuredClone(errorsObject));
-		}
-
-		return {
-			ok: true,
-		};
-	});
-
-	const actualResult = await action({
-		username: "123",
-		password: "456",
-	});
-
-	const expectedResult = {
-		validationErrors: structuredClone(errorsObject),
-	};
-
-	assert.deepStrictEqual(actualResult, expectedResult);
-});
-
-test("action with errors set via `returnValidationErrors` gives back an object with correct `validationErrors` (set flattened shape)", async () => {
-	const schema = z.object({
-		username: z.string(),
-		password: z.string(),
-	});
-
-	const action = flac.inputSchema(schema).action(async ({ parsedInput }) => {
-		if (parsedInput.username !== "johndoe" && parsedInput.password !== "password") {
-			returnValidationErrors(schema, {
-				_errors: ["incorrect_credentials", "another_error"],
-				username: {
-					_errors: ["user_suspended"],
-				},
-				password: {
-					_errors: ["invalid_password"],
-				},
-			});
-		}
-
-		return {
-			ok: true,
-		};
-	});
-
-	const actualResult = await action({
-		username: "123",
-		password: "456",
-	});
-
-	const expectedResult = {
-		validationErrors: {
-			formErrors: ["incorrect_credentials", "another_error"],
-			fieldErrors: {
-				username: ["user_suspended"],
-				password: ["invalid_password"],
-			},
-		},
-	};
-
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
 
 // `throwValidationErrors` tests.
@@ -650,7 +527,7 @@ test("action with validation errors and `throwValidationErrors` option set to tr
 		{ throwValidationErrors: true }
 	);
 
-	await assert.rejects(async () => await action({ username: "12", password: "34" }));
+	await expect(async () => await action({ username: "12", password: "34" })).rejects.toThrow();
 });
 
 const tveac = createSafeActionClient({
@@ -669,7 +546,7 @@ test("action with validation errors and `throwValidationErrors` option set to tr
 		};
 	});
 
-	await assert.rejects(async () => await action({ username: "12", password: "34" }));
+	await expect(async () => await action({ username: "12", password: "34" })).rejects.toThrow();
 });
 
 test("action with server validation errors and `throwValidationErrors` option set to true in client throws", async () => {
@@ -689,7 +566,7 @@ test("action with server validation errors and `throwValidationErrors` option se
 		};
 	});
 
-	await assert.rejects(async () => await action({ username: "1234", password: "5678" }));
+	await expect(async () => await action({ username: "1234", password: "5678" })).rejects.toThrow();
 });
 
 test("action with validation errors and `throwValidationErrors` option set to true both in client and action throws", async () => {
@@ -707,7 +584,7 @@ test("action with validation errors and `throwValidationErrors` option set to tr
 		{ throwValidationErrors: true }
 	);
 
-	await assert.rejects(async () => await action({ username: "12", password: "34" }));
+	await expect(async () => await action({ username: "12", password: "34" })).rejects.toThrow();
 });
 
 test("action with validation errors and overridden `throwValidationErrors` set to false at the action level doesn't throw", async () => {
@@ -748,21 +625,21 @@ test("action with validation errors and overridden `throwValidationErrors` set t
 		validationErrors: {
 			user: {
 				id: {
-					_errors: ["String must contain at least 36 character(s)", "Invalid uuid"],
+					_errors: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 				},
 			},
 			store: {
 				id: {
-					_errors: ["String must contain at least 36 character(s)", "Invalid uuid"],
+					_errors: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 				},
 				product: {
 					id: {
-						_errors: ["String must contain at least 36 character(s)", "Invalid uuid"],
+						_errors: ["Too small: expected string to have >=36 characters", "Invalid UUID"],
 					},
 				},
 			},
 		},
 	};
 
-	assert.deepStrictEqual(actualResult, expectedResult);
+	expect(actualResult).toStrictEqual(expectedResult);
 });
