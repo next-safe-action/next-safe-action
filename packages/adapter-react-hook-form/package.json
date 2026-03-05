@@ -1,6 +1,6 @@
 {
 	"name": "@next-safe-action/adapter-react-hook-form",
-	"version": "2.0.0",
+	"version": "2.0.1",
 	"private": false,
 	"description": "This adapter offers a way to seamlessly integrate next-safe-action with react-hook-form.",
 	"main": "./dist/index.mjs",
@@ -81,7 +81,7 @@
 	"peerDependencies": {
 		"@hookform/resolvers": ">= 5.0.0",
 		"next": ">= 14.0.0",
-		"next-safe-action": ">= 8.0.0",
+		"next-safe-action": ">=8.1.6",
 		"react": ">= 18.2.0",
 		"react-dom": ">= 18.2.0",
 		"react-hook-form": ">= 7.0.0"
