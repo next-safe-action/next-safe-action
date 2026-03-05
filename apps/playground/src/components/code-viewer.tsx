@@ -40,7 +40,7 @@ export function CodeViewer({ code, html, url, filename }: SourceCode) {
 			<CollapsibleContent>
 				{/* Safe: HTML is generated server-side by Shiki from local repository source files. */}
 				<div
-					className="mt-2 min-w-0 overflow-x-auto rounded-md border text-xs [&_pre]:p-4"
+					className="mt-2 min-w-0 overflow-hidden rounded-md border text-xs [&_pre]:overflow-x-auto [&_pre]:p-4"
 					dangerouslySetInnerHTML={{ __html: html }}
 				/>
 			</CollapsibleContent>
