@@ -1,0 +1,50 @@
+---
+title: AI Agent Skills
+description: Install next-safe-action skills for AI coding agents like Claude Code, Cursor, Codex, and more.
+---
+
+next-safe-action provides a set of [skills](https://skills.sh) — structured knowledge files optimized for AI coding agents. When installed, these skills give your AI agent deep context about next-safe-action's API, patterns, and anti-patterns, enabling it to write better code with the library.
+
+## Installation
+
+Skills are installed via the `skills` CLI. Run from your project root:
+
+```bash
+npx skills add next-safe-action/next-safe-action
+```
+
+This downloads the skills into your project where AI agents can discover and use them automatically.
+
+## Available Skills
+
+| Skill | Description |
+|---|---|
+| `safe-action-client` | Client creation, action definition, Standard Schema validation (Zod, Yup, Valibot), server error handling |
+| `safe-action-middleware` | Authentication, authorization, logging, rate limiting, context extension, `createMiddleware()` |
+| `safe-action-hooks` | `useAction`, `useOptimisticAction`, status lifecycle, callbacks, `execute` vs `executeAsync` |
+| `safe-action-forms` | React Hook Form adapter, native form submission, file uploads, bind arguments with forms |
+| `safe-action-validation-errors` | `returnValidationErrors`, formatted vs flattened shapes, custom error shapes, `throwValidationErrors` |
+| `safe-action-advanced` | Bind arguments, metadata schemas, framework errors (redirect/notFound/forbidden/unauthorized), type utilities |
+| `safe-action-testing` | Vitest patterns for testing actions, middleware, hooks, validation errors, and framework errors |
+
+## How Skills Work
+
+Skills are markdown files that AI agents load when they detect a relevant task. Each skill contains:
+
+- **Correct API usage** with complete, copy-paste-ready code examples
+- **Anti-patterns** showing common mistakes and how to fix them
+- **Type information** so the agent generates properly typed code
+- **Sub-topic files** for deep dives into specific features
+
+Unlike documentation (designed for humans to browse), skills are structured for AI agents to quickly find the right pattern and generate accurate code.
+
+## Supported Agents
+
+Skills work with any AI coding agent that supports the [skills.sh](https://skills.sh) format, including:
+
+- [Claude Code](https://claude.ai/claude-code)
+- [Cursor](https://cursor.com)
+- [OpenAI Codex](https://openai.com/codex)
+- Other agents that support the skills format
+
+Visit [skills.sh](https://skills.sh) to learn more about the skills ecosystem.
