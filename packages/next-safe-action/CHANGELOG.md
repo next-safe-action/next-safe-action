@@ -1,5 +1,11 @@
 # next-safe-action
 
+## 8.1.8
+
+### Patch Changes
+
+- [`15a34d1`](https://github.com/next-safe-action/next-safe-action/commit/15a34d18f4d75d9961c5e17ad4ddbbb26502143e) Thanks [@TheEdoRan](https://github.com/TheEdoRan)! - Update website section in README
+
 ## 8.1.7
 
 ### Patch Changes
