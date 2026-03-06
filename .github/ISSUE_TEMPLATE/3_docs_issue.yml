@@ -1,0 +1,25 @@
+name: Documentation issue
+description: Report incorrect or missing documentation.
+title: "[DOCS] "
+labels: ["documentation"]
+body:
+  - type: input
+    attributes:
+      label: Page URL
+      description: Link to the docs page with the issue (if applicable).
+      placeholder: https://next-safe-action.dev/docs/...
+    validations:
+      required: false
+  - type: textarea
+    attributes:
+      label: Description
+      description: What's wrong or missing in the documentation?
+      placeholder: The section about '...' is incorrect because...
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Suggested improvement
+      description: How would you improve the documentation?
+    validations:
+      required: false

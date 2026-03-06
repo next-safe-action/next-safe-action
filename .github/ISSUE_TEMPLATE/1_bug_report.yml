@@ -17,6 +17,39 @@ body:
       options:
         - label: I have searched the existing issues and found nothing that matches
           required: true
+  - type: dropdown
+    attributes:
+      label: Package
+      description: Which package is affected?
+      options:
+        - next-safe-action
+        - "@next-safe-action/adapter-react-hook-form"
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Entry point
+      description: Which entry point is affected?
+      options:
+        - "next-safe-action (server)"
+        - "next-safe-action/hooks"
+        - "next-safe-action/stateful-hooks"
+        - "@next-safe-action/adapter-react-hook-form"
+        - "@next-safe-action/adapter-react-hook-form/hooks"
+        - "Other / Not sure"
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Validation library
+      description: Which validation library are you using?
+      options:
+        - Zod
+        - Yup
+        - "Other (Standard Schema)"
+        - None
+    validations:
+      required: true
   - type: textarea
     attributes:
       label: Describe the bug
@@ -48,11 +81,12 @@ body:
       label: Link to a minimal reproduction of the issue
       description: Link to a minimal example that reproduces the bug. Please provide a GitHub/CodeSandbox link with as little code as possible to reproduce the issue. Without a link, the issue will be closed as "not planned" until a valid URL is provided.
       placeholder: https://github.com/...
+      pattern: https?://.+
     validations:
       required: true
   - type: markdown
     attributes:
-      value: Information about the environment you are using.
+      value: "---\n\n### Environment"
   - type: input
     attributes:
       label: Operating System
@@ -62,13 +96,13 @@ body:
   - type: input
     attributes:
       label: Library version
-      placeholder: 6.0.0
+      placeholder: 7.0.0
     validations:
       required: true
   - type: input
     attributes:
       label: Next.js version
-      placeholder: 14.x.x
+      placeholder: 16.x.x
     validations:
       required: true
   - type: input

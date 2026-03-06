@@ -1,0 +1,47 @@
+name: Feature request
+description: Suggest an idea to improve the library.
+title: "[FEATURE] "
+labels: ["enhancement"]
+body:
+  - type: checkboxes
+    attributes:
+      label: Is there an existing issue or discussion for this?
+      description: Please search to see if this feature has already been requested.
+      options:
+        - label: I have searched the existing issues and discussions and found nothing that matches
+          required: true
+  - type: dropdown
+    attributes:
+      label: Package
+      description: Which package does this feature relate to?
+      options:
+        - next-safe-action
+        - "@next-safe-action/adapter-react-hook-form"
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Problem or motivation
+      description: What problem does this feature solve? Is your request related to a problem?
+      placeholder: I'm always frustrated when...
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Proposed solution
+      description: Describe your ideal solution. How should it work?
+      placeholder: I'd like to be able to...
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Alternatives considered
+      description: Have you considered any alternative solutions or workarounds?
+    validations:
+      required: false
+  - type: textarea
+    attributes:
+      label: Additional context
+      description: Add any other context, screenshots, or code examples about the feature request here.
+    validations:
+      required: false
