@@ -17,11 +17,7 @@
 
 ## Documentation
 
-**Explore the documentation for the current stable version of the library on the [next-safe-action v8 website](https://next-safe-action.dev).** ✨
-
-### Looking for v7 docs?
-
-You can keep using version 6 and eventually upgrade to version 7. Check out the v7 documentation [here](https://v7.next-safe-action.dev).
+**Explore the documentation for the current stable version of the library on the [next-safe-action website](https://next-safe-action.dev).** ✨
 
 ## Migrate from v7 to v8
 
