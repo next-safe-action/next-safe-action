@@ -9,8 +9,8 @@ This is a monorepo, that uses:
 - [pnpm](https://pnpm.io/) as package manager;
 - [Turborepo](https://turbo.build/repo) as build system;
 - [TypeScript](https://www.typescriptlang.org/) as primary language;
-- [Oxlint](https://oxc.rs/docs/guide/usage/linter) as linter;
-- [Oxfmt](https://oxc.rs/docs/guide/usage/formatter) as formatter;
+- [Oxlint](https://oxc.rs/docs/guide/usage/linter) as linter (with [oxlint-tsgolint](https://github.com/nicolo-ribaudo/oxlint-tsgolint) for type-aware checking);
+- [Oxfmt](https://oxc.rs/docs/guide/usage/formatter) as formatter (with import sorting and Tailwind CSS class sorting);
 - [Vitest](https://vitest.dev/) as test framework;
 - [tsdown](https://tsdown.dev/) as library bundler;
 - [Changesets](https://github.com/changesets/changesets) for versioning and release PR management;

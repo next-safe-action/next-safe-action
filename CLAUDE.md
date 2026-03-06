@@ -23,7 +23,7 @@ next-safe-action is a TypeScript library for type-safe, validated Next.js Server
 | Framework | Next.js | ^16 |
 | UI library | React | ^19 |
 | Monorepo orchestration | Turborepo | ^2.8.12 |
-| Bundler | tsdown (Rolldown + Oxc) | ^0.20.3 |
+| Bundler | tsdown (Rolldown + Oxc) | ^0.21.0 |
 | Test framework | Vitest | ^3.1.1 |
 | Formatter | Oxfmt | ^0.35.0 |
 | Linter | Oxlint (type-aware) | ^1.50.0 |
@@ -60,8 +60,8 @@ All commands run from the repository root unless noted.
 
 ## Code Style
 
-- **Formatter**: Oxfmt — tabs (tabWidth 2), printWidth 120, semicolons, double quotes, trailing commas (es5). Config in `.oxfmtrc.json`.
-- **Linter**: Oxlint with type-aware checking. Shared base config in `.oxlintrc.base.json`, package overrides in per-package `.oxlintrc.json`. Plugins: oxc, eslint, unicorn, typescript, react, react-perf, nextjs.
+- **Formatter**: Oxfmt — tabs (tabWidth 2), printWidth 120, semicolons, double quotes, trailing commas (es5), import sorting, Tailwind CSS class sorting. Config in `.oxfmtrc.json`.
+- **Linter**: Oxlint with type-aware checking via `oxlint-tsgolint`. Shared base config in `.oxlintrc.base.json`, package overrides in per-package `.oxlintrc.json`. Plugins: oxc, eslint, unicorn, typescript, react, react-perf (library packages), plus nextjs (app packages).
 - **TypeScript**: strict mode with `noUncheckedIndexedAccess`. Library lint runs `tsc --noEmit && oxlint --type-aware .`.
 - Prefer explicit type imports/exports (enforced by Oxlint).
 - **CSS**: Tailwind v4 with CSS-first configuration (no tailwind.config file), PostCSS via `@tailwindcss/postcss`.
