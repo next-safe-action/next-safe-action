@@ -6,5 +6,7 @@ export default defineConfig({
 	clean: true,
 	sourcemap: true,
 	dts: true,
-	inlineOnly: false,
+	deps: {
+		onlyAllowBundle: false,
+	},
 });
