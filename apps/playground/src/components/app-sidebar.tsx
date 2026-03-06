@@ -116,7 +116,7 @@ export function AppSidebar() {
 				<SidebarMenu>
 					<SidebarMenuItem>
 						<SidebarMenuButton asChild tooltip="GitHub">
-							<a href="https://github.com/TheEdoRan/next-safe-action" target="_blank" rel="noopener noreferrer">
+							<a href="https://github.com/next-safe-action/next-safe-action" target="_blank" rel="noopener noreferrer">
 								<GithubIcon className="size-4" />
 								<span>GitHub</span>
 							</a>

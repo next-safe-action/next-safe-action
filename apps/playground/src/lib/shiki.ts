@@ -10,7 +10,7 @@ export type SourceCode = {
 	filename: string;
 };
 
-const GITHUB_BASE = "https://github.com/TheEdoRan/next-safe-action/blob/main/apps/playground/src/app/";
+const GITHUB_BASE = "https://github.com/next-safe-action/next-safe-action/blob/main/apps/playground/src/app/";
 
 /**
  * Read a file relative to the `src/app/` directory, highlight it with Shiki,

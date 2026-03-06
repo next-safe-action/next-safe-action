@@ -172,7 +172,7 @@ export function FooterCta() {
 						Documentation
 					</Link>
 					<a
-						href="https://github.com/TheEdoRan/next-safe-action"
+						href="https://github.com/next-safe-action/next-safe-action"
 						target="_blank"
 						rel="noopener noreferrer"
 						className="text-fd-muted-foreground hover:text-fd-foreground transition-colors"
