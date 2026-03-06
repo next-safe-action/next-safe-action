@@ -28,14 +28,11 @@ body:
       required: true
   - type: dropdown
     attributes:
-      label: Entry point
-      description: Which entry point is affected?
+      label: Scope
+      description: Which scope is affected?
       options:
-        - "next-safe-action (server)"
-        - "next-safe-action/hooks"
-        - "next-safe-action/stateful-hooks"
-        - "@next-safe-action/adapter-react-hook-form"
-        - "@next-safe-action/adapter-react-hook-form/hooks"
+        - Core
+        - Hooks
         - "Other / Not sure"
     validations:
       required: true
