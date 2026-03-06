@@ -1,5 +1,11 @@
 # next-safe-action
 
+## 8.1.7
+
+### Patch Changes
+
+- [#412](https://github.com/next-safe-action/next-safe-action/pull/412) [`7bed4e5`](https://github.com/next-safe-action/next-safe-action/commit/7bed4e5b87d92e111b8be1cb460029f88bb24b1c) Thanks [@TheEdoRan](https://github.com/TheEdoRan)! - Update links for repo transfer
+
 ## 8.1.6
 
 ### Patch Changes
