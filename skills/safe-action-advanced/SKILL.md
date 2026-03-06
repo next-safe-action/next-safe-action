@@ -31,7 +31,7 @@ export const createPost = authActionClient
         // Runs on the server after successful execution
         await invalidateCache("posts");
       },
-      onError: async ({ error }) => {
+      onError: async ({ error, metadata, ctx, clientInput, bindArgsClientInputs }) => {
         // error: { serverError?, validationErrors? }
         await logError(error);
       },
@@ -58,6 +58,6 @@ export const myAction = actionClient
   .inputSchema(schema)
   .action(serverCodeFn, {
     throwServerError: true,
-    // The original error is re-thrown (not the handled version)
+    // The handled server error (return of handleServerError) is thrown
   });
 ```

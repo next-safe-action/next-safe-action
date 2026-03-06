@@ -8,6 +8,8 @@ Use `zod-form-data` to validate `FormData` containing files:
 npm install zod-form-data
 ```
 
+> **Note:** Verify zod-form-data compatibility with your Zod version (especially if using Zod v4).
+
 ### Action Definition
 
 ```ts

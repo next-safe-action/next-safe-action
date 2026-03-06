@@ -89,7 +89,7 @@ const bound = transferItem.bind(null, warehouse1.id, warehouse2.id);
 
 ## Bind Args Validation Errors
 
-If bind args fail validation, `ActionBindArgsValidationError` is thrown. This is a server error, not a validation error on the result.
+If bind args fail validation, `ActionBindArgsValidationError` is thrown. It is caught by `handleServerError` and returned as `result.serverError`.
 
 ## Bind Args in Middleware
 

@@ -238,6 +238,7 @@ import { vi } from "vitest";
 
 // Mock Next.js navigation
 vi.mock("next/navigation", () => ({
+  // Digest formats are Next.js internals — may change across versions
   redirect: vi.fn((url: string) => {
     throw Object.assign(new Error("NEXT_REDIRECT"), {
       digest: `NEXT_REDIRECT;push;${url};303;`,
@@ -257,10 +258,18 @@ Follow the project convention:
 
 ```
 packages/next-safe-action/src/__tests__/
-├── action-builder.test.ts     # Core execution tests
-├── validation-errors.test.ts  # Validation error utilities
-├── hooks.test.ts              # useAction, useOptimisticAction
-└── middleware.test.ts          # Middleware chain behavior
+├── happy-path.test.ts                  # Core happy path tests
+├── validation-errors.test.ts           # Validation error utilities
+├── middleware.test.ts                   # Middleware chain behavior
+├── navigation-errors.test.ts           # Framework error handling
+├── navigation-immediate-throw.test.ts  # Immediate navigation throws
+├── server-error.test.ts                # Server error handling
+├── bind-args-validation-errors.test.ts # Bind args validation
+├── returnvalidationerrors.test.ts       # returnValidationErrors behavior
+├── input-schema.test.ts                # Input schema tests
+├── metadata.test.ts                    # Metadata tests
+├── action-callbacks.test.ts            # Server-level callbacks
+└── hooks-utils.test.ts                 # Hook utilities
 ```
 
 Run tests:

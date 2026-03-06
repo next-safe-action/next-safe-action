@@ -1,12 +1,14 @@
 # Logging & Monitoring Middleware
 
+> **Note:** Action files require a `"use server"` directive — omitted from examples below for brevity.
+
 ## Request Timing
 
 ```ts
 export const actionClient = createSafeActionClient().use(
   async ({ next, metadata, clientInput }) => {
     const start = performance.now();
-    const result = await next({ ctx: {} });
+    const result = await next();
     const duration = performance.now() - start;
 
     console.log(
@@ -24,7 +26,7 @@ After `await next()`, the result contains the action outcome. Inspect it for log
 
 ```ts
 .use(async ({ next, metadata }) => {
-  const result = await next({ ctx: {} });
+  const result = await next();
 
   // result has: { data?, serverError?, validationErrors? }
   if (result.serverError) {
@@ -95,7 +97,7 @@ export const actionClient = createSafeActionClient({
 }).use(async ({ next, metadata }) => {
   return Sentry.withScope(async (scope) => {
     scope.setTag("action", metadata?.actionName ?? "unknown");
-    return next({ ctx: {} });
+    return next();
   });
 });
 ```
@@ -105,6 +107,7 @@ export const actionClient = createSafeActionClient({
 ```ts
 import { headers } from "next/headers";
 
+// Demo only — in-memory maps reset per serverless invocation. Use Redis/Upstash for production.
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
 .use(async ({ next }) => {
@@ -123,6 +126,6 @@ const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
     limit.count++;
   }
 
-  return next({ ctx: {} });
+  return next();
 })
 ```

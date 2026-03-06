@@ -99,13 +99,11 @@ async ({
 })
 
 // GOOD: Re-throw framework errors
-import { FrameworkErrorHandler } from "next-safe-action/next/errors";
-
 .use(async ({ next }) => {
   try {
     return await next({ ctx: {} });
   } catch (error) {
-    if (FrameworkErrorHandler.isNavigationError(error)) {
+    if (error instanceof Error && "digest" in error) {
       throw error; // Let Next.js handle redirects, notFound, etc.
     }
     // Handle other errors

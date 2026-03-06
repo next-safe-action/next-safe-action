@@ -30,7 +30,7 @@ const {
 } = useAction(myAction);
 ```
 
-`isPending` is the most useful for disabling UI — it covers both the action execution and any React transition that follows.
+`isPending` is the most useful for disabling UI — it covers both the action execution and any React transition that follows. Note: `isTransitioning` tracks the React transition state separately (it may remain `true` briefly after `isExecuting` becomes `false`).
 
 ## Callbacks
 

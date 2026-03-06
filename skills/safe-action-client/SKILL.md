@@ -9,8 +9,6 @@ description: Use when creating or configuring a next-safe-action client, definin
 
 ```ts
 // src/lib/safe-action.ts
-"use server";
-
 import { createSafeActionClient } from "next-safe-action";
 
 export const actionClient = createSafeActionClient();
@@ -37,7 +35,7 @@ createSafeActionClient(opts?)
   .use(middleware)              // repeatable, adds middleware to chain
   .metadata(data)              // required if defineMetadataSchema is set
   .inputSchema(schema, utils?) // Standard Schema or async factory function
-  .bindArgsSchemas([...])      // schemas for .bind() arguments
+  .bindArgsSchemas([...])      // schemas for .bind() arguments (order with inputSchema is flexible)
   .outputSchema(schema)        // validates action return value
   .action(serverCodeFn, utils?)      // creates SafeActionFn
   .stateAction(serverCodeFn, utils?) // creates SafeStateActionFn (for useActionState)

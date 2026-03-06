@@ -1,5 +1,7 @@
 # Custom Validation Errors
 
+> **Note:** Action files require a `"use server"` directive — omitted from examples below for brevity.
+
 ## returnValidationErrors
 
 ```ts
@@ -79,13 +81,7 @@ returnValidationErrors(schema, {
 
 ## Error Classes
 
-### ActionServerValidationError
-
-Thrown internally by `returnValidationErrors()`. You don't need to use this directly.
-
-```ts
-import { ActionServerValidationError } from "next-safe-action";
-```
+> **Note:** `ActionServerValidationError` is used internally by `returnValidationErrors()` — it is **not** exported from the package and should not be imported directly.
 
 ### ActionValidationError
 
@@ -122,7 +118,7 @@ import { ActionMetadataValidationError } from "next-safe-action";
 
 ### ActionOutputDataValidationError
 
-Thrown when the action's return value doesn't match `outputSchema`:
+Thrown when the action's return value doesn't match `outputSchema`. Has a `.validationErrors` property with the validation failure details.
 
 ```ts
 import { ActionOutputDataValidationError } from "next-safe-action";

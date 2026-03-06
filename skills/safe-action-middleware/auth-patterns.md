@@ -1,5 +1,7 @@
 # Authentication & Authorization Middleware
 
+> **Note:** Action files require a `"use server"` directive — omitted from examples below for brevity.
+
 ## Session Lookup
 
 ```ts
@@ -40,13 +42,17 @@ export const adminActionClient = authActionClient.use(async ({ next, ctx }) => {
 });
 
 // Organization member actions
+// IMPORTANT: clientInput is raw/unvalidated in middleware (validation runs after middleware).
+// Always validate values used for authorization decisions.
 export const orgActionClient = authActionClient
   .inputSchema(z.object({ orgId: z.string().uuid() }))
   .use(async ({ next, ctx, clientInput }) => {
-    const input = clientInput as { orgId: string };
+    const parsed = z.object({ orgId: z.string().uuid() }).safeParse(clientInput);
+    if (!parsed.success) throw new Error("Invalid input");
+
     const membership = await db.orgMember.find({
       userId: ctx.userId,
-      orgId: input.orgId,
+      orgId: parsed.data.orgId,
     });
 
     if (!membership) {
@@ -54,7 +60,7 @@ export const orgActionClient = authActionClient
     }
 
     return next({
-      ctx: { orgRole: membership.role, orgId: input.orgId },
+      ctx: { orgRole: membership.role, orgId: parsed.data.orgId },
     });
   });
 ```

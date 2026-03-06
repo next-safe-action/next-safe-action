@@ -1,5 +1,7 @@
 # Metadata
 
+> **Note:** Action files require a `"use server"` directive — omitted from examples below for brevity.
+
 ## What Is Metadata?
 
 Metadata is typed data attached to each action, accessible in middleware and server callbacks. Common uses: action names for logging, feature flags, permission requirements.

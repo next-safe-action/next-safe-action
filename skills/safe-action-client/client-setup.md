@@ -14,9 +14,10 @@ export const actionClient = createSafeActionClient({
     }),
 
   // Optional: customize how server errors are handled
-  handleServerError: (error) => {
-    // Log the error server-side
-    console.error("Action error:", error.message);
+  // handleServerError receives (error, utils) where utils has: clientInput, bindArgsClientInputs, ctx, metadata
+  handleServerError: (error, utils) => {
+    // Log the error server-side with context
+    console.error("Action error:", error.message, { metadata: utils.metadata });
     // Return a user-facing message (this becomes result.serverError)
     return "Something went wrong. Please try again.";
   },

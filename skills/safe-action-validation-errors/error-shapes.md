@@ -1,5 +1,7 @@
 # Validation Error Shapes
 
+> **Note:** Action files require a `"use server"` directive — omitted from examples below for brevity.
+
 ## Formatted (Default)
 
 Nested structure mirroring the schema, with `_errors` arrays at each level:

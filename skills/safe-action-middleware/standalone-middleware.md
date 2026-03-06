@@ -1,5 +1,7 @@
 # Standalone Reusable Middleware
 
+> **Note:** Action files require a `"use server"` directive — omitted from examples below for brevity.
+
 ## createMiddleware()
 
 `createMiddleware()` creates type-safe, reusable middleware that can be shared across multiple clients. It uses a curried `.define()` pattern for generic type inference.
@@ -13,7 +15,7 @@ import { createMiddleware } from "next-safe-action";
 ```ts
 const logMiddleware = createMiddleware().define(async ({ next, clientInput }) => {
   console.log("Input:", clientInput);
-  const result = await next({ ctx: {} });
+  const result = await next();
   console.log("Result:", result);
   return result;
 });
@@ -42,7 +44,7 @@ const auditMiddleware = createMiddleware<{
     timestamp: new Date(),
   });
 
-  return next({ ctx: {} });
+  return next();
 });
 
 // Works — authClient already provides userId in ctx
@@ -67,7 +69,7 @@ baseClient.use(auditMiddleware); // TypeScript error!
 const errorTrackingMiddleware = createMiddleware<{
   serverError: { message: string; code: string };
 }>().define(async ({ next }) => {
-  const result = await next({ ctx: {} });
+  const result = await next();
   if (result.serverError) {
     // result.serverError is typed as { message: string; code: string }
     trackError(result.serverError.code);
@@ -94,7 +96,7 @@ const client = createSafeActionClient()
   .use(timingMiddleware)
   .use(async ({ next, ctx }) => {
     // ctx.requestStartTime is available and typed
-    return next({ ctx: {} });
+    return next();
   });
 ```
 

@@ -15,7 +15,7 @@ import { createSafeActionClient } from "next-safe-action";
 export const actionClient = createSafeActionClient({
   handleServerError: (error) => {
     // `error` is always an Error instance.
-    // Non-Error throws are wrapped: new Error("NOT_ERROR: " + String(thrown))
+    // Non-Error throws are wrapped: new Error(DEFAULT_SERVER_ERROR_MESSAGE)
 
     if (error instanceof DatabaseError) {
       return "A database error occurred. Please try again.";
@@ -122,23 +122,23 @@ if (result.serverError) {
 
 | Class | Thrown When | Holds |
 |---|---|---|
-| `ActionServerValidationError` | `returnValidationErrors()` is called | `.validationErrors` |
 | `ActionValidationError` | `throwValidationErrors` is enabled and input fails validation | `.validationErrors` |
 | `ActionBindArgsValidationError` | Bind args fail validation | `.validationErrors` |
 | `ActionMetadataValidationError` | Metadata fails schema validation | `.validationErrors` |
-| `ActionOutputDataValidationError` | Output fails schema validation | — |
+| `ActionOutputDataValidationError` | Output fails schema validation | `.validationErrors` |
 
 These are all importable from `next-safe-action`:
 
 ```ts
 import {
   ActionValidationError,
-  ActionServerValidationError,
   ActionBindArgsValidationError,
   ActionMetadataValidationError,
   ActionOutputDataValidationError,
 } from "next-safe-action";
 ```
+
+> **Note:** `ActionServerValidationError` is internal — used by `returnValidationErrors()` but not exported from the package.
 
 ## throwValidationErrors
 
