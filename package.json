@@ -30,7 +30,7 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/TheEdoRan/next-safe-action.git"
+		"url": "https://github.com/next-safe-action/next-safe-action.git"
 	},
 	"dependencies": {
 		"@manypkg/cli": "^0.23.0",

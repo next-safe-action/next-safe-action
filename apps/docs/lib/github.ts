@@ -17,7 +17,7 @@ export type { Sponsor, SponsorsData };
 
 export async function fetchGitHubStars(): Promise<number | null> {
 	try {
-		const res = await fetch("https://api.github.com/repos/TheEdoRan/next-safe-action", {
+		const res = await fetch("https://api.github.com/repos/next-safe-action/next-safe-action", {
 			next: { revalidate: 3600 },
 		});
 

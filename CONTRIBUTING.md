@@ -38,7 +38,7 @@ Lint and format configuration files are organized as:
 
 ### Getting started
 
-Before opening a pull request, please follow the general rule of **opening an issue or discussion first**, using the [issue templates](https://github.com/TheEdoRan/next-safe-action/issues/new/choose), that will guide you through the process. You can avoid opening a new issue or discussion if:
+Before opening a pull request, please follow the general rule of **opening an issue or discussion first**, using the [issue templates](https://github.com/next-safe-action/next-safe-action/issues/new/choose), that will guide you through the process. You can avoid opening a new issue or discussion if:
 
 - You're correcting a trivial error, like a typo;
 - The issue or discussion for the bug you're fixing/feature you're implementing with the PR is already open.

@@ -2,7 +2,7 @@ import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import Image from "next/image";
 
 export const baseLayoutOptions: BaseLayoutProps = {
-	githubUrl: "https://github.com/TheEdoRan/next-safe-action",
+	githubUrl: "https://github.com/next-safe-action/next-safe-action",
 	nav: {
 		title: (
 			<>

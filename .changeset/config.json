@@ -1,6 +1,6 @@
 {
 	"$schema": "https://unpkg.com/@changesets/config@3.1.2/schema.json",
-	"changelog": ["@changesets/changelog-github", { "repo": "TheEdoRan/next-safe-action" }],
+	"changelog": ["@changesets/changelog-github", { "repo": "next-safe-action/next-safe-action" }],
 	"commit": false,
 	"fixed": [],
 	"linked": [],

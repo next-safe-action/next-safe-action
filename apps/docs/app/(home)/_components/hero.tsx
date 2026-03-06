@@ -134,7 +134,7 @@ export function Hero({ stars }: { stars: number | null }) {
 							Get started
 						</Link>
 						<a
-							href="https://github.com/TheEdoRan/next-safe-action"
+							href="https://github.com/next-safe-action/next-safe-action"
 							target="_blank"
 							rel="noopener noreferrer"
 							className="border-fd-border text-fd-foreground hover:bg-fd-accent inline-flex h-11 items-center gap-2 rounded-lg border px-4 font-semibold transition-colors sm:px-6"

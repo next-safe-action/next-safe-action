@@ -1,9 +1,9 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/TheEdoRan/next-safe-action/main/assets/logo.png" alt="next-safe-action logo" width="36" height="36">
-  <a href="https://github.com/TheEdoRan/next-safe-action/packages/adapter-react-hook-form"><h1>adapter-react-hook-form</h1></a>
+  <img src="https://raw.githubusercontent.com/next-safe-action/next-safe-action/main/assets/logo.png" alt="next-safe-action logo" width="36" height="36">
+  <a href="https://github.com/next-safe-action/next-safe-action/packages/adapter-react-hook-form"><h1>adapter-react-hook-form</h1></a>
 </div>
 
-This adapter offers a way to seamlessly integrate [next-safe-action](https://github.com/TheEdoRan/next-safe-action) with [react-hook-form](https://github.com/react-hook-form/react-hook-form).
+This adapter offers a way to seamlessly integrate [next-safe-action](https://github.com/next-safe-action/next-safe-action) with [react-hook-form](https://github.com/react-hook-form/react-hook-form).
 
 # Requirements
 
@@ -21,10 +21,10 @@ npm i next-safe-action react-hook-form @hookform/resolvers @next-safe-action/ada
 
 # Example
 
-The best way to learn how to use this adapter is to take a look at the examples. The [app](https://github.com/TheEdoRan/next-safe-action/tree/main/packages/adapter-react-hook-form/apps/example) in this repository shows you how to use the `useHookFormAction` and `useHookFormOptimisticAction` hooks:
+The best way to learn how to use this adapter is to take a look at the examples. The [app](https://github.com/next-safe-action/next-safe-action/tree/main/packages/adapter-react-hook-form/apps/example) in this repository shows you how to use the `useHookFormAction` and `useHookFormOptimisticAction` hooks:
 
-- [`useHookFormAction` example \(login\)](https://github.com/TheEdoRan/next-safe-action/tree/main/packages/adapter-react-hook-form/apps/example/src/app/login)
-- [`useHookFormOptimisticAction` example \(todos\)](https://github.com/TheEdoRan/next-safe-action/tree/main/packages/adapter-react-hook-form/apps/example/src/app/todos)
+- [`useHookFormAction` example \(login\)](https://github.com/next-safe-action/next-safe-action/tree/main/packages/adapter-react-hook-form/apps/example/src/app/login)
+- [`useHookFormOptimisticAction` example \(todos\)](https://github.com/next-safe-action/next-safe-action/tree/main/packages/adapter-react-hook-form/apps/example/src/app/todos)
 
 # Hooks
 
@@ -394,4 +394,4 @@ export type InferUseHookFormOptimisticActionHookReturn<T extends Function, State
 
 # License
 
-This project is released under the [MIT License](https://github.com/TheEdoRan/next-safe-action/blob/main/LICENSE).
+This project is released under the [MIT License](https://github.com/next-safe-action/next-safe-action/blob/main/LICENSE).
