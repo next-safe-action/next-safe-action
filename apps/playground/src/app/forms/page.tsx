@@ -16,8 +16,6 @@ async function BindArgumentsSection({ source }: { source: SourceCode }) {
 }
 
 export default async function FormsPage() {
-	await connection();
-
 	const [statefulFormSource, fileUploadSource, onboardSource] = await Promise.all([
 		readAndHighlightFile("forms/_actions/stateful-form-action.ts"),
 		readAndHighlightFile("forms/_actions/file-upload-action.ts"),

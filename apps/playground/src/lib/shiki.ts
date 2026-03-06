@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { cache } from "react";
+import { cacheLife } from "next/cache";
 import { codeToHtml } from "shiki";
 
 export type SourceCode = {
@@ -16,7 +16,10 @@ const GITHUB_BASE = "https://github.com/next-safe-action/next-safe-action/blob/m
  * Read a file relative to the `src/app/` directory, highlight it with Shiki,
  * and return the raw code, highlighted HTML, GitHub URL, and filename.
  */
-export const readAndHighlightFile = cache(async (appRelativePath: string): Promise<SourceCode> => {
+export async function readAndHighlightFile(appRelativePath: string): Promise<SourceCode> {
+	"use cache";
+	cacheLife("max");
+
 	const absolutePath = join(process.cwd(), "src/app", appRelativePath);
 	const code = readFileSync(absolutePath, "utf-8");
 
@@ -33,4 +36,4 @@ export const readAndHighlightFile = cache(async (appRelativePath: string): Promi
 	const filename = appRelativePath.split("/").pop()!;
 
 	return { code, html, url, filename };
-});
+}

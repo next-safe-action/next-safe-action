@@ -1,10 +1,8 @@
-import { connection } from "next/server";
 import { PageHeader } from "@/components/page-header";
 import { readAndHighlightFile } from "@/lib/shiki";
 import { CoreActionsClient } from "./_components/core-actions-client";
 
 export default async function CoreActionsPage() {
-	await connection();
 	const [directAction, asyncSchemaAction, authContextAction, noArgsAction, emptyResponseAction, outputSchemaAction] =
 		await Promise.all([
 			readAndHighlightFile("core-actions/_actions/direct-action.ts"),
