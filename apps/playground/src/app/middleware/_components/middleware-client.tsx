@@ -11,13 +11,10 @@ import { authChainAction } from "../_actions/auth-chain-action";
 import { errorHandlingAction } from "../_actions/error-handling-action";
 import { loggingAction } from "../_actions/logging-action";
 import { rateLimitAction } from "../_actions/rate-limit-action";
-import { standaloneAction } from "../_actions/standalone-action";
-
 type Props = {
 	sources: {
 		loggingAction: SourceCode;
 		authChainAction: SourceCode;
-		standaloneAction: SourceCode;
 		errorHandlingAction: SourceCode;
 		rateLimitAction: SourceCode;
 	};
@@ -26,7 +23,6 @@ type Props = {
 export function MiddlewareClient({ sources }: Props) {
 	const [loggingResult, setLoggingResult] = useState<any>(undefined);
 	const [authResult, setAuthResult] = useState<any>(undefined);
-	const [standaloneResult, setStandaloneResult] = useState<any>(undefined);
 	const [errorResult, setErrorResult] = useState<any>(undefined);
 	const [rateLimitResult, setRateLimitResult] = useState<any>(undefined);
 	const [rateLimitCount, setRateLimitCount] = useState(0);
@@ -89,31 +85,6 @@ export function MiddlewareClient({ sources }: Props) {
 					<Button type="submit">Execute with auth</Button>
 				</form>
 				<ResultDisplay result={authResult} />
-			</ExampleCard>
-
-			<ExampleCard
-				title="Standalone Middleware"
-				description="Using createMiddleware().define() to create a reusable middleware function attached to a new client."
-				source={sources.standaloneAction}
-			>
-				<form
-					className="space-y-4"
-					onSubmit={async (e) => {
-						e.preventDefault();
-						const formData = new FormData(e.currentTarget);
-						const res = await standaloneAction({
-							text: formData.get("text") as string,
-						});
-						setStandaloneResult(res);
-					}}
-				>
-					<div className="space-y-2">
-						<Label htmlFor="standalone-text">Text to process</Label>
-						<Input id="standalone-text" name="text" placeholder="hello world" />
-					</div>
-					<Button type="submit">Execute standalone</Button>
-				</form>
-				<ResultDisplay result={standaloneResult} />
 			</ExampleCard>
 
 			<ExampleCard
