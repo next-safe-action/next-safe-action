@@ -47,7 +47,7 @@ body:
         - Zod
         - Yup
         - "Other (Standard Schema)"
-        - None
+        - "Not using one"
     validations:
       required: true
   - type: textarea
@@ -81,7 +81,6 @@ body:
       label: Link to a minimal reproduction of the issue
       description: Link to a minimal example that reproduces the bug. Please provide a GitHub/CodeSandbox link with as little code as possible to reproduce the issue. Without a link, the issue will be closed as "not planned" until a valid URL is provided.
       placeholder: https://github.com/...
-      pattern: https?://.+
     validations:
       required: true
   - type: markdown
