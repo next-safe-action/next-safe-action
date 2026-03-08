@@ -31,7 +31,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version-file: ".node-version"
           cache: "pnpm"
       - run: pnpm install --frozen-lockfile
       - run: pnpm run lint:lib
@@ -47,7 +47,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version-file: ".node-version"
           cache: "pnpm"
       - run: pnpm install --frozen-lockfile
       - run: git fetch origin main --depth=1
