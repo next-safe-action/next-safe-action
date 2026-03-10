@@ -24,13 +24,14 @@ Lint and format configuration files are organized as:
 ### What you need to install
 
 - `git`;
-- Node.js LTS version specified in [.nvmrc](./.nvmrc). Highly recommended to use [fnm](https://github.com/Schniz/fnm) or [nvm](https://github.com/nvm-sh/nvm) for easy management of Node.js versions;
-- a code editor: [VS Code](https://code.visualstudio.com) is the recommended one, as it enables workspace specific [settings](./.vscode/settings.json) and [extensions](./.vscode/extensions.json) to make the development more user-friendly;
+- Node.js LTS version specified in [.node-version](./.node-version). Highly recommended to use [fnm](https://github.com/Schniz/fnm) or [nvm](https://github.com/nvm-sh/nvm) for easy management of Node.js versions;
+- a code editor: [VS Code](https://code.visualstudio.com) (or its forks) is the recommended one, as it enables workspace specific [settings](./.vscode/settings.json) and [extensions](./.vscode/extensions.json) to make the development more user-friendly;
 - [`pnpm`](https://pnpm.io/installation) as package manager.
 
 ### Repository structure
 
 - [`packages/next-safe-action`](./packages/next-safe-action): contains the source code of the library;
+- [`packages/adapter-react-hook-form`](./packages/adapter-react-hook-form): contains the source code of the `@next-safe-action/adapter-react-hook-form` adapter for react-hook-form integration;
 - [`apps/playground`](./apps/playground): contains the source code of the Next.js playground app, which is a basic implementation of the library;
 - [`apps/docs`](./apps/docs): contains the source code of the [next-safe-action documentation website](https://next-safe-action.dev), built with Fumadocs (content in `content/docs/`).
 
@@ -51,7 +52,7 @@ After forking, cloning the repository and optionally creating a new branch from 
 pnpm install
 ```
 
-Then, you can run the `build:lib` command to rebuild the library code, and then test it in the playground app:
+Then, you can run the `build:lib` command to rebuild all library packages, and then test them in the playground app:
 
 ```sh
 pnpm run build:lib && pnpm run pg
@@ -62,7 +63,7 @@ pnpm run build:lib && pnpm run pg
 
 If you updated user facing APIs of the library, you're **not required**, but **highly encouraged** to:
 - update [the documentation](./apps/docs/content/docs) of the library to reflect the changes you've made.
-- write tests for the changes you've made. They should be placed in the appropriate file inside [`__tests__`](./packages/next-safe-action/src/__tests__) directory (`next-safe-action` package).
+- write tests for the changes you've made. They should be placed in the appropriate `__tests__` directory for the affected package ([`next-safe-action`](./packages/next-safe-action/src/__tests__) or [`adapter-react-hook-form`](./packages/adapter-react-hook-form/src/__tests__)).
 - add a Changeset file using `pnpm run changeset`.
 
 These steps can be done in later stages of the PR too, for instance when a maintainer already approved your code updates.
@@ -72,6 +73,17 @@ The documentation site is part of the monorepo, so dependencies are already inst
 ```sh
 pnpm run docs
 ```
+
+### Useful commands
+
+Before opening a PR, you can run the same checks that CI will run:
+
+| Task | Command |
+|---|---|
+| Lint all library packages | `pnpm run lint:lib` |
+| Test all library packages | `pnpm run test:lib` |
+| Format all files | `pnpm run fmt` |
+| Check formatting | `pnpm run fmt:check` |
 
 ### Committing changes
 
@@ -91,4 +103,4 @@ If you need to keep the PR in the Changesets flow without producing a version bu
 pnpm run changeset:empty
 ```
 
-PR CI runs linting/tests and checks for changesets before merge. The release workflow uses Changesets to create version PRs and publish from `main`.
+PR CI runs `pnpm run lint:lib`, `pnpm run test:lib`, and `changeset status --since=origin/main` before merge. The release workflow uses Changesets to create version PRs and publish from `main`.

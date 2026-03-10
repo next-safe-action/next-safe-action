@@ -19,10 +19,10 @@ next-safe-action is a TypeScript library for type-safe, validated Next.js Server
 |---|---|---|
 | Language | TypeScript | 5.8.2 |
 | Runtime | Node.js | >=18.17 |
-| Package manager | pnpm (with catalogs) | 10.30.3 |
+| Package manager | pnpm (with catalogs) | 10.31.0 |
 | Framework | Next.js | ^16 |
 | UI library | React | ^19 |
-| Monorepo orchestration | Turborepo | ^2.8.12 |
+| Monorepo orchestration | Turborepo | ^2.8.14 |
 | Bundler | tsdown (Rolldown + Oxc) | ^0.21.0 |
 | Test framework | Vitest | ^3.1.1 |
 | Formatter | Oxfmt | ^0.35.0 |
