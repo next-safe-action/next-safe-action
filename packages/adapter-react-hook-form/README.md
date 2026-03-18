@@ -21,10 +21,10 @@ npm i next-safe-action react-hook-form @hookform/resolvers @next-safe-action/ada
 
 # Example
 
-The best way to learn how to use this adapter is to take a look at the examples. The [app](https://github.com/next-safe-action/next-safe-action/tree/main/packages/adapter-react-hook-form/apps/example) in this repository shows you how to use the `useHookFormAction` and `useHookFormOptimisticAction` hooks:
+The best way to learn how to use this adapter is to take a look at the examples. The [Playground](https://github.com/next-safe-action/next-safe-action/tree/main/apps/playground) in this repository shows you how to use the `useHookFormAction` and `useHookFormOptimisticAction` hooks:
 
-- [`useHookFormAction` example \(login\)](https://github.com/next-safe-action/next-safe-action/tree/main/packages/adapter-react-hook-form/apps/example/src/app/login)
-- [`useHookFormOptimisticAction` example \(todos\)](https://github.com/next-safe-action/next-safe-action/tree/main/packages/adapter-react-hook-form/apps/example/src/app/todos)
+- [`useHookFormAction` demo](https://github.com/next-safe-action/next-safe-action/blob/main/apps/playground/src/app/react-hook-form/_components/hook-form-action-demo.tsx)
+- [`useHookFormOptimisticAction` demo](https://github.com/next-safe-action/next-safe-action/blob/main/apps/playground/src/app/react-hook-form/_components/hook-form-optimistic-demo.tsx)
 
 # Hooks
 
