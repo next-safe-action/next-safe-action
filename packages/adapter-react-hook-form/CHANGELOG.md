@@ -1,5 +1,11 @@
 # @next-safe-action/adapter-react-hook-form
 
+## 2.0.3
+
+### Patch Changes
+
+- [`3a10fa0`](https://github.com/next-safe-action/next-safe-action/commit/3a10fa06b9c2204630ffc31cf2d0c2bf5583d43a) Thanks [@TheEdoRan](https://github.com/TheEdoRan)! - fix broken example links in README
+
 ## 2.0.2
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
 	"name": "@next-safe-action/adapter-react-hook-form",
-	"version": "2.0.2",
+	"version": "2.0.3",
 	"private": false,
 	"description": "This adapter offers a way to seamlessly integrate next-safe-action with react-hook-form.",
 	"main": "./dist/index.mjs",
