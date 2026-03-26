@@ -5,25 +5,28 @@ import type { FlattenedValidationErrors, IssueWithUnionErrors, ValidationErrors 
 const getKey = (segment: PropertyKey | StandardSchemaV1.PathSegment) =>
 	typeof segment === "object" ? segment.key : segment;
 
-const getIssueMessage = (issue: IssueWithUnionErrors) => {
+const getIssueMessage = (issue: IssueWithUnionErrors): string[] => {
 	if (issue.unionErrors) {
-		return issue.unionErrors.map((u) => u.issues.map((i) => i.message)).flat();
+		return issue.unionErrors.flatMap((u) => u.issues.map((i) => i.message));
 	}
-	return issue.message;
+	return [issue.message];
 };
 
 // This function is used internally to build the validation errors object from a list of validation issues.
 export const buildValidationErrors = <S extends StandardSchemaV1 | undefined>(
 	issues: readonly IssueWithUnionErrors[]
 ) => {
+	// Using `any` because validation errors are dynamically-shaped nested objects
+	// built from schema paths with PropertyKey keys (string | number | symbol).
 	const ve: any = {};
 
 	for (const issue of issues) {
-		const { path, message, unionErrors } = issue;
+		const { path } = issue;
 
 		// When path is undefined or empty, set root errors.
 		if (!path || path.length === 0) {
-			ve._errors = ve._errors ? [...ve._errors, message] : [message];
+			const issueMessages = getIssueMessage(issue);
+			ve._errors = ve._errors ? [...ve._errors, ...issueMessages] : [...issueMessages];
 			continue;
 		}
 
@@ -47,12 +50,10 @@ export const buildValidationErrors = <S extends StandardSchemaV1 | undefined>(
 		const issueMessage = getIssueMessage(issue);
 
 		// Set error for the current path. If `_errors` array exists, add the message to it.
-		ref[key] = ref[key]?._errors
-			? {
-					...structuredClone(ref[key]),
-					_errors: [...ref[key]._errors, issueMessage],
-				}
-			: { ...structuredClone(ref[key]), _errors: unionErrors ? issueMessage : [issueMessage] };
+		const existing = ref[key] ? structuredClone(ref[key]) : {};
+		ref[key] = existing._errors
+			? { ...existing, _errors: [...existing._errors, ...issueMessage] }
+			: { ...existing, _errors: [...issueMessage] };
 	}
 
 	return ve as ValidationErrors<S>;

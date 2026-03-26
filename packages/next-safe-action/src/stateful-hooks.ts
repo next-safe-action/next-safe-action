@@ -39,10 +39,8 @@ export const useStateAction = <ServerError, S extends StandardSchemaV1 | undefin
 
 	const execute = React.useCallback(
 		(input: InferInputOrDefault<S, void>) => {
-			setTimeout(() => {
-				setIsIdle(false);
-				setClientInput(input);
-			}, 0);
+			setIsIdle(false);
+			setClientInput(input);
 
 			startTransition(() => {
 				dispatcher(input as InferInputOrDefault<S, undefined>);

@@ -1,15 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { getActionShorthandStatusObject, getActionStatus, useActionCallbacks } from "./hooks-utils";
+import { useActionBase } from "./hooks-shared";
 import type {
 	HookCallbacks,
 	HookSafeActionFn,
 	UseActionHookReturn,
 	UseOptimisticActionHookReturn,
 } from "./hooks.types";
-import type { SafeActionResult } from "./index.types";
-import { FrameworkErrorHandler } from "./next/errors";
 import type { InferInputOrDefault, StandardSchemaV1 } from "./standard-schema";
 
 // HOOKS
@@ -25,109 +23,8 @@ export const useAction = <ServerError, S extends StandardSchemaV1 | undefined, C
 	safeActionFn: HookSafeActionFn<ServerError, S, CVE, Data>,
 	cb?: HookCallbacks<ServerError, S, CVE, Data>
 ): UseActionHookReturn<ServerError, S, CVE, Data> => {
-	const [isTransitioning, startTransition] = React.useTransition();
-	const [result, setResult] = React.useState<SafeActionResult<ServerError, S, CVE, Data>>({});
-	const [clientInput, setClientInput] = React.useState<InferInputOrDefault<S, void>>();
-	const [isExecuting, setIsExecuting] = React.useState(false);
-	const [navigationError, setNavigationError] = React.useState<Error | null>(null);
-	const [thrownError, setThrownError] = React.useState<Error | null>(null);
-	const [isIdle, setIsIdle] = React.useState(true);
-
-	const status = getActionStatus<ServerError, S, CVE, Data>({
-		isExecuting,
-		result,
-		isIdle,
-		hasNavigated: navigationError !== null,
-		hasThrownError: thrownError !== null,
-	});
-
-	const execute = React.useCallback(
-		(input: InferInputOrDefault<S, void>) => {
-			setTimeout(() => {
-				setIsIdle(false);
-				setNavigationError(null);
-				setThrownError(null);
-				setClientInput(input);
-				setIsExecuting(true);
-			}, 0);
-
-			startTransition(() => {
-				safeActionFn(input as InferInputOrDefault<S, undefined>)
-					.then((res) => setResult(res ?? {}))
-					.catch((e) => {
-						setResult({});
-
-						if (FrameworkErrorHandler.isNavigationError(e)) {
-							setNavigationError(e);
-							throw e;
-						}
-
-						setThrownError(e as Error);
-						throw e;
-					})
-					.finally(() => {
-						setIsExecuting(false);
-					});
-			});
-		},
-		[safeActionFn]
-	);
-
-	const executeAsync = React.useCallback(
-		(input: InferInputOrDefault<S, void>) => {
-			const fn = new Promise<Awaited<ReturnType<typeof safeActionFn>>>((resolve, reject) => {
-				setTimeout(() => {
-					setIsIdle(false);
-					setNavigationError(null);
-					setThrownError(null);
-					setClientInput(input);
-					setIsExecuting(true);
-				}, 0);
-
-				startTransition(() => {
-					safeActionFn(input as InferInputOrDefault<S, undefined>)
-						.then((res) => {
-							setResult(res ?? {});
-							resolve(res);
-						})
-						.catch((e) => {
-							setResult({});
-
-							if (FrameworkErrorHandler.isNavigationError(e)) {
-								setNavigationError(e);
-								throw e;
-							}
-
-							setThrownError(e as Error);
-							reject(e);
-						})
-						.finally(() => {
-							setIsExecuting(false);
-						});
-				});
-			});
-
-			return fn;
-		},
-		[safeActionFn]
-	);
-
-	const reset = React.useCallback(() => {
-		setIsIdle(true);
-		setNavigationError(null);
-		setThrownError(null);
-		setClientInput(undefined);
-		setResult({});
-	}, []);
-
-	useActionCallbacks({
-		result: result ?? {},
-		input: clientInput as InferInputOrDefault<S, undefined>,
-		status,
-		navigationError,
-		thrownError,
-		cb,
-	});
+	const { result, clientInput, status, execute, executeAsync, reset, shorthandStatus } =
+		useActionBase(safeActionFn, cb);
 
 	return {
 		execute,
@@ -136,7 +33,7 @@ export const useAction = <ServerError, S extends StandardSchemaV1 | undefined, C
 		result,
 		reset,
 		status,
-		...getActionShorthandStatusObject({ status, isTransitioning }),
+		...shorthandStatus,
 	};
 };
 
@@ -154,121 +51,22 @@ export const useOptimisticAction = <ServerError, S extends StandardSchemaV1 | un
 		updateFn: (state: State, input: InferInputOrDefault<S, void>) => State;
 	} & HookCallbacks<ServerError, S, CVE, Data>
 ): UseOptimisticActionHookReturn<ServerError, S, CVE, Data, State> => {
-	const [isTransitioning, startTransition] = React.useTransition();
-	const [result, setResult] = React.useState<SafeActionResult<ServerError, S, CVE, Data>>({});
-	const [clientInput, setClientInput] = React.useState<InferInputOrDefault<S, void>>();
-	const [isExecuting, setIsExecuting] = React.useState(false);
-	const [navigationError, setNavigationError] = React.useState<Error | null>(null);
-	const [thrownError, setThrownError] = React.useState<Error | null>(null);
-	const [isIdle, setIsIdle] = React.useState(true);
 	const [optimisticState, setOptimisticValue] = React.useOptimistic<State, InferInputOrDefault<S, undefined>>(
 		utils.currentState,
 		utils.updateFn
 	);
 
-	const status = getActionStatus<ServerError, S, CVE, Data>({
-		isExecuting,
-		result,
-		isIdle,
-		hasNavigated: navigationError !== null,
-		hasThrownError: thrownError !== null,
-	});
-
-	const execute = React.useCallback(
-		(input: InferInputOrDefault<S, void>) => {
-			setTimeout(() => {
-				setIsIdle(false);
-				setClientInput(input);
-				setNavigationError(null);
-				setThrownError(null);
-				setIsExecuting(true);
-			}, 0);
-
-			startTransition(() => {
-				setOptimisticValue(input as InferInputOrDefault<S, undefined>);
-				safeActionFn(input as InferInputOrDefault<S, undefined>)
-					.then((res) => setResult(res ?? {}))
-					.catch((e) => {
-						setResult({});
-
-						if (FrameworkErrorHandler.isNavigationError(e)) {
-							setNavigationError(e);
-							throw e;
-						}
-
-						setThrownError(e as Error);
-						throw e;
-					})
-					.finally(() => {
-						setIsExecuting(false);
-					});
-			});
-		},
-		[safeActionFn, setOptimisticValue]
-	);
-
-	const executeAsync = React.useCallback(
-		(input: InferInputOrDefault<S, void>) => {
-			const fn = new Promise<Awaited<ReturnType<typeof safeActionFn>>>((resolve, reject) => {
-				setTimeout(() => {
-					setIsIdle(false);
-					setClientInput(input);
-					setNavigationError(null);
-					setThrownError(null);
-					setIsExecuting(true);
-				}, 0);
-
-				startTransition(() => {
-					setOptimisticValue(input as InferInputOrDefault<S, undefined>);
-					safeActionFn(input as InferInputOrDefault<S, undefined>)
-						.then((res) => {
-							setResult(res ?? {});
-							resolve(res);
-						})
-						.catch((e) => {
-							setResult({});
-
-							if (FrameworkErrorHandler.isNavigationError(e)) {
-								setNavigationError(e);
-								throw e;
-							}
-
-							setThrownError(e as Error);
-							reject(e);
-						})
-						.finally(() => {
-							setIsExecuting(false);
-						});
-				});
-			});
-
-			return fn;
-		},
-		[safeActionFn, setOptimisticValue]
-	);
-
-	const reset = React.useCallback(() => {
-		setIsIdle(true);
-		setClientInput(undefined);
-		setNavigationError(null);
-		setThrownError(null);
-		setResult({});
-	}, []);
-
-	useActionCallbacks({
-		result: result ?? {},
-		input: clientInput as InferInputOrDefault<S, undefined>,
-		status,
-		navigationError,
-		thrownError,
-		cb: {
+	const { result, clientInput, status, execute, executeAsync, reset, shorthandStatus } = useActionBase(
+		safeActionFn,
+		{
 			onExecute: utils.onExecute,
 			onSuccess: utils.onSuccess,
 			onError: utils.onError,
 			onSettled: utils.onSettled,
 			onNavigation: utils.onNavigation,
 		},
-	});
+		setOptimisticValue
+	);
 
 	return {
 		execute,
@@ -278,7 +76,7 @@ export const useOptimisticAction = <ServerError, S extends StandardSchemaV1 | un
 		optimisticState,
 		reset,
 		status,
-		...getActionShorthandStatusObject({ status, isTransitioning }),
+		...shorthandStatus,
 	};
 };
 
