@@ -1,12 +1,13 @@
 {
 	"compilerOptions": {
 		"target": "ESNext",
-		"module": "CommonJS",
+		"module": "ESNext",
 		"lib": ["ES2022"],
+		"types": ["node"],
 		"skipLibCheck": true,
 		"sourceMap": true,
 		"outDir": "./dist",
-		"moduleResolution": "node",
+		"moduleResolution": "Bundler",
 		"removeComments": false,
 		"strict": true,
 		"strictPropertyInitialization": false,
