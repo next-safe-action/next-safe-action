@@ -4,5 +4,10 @@ export default defineConfig({
 	test: {
 		include: ["src/__tests__/**/*.test.ts", "src/__tests__/**/*.test.tsx"],
 		environment: "jsdom",
+		typecheck: {
+			enabled: true,
+			include: ["src/__tests__/**/*.test-d.ts"],
+			tsconfig: "./tsconfig.json",
+		},
 	},
 });
