@@ -1,0 +1,93 @@
+{
+	"name": "@next-safe-action/adapter-tanstack-query",
+	"version": "0.0.0",
+	"private": false,
+	"description": "TanStack Query mutation adapter for next-safe-action.",
+	"main": "./dist/index.mjs",
+	"module": "./dist/index.mjs",
+	"types": "./dist/index.d.mts",
+	"files": [
+		"dist"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.mts",
+			"default": "./dist/index.mjs"
+		}
+	},
+	"typesVersions": {
+		"*": {
+			".": [
+				"./dist/index.d.mts"
+			]
+		}
+	},
+	"funding": [
+		{
+			"type": "github",
+			"url": "https://github.com/sponsors/TheEdoRan"
+		},
+		{
+			"type": "paypal",
+			"url": "https://www.paypal.com/donate/?hosted_button_id=ES9JRPSC66XKW"
+		}
+	],
+	"scripts": {
+		"test": "vitest run",
+		"lint": "tsc --noEmit && oxlint --type-aware .",
+		"build": "tsdown"
+	},
+	"keywords": [
+		"next",
+		"nextjs",
+		"react",
+		"rsc",
+		"react server components",
+		"mutation",
+		"action",
+		"actions",
+		"react actions",
+		"next actions",
+		"server actions",
+		"next-safe-action",
+		"next safe action",
+		"tanstack-query",
+		"tanstack query",
+		"react-query",
+		"react query"
+	],
+	"author": "Edoardo Ranghieri",
+	"license": "MIT",
+	"devDependencies": {
+		"@tanstack/react-query": "catalog:",
+		"@types/node": "catalog:",
+		"@types/react": "catalog:",
+		"next": "catalog:",
+		"next-safe-action": "workspace:*",
+		"oxlint": "catalog:",
+		"oxlint-tsgolint": "catalog:",
+		"react": "catalog:",
+		"react-dom": "catalog:",
+		"tsdown": "catalog:",
+		"typescript": "catalog:",
+		"vitest": "catalog:",
+		"zod": "catalog:"
+	},
+	"peerDependencies": {
+		"@tanstack/react-query": ">= 5.0.0",
+		"next": ">= 14.0.0",
+		"next-safe-action": ">=8.1.10",
+		"react": ">= 18.2.0"
+	},
+	"engines": {
+		"node": ">=18.17"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/next-safe-action/next-safe-action.git",
+		"directory": "packages/adapter-tanstack-query"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

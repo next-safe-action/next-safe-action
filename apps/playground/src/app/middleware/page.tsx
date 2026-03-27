@@ -12,10 +12,7 @@ export default async function MiddlewarePage() {
 
 	return (
 		<div>
-			<PageHeader
-				title="Middleware"
-				description="Logging, auth chains, error handling, and rate limiting."
-			/>
+			<PageHeader title="Middleware" description="Logging, auth chains, error handling, and rate limiting." />
 			<MiddlewareClient
 				sources={{
 					loggingAction,

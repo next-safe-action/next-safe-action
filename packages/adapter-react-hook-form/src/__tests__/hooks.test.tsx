@@ -1,6 +1,6 @@
 import { renderHook, act } from "@testing-library/react";
-import { describe, expect, test, vi, beforeEach } from "vitest";
 import type { UseFormReturn } from "react-hook-form";
+import { describe, expect, test, vi, beforeEach } from "vitest";
 
 // vi.hoisted() ensures these are available when the hoisted vi.mock factory runs.
 const { mockUseAction, mockUseOptimisticAction } = vi.hoisted(() => ({
@@ -226,9 +226,7 @@ describe("useHookFormOptimisticAction", () => {
 	};
 
 	test("returns action, form, handleSubmitWithAction, and resetFormAndAction", () => {
-		const { result } = renderHook(() =>
-			useHookFormOptimisticAction(fakeSafeAction, fakeResolver, optimisticProps)
-		);
+		const { result } = renderHook(() => useHookFormOptimisticAction(fakeSafeAction, fakeResolver, optimisticProps));
 
 		expect(result.current).toHaveProperty("action");
 		expect(result.current).toHaveProperty("form");
@@ -248,9 +246,7 @@ describe("useHookFormOptimisticAction", () => {
 			optimisticState: { count: 42 },
 		});
 
-		const { result } = renderHook(() =>
-			useHookFormOptimisticAction(fakeSafeAction, fakeResolver, optimisticProps)
-		);
+		const { result } = renderHook(() => useHookFormOptimisticAction(fakeSafeAction, fakeResolver, optimisticProps));
 
 		expect(result.current.action.optimisticState).toEqual({ count: 42 });
 	});
@@ -265,9 +261,7 @@ describe("useHookFormOptimisticAction", () => {
 			optimisticState: { count: 0 },
 		});
 
-		const { result } = renderHook(() =>
-			useHookFormOptimisticAction(fakeSafeAction, fakeResolver, optimisticProps)
-		);
+		const { result } = renderHook(() => useHookFormOptimisticAction(fakeSafeAction, fakeResolver, optimisticProps));
 
 		const form = result.current.form as UseFormReturn<{ email: string }>;
 		expect(form.formState.errors.email?.message).toBe("Already taken");

@@ -297,10 +297,9 @@ describe("callback stability", () => {
 		const onSuccess1 = vi.fn();
 		const onSuccess2 = vi.fn();
 
-		const { result, rerender } = renderHook(
-			({ cb }: { cb: TestCallbacks }) => useAction(action, cb),
-			{ initialProps: { cb: { onSuccess: onSuccess1 } } }
-		);
+		const { result, rerender } = renderHook(({ cb }: { cb: TestCallbacks }) => useAction(action, cb), {
+			initialProps: { cb: { onSuccess: onSuccess1 } },
+		});
 
 		act(() => {
 			result.current.execute(undefined);

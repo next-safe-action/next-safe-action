@@ -38,11 +38,29 @@ export function actionBuilder<
 	Metadata = InferOutputOrDefault<MetadataSchema, undefined>, // metadata type (inferred from metadata schema)
 	Ctx extends object = {},
 	InputSchemaFn extends ((clientInput?: unknown) => Promise<StandardSchemaV1>) | undefined = undefined, // input schema function
-	InputSchema extends StandardSchemaV1 | undefined = InputSchemaFn extends Function ? Awaited<ReturnType<InputSchemaFn>> : undefined, // input schema
+	InputSchema extends StandardSchemaV1 | undefined = InputSchemaFn extends Function
+		? Awaited<ReturnType<InputSchemaFn>>
+		: undefined, // input schema
 	OutputSchema extends StandardSchemaV1 | undefined = undefined, // output schema
 	const BindArgsSchemas extends readonly StandardSchemaV1[] = [],
 	ShapedErrors = undefined,
->(args: SafeActionClientArgs<ServerError, ErrorsFormat, MetadataSchema, Metadata, true, Ctx, InputSchemaFn, InputSchema, OutputSchema, BindArgsSchemas, ShapedErrors>) {
+	ThrowsValidationErrors extends boolean = false,
+>(
+	args: SafeActionClientArgs<
+		ServerError,
+		ErrorsFormat,
+		MetadataSchema,
+		Metadata,
+		true,
+		Ctx,
+		InputSchemaFn,
+		InputSchema,
+		OutputSchema,
+		BindArgsSchemas,
+		ShapedErrors,
+		ThrowsValidationErrors
+	>
+) {
 	const bindArgsSchemas = args.bindArgsSchemas ?? [];
 
 	// ─── Validate metadata schema ────────────────────────────────────────
@@ -125,7 +143,9 @@ export function actionBuilder<
 	// ─── Execute server code with output validation ──────────────────────
 
 	async function executeServerCode(
-		serverCodeFn: ServerCodeFn<Metadata, Ctx, InputSchema, BindArgsSchemas, any> | StatefulServerCodeFn<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, any>,
+		serverCodeFn:
+			| ServerCodeFn<Metadata, Ctx, InputSchema, BindArgsSchemas, any>
+			| StatefulServerCodeFn<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, any>,
 		mainClientInput: InferInputOrDefault<InputSchema, undefined>,
 		bindArgsClientInputs: InferInputArray<BindArgsSchemas>,
 		currentCtx: object,
@@ -387,7 +407,10 @@ export function actionBuilder<
 					// Extract structured inputs based on schema definitions rather than iterating over
 					// clientInputs, so that excess arguments from external callers are silently ignored.
 					const mainClientInput = clientInputs[bindArgsSchemas.length] as InferInputOrDefault<InputSchema, undefined>;
-					const bindArgsClientInputs = clientInputs.slice(0, bindArgsSchemas.length) as InferInputArray<BindArgsSchemas>;
+					const bindArgsClientInputs = clientInputs.slice(
+						0,
+						bindArgsSchemas.length
+					) as InferInputArray<BindArgsSchemas>;
 
 					// Validate metadata once, before running the middleware stack.
 					try {

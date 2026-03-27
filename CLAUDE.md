@@ -10,6 +10,7 @@ next-safe-action is a TypeScript library for type-safe, validated Next.js Server
 
 - **`packages/next-safe-action`** — the core library (source in `src/`, tests in `src/__tests__/`)
 - **`packages/adapter-react-hook-form`** — `@next-safe-action/adapter-react-hook-form` adapter for seamless react-hook-form integration
+- **`packages/adapter-tanstack-query`** — `@next-safe-action/adapter-tanstack-query` adapter for TanStack Query mutation integration
 - **`apps/playground`** — Next.js app for manual testing (Tailwind v4, shadcn/ui, Shiki code viewer)
 - **`apps/docs`** — Fumadocs documentation site (content in `content/docs/`, MDX + Twoslash)
 
@@ -32,6 +33,7 @@ next-safe-action is a TypeScript library for type-safe, validated Next.js Server
 | Component library | shadcn/ui (Radix UI + CVA) | ^3.8.5 |
 | Docs framework | Fumadocs (core + MDX + UI + Twoslash) | ^16.6.8 |
 | Forms | react-hook-form + @hookform/resolvers | ^7.54.2 / ^5.0.0 |
+| Data fetching | TanStack Query (React Query) | ^5.80.7 |
 | Versioning | Changesets | ^2.29.8 |
 
 ## Commands
@@ -68,7 +70,7 @@ All commands run from the repository root unless noted.
 
 ## Architecture
 
-The library has three entry points: `next-safe-action` (server), `next-safe-action/hooks`, and `next-safe-action/stateful-hooks` (client). The adapter has two: `@next-safe-action/adapter-react-hook-form` and `@next-safe-action/adapter-react-hook-form/hooks`.
+The library has three entry points: `next-safe-action` (server), `next-safe-action/hooks`, and `next-safe-action/stateful-hooks` (client). The RHF adapter has two: `@next-safe-action/adapter-react-hook-form` and `@next-safe-action/adapter-react-hook-form/hooks`. The TanStack Query adapter has one: `@next-safe-action/adapter-tanstack-query`.
 
 **Server-side core:**
 - `safe-action-client.ts` — `SafeActionClient` class with chainable methods: `use()` (middleware), `metadata()`, `inputSchema()`, `outputSchema()`, `bindArgsSchema()`, `action()`, `stateAction()`

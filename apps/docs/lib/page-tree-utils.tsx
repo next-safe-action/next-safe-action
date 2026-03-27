@@ -14,7 +14,7 @@ function decorateNode(node: Node, url: string, badge: string): Node {
 			name: (
 				<>
 					{node.name}
-					<span className="ms-auto rounded-md bg-fd-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-fd-primary">
+					<span className="bg-fd-primary/10 text-fd-primary ms-auto rounded-md px-1.5 py-0.5 text-[10px] font-semibold">
 						{badge}
 					</span>
 				</>

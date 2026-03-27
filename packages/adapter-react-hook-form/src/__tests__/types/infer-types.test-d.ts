@@ -1,12 +1,9 @@
+import type { SafeActionFn } from "next-safe-action";
+import type { ValidationErrors } from "next-safe-action";
+import type { HookActionStatus } from "next-safe-action/hooks";
 import { expectTypeOf, test } from "vitest";
 import { z } from "zod";
-import type { SafeActionFn } from "next-safe-action";
-import type { HookActionStatus } from "next-safe-action/hooks";
-import type {
-	InferUseHookFormActionHookReturn,
-	InferUseHookFormOptimisticActionHookReturn,
-} from "../../hooks.types";
-import type { ValidationErrors } from "next-safe-action";
+import type { InferUseHookFormActionHookReturn, InferUseHookFormOptimisticActionHookReturn } from "../../hooks.types";
 
 // ─── InferUseHookFormActionHookReturn ─────────────────────────────────
 

@@ -24,6 +24,7 @@ body:
       options:
         - next-safe-action
         - "@next-safe-action/adapter-react-hook-form"
+        - "@next-safe-action/adapter-tanstack-query"
     validations:
       required: true
   - type: dropdown

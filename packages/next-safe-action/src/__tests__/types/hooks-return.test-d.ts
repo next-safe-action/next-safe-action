@@ -1,6 +1,5 @@
 import { expectTypeOf, test } from "vitest";
 import { z } from "zod";
-import type { SafeActionFn, SafeStateActionFn } from "../../index.types";
 import type {
 	UseActionHookReturn,
 	UseStateActionHookReturn,
@@ -10,6 +9,7 @@ import type {
 	InferUseStateActionHookReturn,
 	HookActionStatus,
 } from "../../hooks.types";
+import type { SafeActionFn, SafeStateActionFn } from "../../index.types";
 import type { ValidationErrors } from "../../validation-errors.types";
 
 test("UseActionHookReturn has execute, executeAsync, input, result, reset, status", () => {

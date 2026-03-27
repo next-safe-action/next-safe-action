@@ -2,8 +2,11 @@ import { actionBuilder } from "./action-builder";
 import type {
 	ValidationErrorsFormat,
 	InputSchemaFactoryFn,
+	MaybeBrandThrows,
 	MiddlewareFn,
 	SafeActionClientArgs,
+	SafeActionFn,
+	SafeStateActionFn,
 	ActionCallbacks,
 	ServerCodeFn,
 	StatefulServerCodeFn,
@@ -24,15 +27,44 @@ export class SafeActionClient<
 	HasMetadata extends boolean = MetadataSchema extends undefined ? true : false,
 	Ctx extends object = {},
 	InputSchemaFn extends ((clientInput?: unknown) => Promise<StandardSchemaV1>) | undefined = undefined, // input schema function
-	InputSchema extends StandardSchemaV1 | undefined = InputSchemaFn extends Function ? Awaited<ReturnType<InputSchemaFn>> : undefined, // input schema
+	InputSchema extends StandardSchemaV1 | undefined = InputSchemaFn extends Function
+		? Awaited<ReturnType<InputSchemaFn>>
+		: undefined, // input schema
 	OutputSchema extends StandardSchemaV1 | undefined = undefined, // output schema
 	const BindArgsSchemas extends readonly StandardSchemaV1[] = [],
 	ShapedErrors = undefined,
+	ThrowsValidationErrors extends boolean = false,
 > {
-	readonly #args: SafeActionClientArgs<ServerError, ErrorsFormat, MetadataSchema, Metadata, HasMetadata, Ctx, InputSchemaFn, InputSchema, OutputSchema, BindArgsSchemas, ShapedErrors>;
+	readonly #args: SafeActionClientArgs<
+		ServerError,
+		ErrorsFormat,
+		MetadataSchema,
+		Metadata,
+		HasMetadata,
+		Ctx,
+		InputSchemaFn,
+		InputSchema,
+		OutputSchema,
+		BindArgsSchemas,
+		ShapedErrors,
+		ThrowsValidationErrors
+	>;
 
 	constructor(
-		args: SafeActionClientArgs<ServerError, ErrorsFormat, MetadataSchema, Metadata, HasMetadata, Ctx, InputSchemaFn, InputSchema, OutputSchema, BindArgsSchemas, ShapedErrors>
+		args: SafeActionClientArgs<
+			ServerError,
+			ErrorsFormat,
+			MetadataSchema,
+			Metadata,
+			HasMetadata,
+			Ctx,
+			InputSchemaFn,
+			InputSchema,
+			OutputSchema,
+			BindArgsSchemas,
+			ShapedErrors,
+			ThrowsValidationErrors
+		>
 	) {
 		this.#args = args;
 	}
@@ -78,7 +110,9 @@ export class SafeActionClient<
 			? NextSchema
 			: OIS,
 		// override custom validation errors shape
-		OShapedErrors = ErrorsFormat extends "flattened" ? FlattenedValidationErrors<ValidationErrors<AIS>> : ValidationErrors<AIS>,
+		OShapedErrors = ErrorsFormat extends "flattened"
+			? FlattenedValidationErrors<ValidationErrors<AIS>>
+			: ValidationErrors<AIS>,
 	>(
 		inputSchema: OIS,
 		utils?: {
@@ -109,7 +143,13 @@ export class SafeActionClient<
 					}
 				: async () => inputSchema) as unknown as InputSchemaFn,
 			handleValidationErrorsShape: (utils?.handleValidationErrorsShape ??
-				this.#args.handleValidationErrorsShape) as HandleValidationErrorsShapeFn<AIS, BindArgsSchemas, Metadata, Ctx, OShapedErrors>,
+				this.#args.handleValidationErrorsShape) as HandleValidationErrorsShapeFn<
+				AIS,
+				BindArgsSchemas,
+				Metadata,
+				Ctx,
+				OShapedErrors
+			>,
 		});
 	}
 
@@ -161,12 +201,31 @@ export class SafeActionClient<
 	 */
 	action<Data extends InferOutputOrDefault<OutputSchema, any>>(
 		this: HasMetadata extends true
-			? SafeActionClient<ServerError, ErrorsFormat, MetadataSchema, Metadata, HasMetadata, Ctx, InputSchemaFn, InputSchema, OutputSchema, BindArgsSchemas, ShapedErrors>
+			? SafeActionClient<
+					ServerError,
+					ErrorsFormat,
+					MetadataSchema,
+					Metadata,
+					HasMetadata,
+					Ctx,
+					InputSchemaFn,
+					InputSchema,
+					OutputSchema,
+					BindArgsSchemas,
+					ShapedErrors,
+					ThrowsValidationErrors
+				>
 			: never,
 		serverCodeFn: ServerCodeFn<Metadata, Ctx, InputSchema, BindArgsSchemas, Data>,
 		utils?: ActionCallbacks<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data>
-	) {
-		return actionBuilder(this.#args).action(serverCodeFn, utils);
+	): MaybeBrandThrows<
+		SafeActionFn<ServerError, InputSchema, BindArgsSchemas, ShapedErrors, Data>,
+		ThrowsValidationErrors
+	> {
+		return actionBuilder(this.#args).action(serverCodeFn, utils) as MaybeBrandThrows<
+			SafeActionFn<ServerError, InputSchema, BindArgsSchemas, ShapedErrors, Data>,
+			ThrowsValidationErrors
+		>;
 	}
 
 	/**
@@ -179,11 +238,30 @@ export class SafeActionClient<
 	 */
 	stateAction<Data extends InferOutputOrDefault<OutputSchema, any>>(
 		this: HasMetadata extends true
-			? SafeActionClient<ServerError, ErrorsFormat, MetadataSchema, Metadata, HasMetadata, Ctx, InputSchemaFn, InputSchema, OutputSchema, BindArgsSchemas, ShapedErrors>
+			? SafeActionClient<
+					ServerError,
+					ErrorsFormat,
+					MetadataSchema,
+					Metadata,
+					HasMetadata,
+					Ctx,
+					InputSchemaFn,
+					InputSchema,
+					OutputSchema,
+					BindArgsSchemas,
+					ShapedErrors,
+					ThrowsValidationErrors
+				>
 			: never,
 		serverCodeFn: StatefulServerCodeFn<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data>,
 		utils?: ActionCallbacks<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data>
-	) {
-		return actionBuilder(this.#args).stateAction(serverCodeFn, utils);
+	): MaybeBrandThrows<
+		SafeStateActionFn<ServerError, InputSchema, BindArgsSchemas, ShapedErrors, Data>,
+		ThrowsValidationErrors
+	> {
+		return actionBuilder(this.#args).stateAction(serverCodeFn, utils) as MaybeBrandThrows<
+			SafeStateActionFn<ServerError, InputSchema, BindArgsSchemas, ShapedErrors, Data>,
+			ThrowsValidationErrors
+		>;
 	}
 }
