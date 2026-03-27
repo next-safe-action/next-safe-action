@@ -175,7 +175,7 @@ type Props = {
 // Todos are passed from the parent Server Component and updated each time a new todo is added
 // thanks to the `revalidatePath` function called inside the action.
 export function AddTodoForm({ todos }: Props) {
-	const { form, action, handleActionSubmit, resetFormAndAction } = useHookFormOptimisticAction(
+	const { form, action, handleSubmitWithAction, resetFormAndAction } = useHookFormOptimisticAction(
 		addTodoAction,
 		zodResolver(addTodoSchema),
 		{
@@ -194,7 +194,7 @@ export function AddTodoForm({ todos }: Props) {
 		}
 	);
 
-	return <form onSubmit={handleActionSubmit}></form>;
+	return <form onSubmit={handleSubmitWithAction}></form>;
 }
 ```
 
@@ -309,10 +309,10 @@ export type ErrorMapperProps = {
 Optional props for `useHookFormAction` and `useHookFormOptimisticAction`.
 
 ```typescript
-export type HookProps<ServerError, S extends StandardSchemaV1 | undefined, CVE, Data, FormContext = any> = {
+export type HookProps<ServerError, Schema extends StandardSchemaV1 | undefined, ShapedErrors, Data, FormContext = any> = {
 	errorMapProps?: ErrorMapperProps;
-	actionProps?: HookCallbacks<ServerError, S, CVE, Data>;
-	formProps?: Omit<UseFormProps<InferInputOrDefault<S, any>, FormContext, InferOutputOrDefault<S, any>>, "resolver">;
+	actionProps?: HookCallbacks<ServerError, Schema, ShapedErrors, Data>;
+	formProps?: Omit<UseFormProps<InferInputOrDefault<Schema, any>, FormContext, InferOutputOrDefault<Schema, any>>, "resolver">;
 };
 ```
 
@@ -323,13 +323,13 @@ Type of the return object of the `useHookFormAction` hook.
 ```typescript
 export type UseHookFormActionHookReturn<
 	ServerError,
-	S extends StandardSchemaV1 | undefined,
-	CVE,
+	Schema extends StandardSchemaV1 | undefined,
+	ShapedErrors,
 	Data,
 	FormContext = any,
 > = {
-	action: UseActionHookReturn<ServerError, S, CVE, Data>;
-	form: UseFormReturn<InferInputOrDefault<S, any>, FormContext, InferOutputOrDefault<S, any>>;
+	action: UseActionHookReturn<ServerError, Schema, ShapedErrors, Data>;
+	form: UseFormReturn<InferInputOrDefault<Schema, any>, FormContext, InferOutputOrDefault<Schema, any>>;
 	handleSubmitWithAction: (e?: React.BaseSyntheticEvent) => Promise<void>;
 	resetFormAndAction: () => void;
 };
@@ -342,13 +342,13 @@ Type of the return object of the `useHookFormOptimisticAction` hook.
 ```typescript
 export type UseHookFormOptimisticActionHookReturn<
 	ServerError,
-	S extends StandardSchemaV1 | undefined,
-	CVE,
+	Schema extends StandardSchemaV1 | undefined,
+	ShapedErrors,
 	Data,
 	State,
 	FormContext = any,
-> = Omit<UseHookFormActionHookReturn<ServerError, S, CVE, Data, FormContext>, "action"> & {
-	action: UseOptimisticActionHookReturn<ServerError, S, CVE, Data, State>;
+> = Omit<UseHookFormActionHookReturn<ServerError, Schema, ShapedErrors, Data, FormContext>, "action"> & {
+	action: UseOptimisticActionHookReturn<ServerError, Schema, ShapedErrors, Data, State>;
 };
 ```
 
@@ -364,13 +364,12 @@ Infer the type of the return object of the `useHookFormAction` hook.
 export type InferUseHookFormActionHookReturn<T extends Function, FormContext = any> =
 	T extends SafeActionFn<
 		infer ServerError,
-		infer S extends Schema | undefined,
-		infer BAS extends readonly Schema[],
-		infer CVE,
-		infer CBAVE,
+		infer Schema extends StandardSchemaV1 | undefined,
+		any,
+		infer ShapedErrors,
 		infer Data
 	>
-		? UseHookFormActionHookReturn<ServerError, S, BAS, CVE, CBAVE, Data, FormContext>
+		? UseHookFormActionHookReturn<ServerError, Schema, ShapedErrors, Data, FormContext>
 		: never;
 ```
 
@@ -382,13 +381,12 @@ Infer the type of the return object of the `useHookFormOptimisticAction` hook.
 export type InferUseHookFormOptimisticActionHookReturn<T extends Function, State, FormContext = any> =
 	T extends SafeActionFn<
 		infer ServerError,
-		infer S extends Schema | undefined,
-		infer BAS extends readonly Schema[],
-		infer CVE,
-		infer CBAVE,
+		infer Schema extends StandardSchemaV1 | undefined,
+		any,
+		infer ShapedErrors,
 		infer Data
 	>
-		? UseHookFormOptimisticActionHookReturn<ServerError, S, BAS, CVE, CBAVE, Data, State, FormContext>
+		? UseHookFormOptimisticActionHookReturn<ServerError, Schema, ShapedErrors, Data, State, FormContext>
 		: never;
 ```
 
