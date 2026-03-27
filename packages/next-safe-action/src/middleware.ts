@@ -12,7 +12,7 @@ export const createMiddleware = <BaseData extends { serverError?: any; ctx?: obj
 		define: <NextCtx extends object>(
 			middlewareFn: MiddlewareFn<
 				BaseData extends { serverError: infer SE } ? SE : any,
-				BaseData extends { metadata: infer MD } ? MD : any,
+				BaseData extends { metadata: infer Metadata } ? Metadata : any,
 				BaseData extends { ctx: infer Ctx extends object } ? Ctx : object,
 				NextCtx
 			>

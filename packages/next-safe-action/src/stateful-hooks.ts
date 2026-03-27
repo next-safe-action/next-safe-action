@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { getActionShorthandStatusObject, getActionStatus, useActionCallbacks } from "./hooks-utils";
-import type { HookCallbacks, HookSafeStateActionFn, UseStateActionHookReturn } from "./hooks.types";
+import type { HookCallbacks, SingleInputStateActionFn, UseStateActionHookReturn } from "./hooks.types";
 import type { InferInputOrDefault, StandardSchemaV1 } from "./standard-schema";
 
 /**
@@ -13,13 +13,13 @@ import type { InferInputOrDefault, StandardSchemaV1 } from "./standard-schema";
  *
  * {@link https://next-safe-action.dev/docs/execute-actions/hooks/usestateaction See docs for more information}
  */
-export const useStateAction = <ServerError, S extends StandardSchemaV1 | undefined, CVE, Data>(
-	safeActionFn: HookSafeStateActionFn<ServerError, S, CVE, Data>,
+export const useStateAction = <ServerError, Schema extends StandardSchemaV1 | undefined, ShapedErrors, Data>(
+	safeActionFn: SingleInputStateActionFn<ServerError, Schema, ShapedErrors, Data>,
 	utils?: {
 		initResult?: Awaited<ReturnType<typeof safeActionFn>>;
 		permalink?: string;
-	} & HookCallbacks<ServerError, S, CVE, Data>
-): UseStateActionHookReturn<ServerError, S, CVE, Data> => {
+	} & HookCallbacks<ServerError, Schema, ShapedErrors, Data>
+): UseStateActionHookReturn<ServerError, Schema, ShapedErrors, Data> => {
 	const [result, dispatcher, isExecuting] = React.useActionState(
 		safeActionFn,
 		utils?.initResult ?? {},
@@ -27,8 +27,8 @@ export const useStateAction = <ServerError, S extends StandardSchemaV1 | undefin
 	);
 	const [isIdle, setIsIdle] = React.useState(true);
 	const [isTransitioning, startTransition] = React.useTransition();
-	const [clientInput, setClientInput] = React.useState<InferInputOrDefault<S, void>>();
-	const status = getActionStatus<ServerError, S, CVE, Data>({
+	const [clientInput, setClientInput] = React.useState<InferInputOrDefault<Schema, void>>();
+	const status = getActionStatus<ServerError, Schema, ShapedErrors, Data>({
 		isExecuting,
 		result: result ?? {},
 		isIdle,
@@ -38,12 +38,12 @@ export const useStateAction = <ServerError, S extends StandardSchemaV1 | undefin
 	});
 
 	const execute = React.useCallback(
-		(input: InferInputOrDefault<S, void>) => {
+		(input: InferInputOrDefault<Schema, void>) => {
 			setIsIdle(false);
 			setClientInput(input);
 
 			startTransition(() => {
-				dispatcher(input as InferInputOrDefault<S, undefined>);
+				dispatcher(input as InferInputOrDefault<Schema, undefined>);
 			});
 		},
 		[dispatcher]
@@ -51,7 +51,7 @@ export const useStateAction = <ServerError, S extends StandardSchemaV1 | undefin
 
 	useActionCallbacks({
 		result: result ?? {},
-		input: clientInput as InferInputOrDefault<S, undefined>,
+		input: clientInput as InferInputOrDefault<Schema, undefined>,
 		status,
 		cb: {
 			onExecute: utils?.onExecute,
@@ -65,7 +65,7 @@ export const useStateAction = <ServerError, S extends StandardSchemaV1 | undefin
 
 	return {
 		execute,
-		input: clientInput as InferInputOrDefault<S, undefined>,
+		input: clientInput as InferInputOrDefault<Schema, undefined>,
 		result,
 		status,
 		...getActionShorthandStatusObject({ status, isTransitioning }),

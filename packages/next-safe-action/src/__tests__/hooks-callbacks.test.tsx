@@ -1,11 +1,11 @@
 import { renderHook, act } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { useAction } from "../hooks";
-import type { HookCallbacks, HookSafeActionFn } from "../hooks.types";
+import type { HookCallbacks, SingleInputActionFn } from "../hooks.types";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-type TestActionFn = HookSafeActionFn<string, undefined, undefined, { message: string }>;
+type TestActionFn = SingleInputActionFn<string, undefined, undefined, { message: string }>;
 type TestCallbacks = HookCallbacks<string, undefined, undefined, { message: string }>;
 
 function createRedirectError(url = "/target"): Error {

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ValidationErrors } from "next-safe-action";
-import type { HookSafeActionFn } from "next-safe-action/hooks";
+import type { SingleInputActionFn } from "next-safe-action/hooks";
 import { useAction, useOptimisticAction } from "next-safe-action/hooks";
 import * as React from "react";
 import type { Resolver } from "react-hook-form";
@@ -43,7 +43,7 @@ export function useHookFormActionErrorMapper<S extends StandardSchemaV1 | undefi
  * @returns An object containing `action` and `form` controllers, `handleActionSubmit`, and `resetFormAndAction`
  */
 export function useHookFormAction<ServerError, S extends StandardSchemaV1 | undefined, CVE, Data, FormContext = any>(
-	safeAction: HookSafeActionFn<ServerError, S, CVE, Data>,
+	safeAction: SingleInputActionFn<ServerError, S, CVE, Data>,
 	hookFormResolver: Resolver<InferInputOrDefault<S, any>, FormContext, InferOutputOrDefault<S, any>>,
 	props?: HookProps<ServerError, S, CVE, Data, FormContext>
 ): UseHookFormActionHookReturn<ServerError, S, CVE, Data, FormContext> {
@@ -99,7 +99,7 @@ export function useHookFormOptimisticAction<
 	State,
 	FormContext = any,
 >(
-	safeAction: HookSafeActionFn<ServerError, S, CVE, Data>,
+	safeAction: SingleInputActionFn<ServerError, S, CVE, Data>,
 	hookFormResolver: Resolver<InferInputOrDefault<S, any>, FormContext, InferOutputOrDefault<S, any>>,
 	props: HookProps<ServerError, S, CVE, Data, FormContext> & {
 		actionProps: {

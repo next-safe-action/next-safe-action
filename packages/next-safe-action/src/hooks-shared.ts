@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { getActionShorthandStatusObject, getActionStatus, useActionCallbacks } from "./hooks-utils";
-import type { HookActionStatus, HookCallbacks, HookSafeActionFn, HookShorthandStatus } from "./hooks.types";
+import type { HookActionStatus, HookCallbacks, SingleInputActionFn, HookShorthandStatus } from "./hooks.types";
 import type { SafeActionResult } from "./index.types";
 import { FrameworkErrorHandler } from "./next/errors";
 import type { InferInputOrDefault, StandardSchemaV1 } from "./standard-schema";
@@ -14,23 +14,23 @@ import type { InferInputOrDefault, StandardSchemaV1 } from "./standard-schema";
  * @param onTransitionStart Optional callback invoked inside `startTransition` before the action runs.
  *   Used by `useOptimisticAction` to call `setOptimisticValue`.
  */
-export function useActionBase<ServerError, S extends StandardSchemaV1 | undefined, CVE, Data>(
-	safeActionFn: HookSafeActionFn<ServerError, S, CVE, Data>,
-	cb: HookCallbacks<ServerError, S, CVE, Data> | undefined,
-	onTransitionStart?: (input: InferInputOrDefault<S, undefined>) => void
+export function useActionBase<ServerError, Schema extends StandardSchemaV1 | undefined, ShapedErrors, Data>(
+	safeActionFn: SingleInputActionFn<ServerError, Schema, ShapedErrors, Data>,
+	cb: HookCallbacks<ServerError, Schema, ShapedErrors, Data> | undefined,
+	onTransitionStart?: (input: InferInputOrDefault<Schema, undefined>) => void
 ): {
 	isTransitioning: boolean;
-	result: SafeActionResult<ServerError, S, CVE, Data>;
-	clientInput: InferInputOrDefault<S, void> | undefined;
+	result: SafeActionResult<ServerError, Schema, ShapedErrors, Data>;
+	clientInput: InferInputOrDefault<Schema, void> | undefined;
 	status: HookActionStatus;
-	execute: (input: InferInputOrDefault<S, void>) => void;
-	executeAsync: (input: InferInputOrDefault<S, void>) => Promise<Awaited<ReturnType<typeof safeActionFn>>>;
+	execute: (input: InferInputOrDefault<Schema, void>) => void;
+	executeAsync: (input: InferInputOrDefault<Schema, void>) => Promise<Awaited<ReturnType<typeof safeActionFn>>>;
 	reset: () => void;
 	shorthandStatus: HookShorthandStatus;
 } {
 	const [isTransitioning, startTransition] = React.useTransition();
-	const [result, setResult] = React.useState<SafeActionResult<ServerError, S, CVE, Data>>({});
-	const [clientInput, setClientInput] = React.useState<InferInputOrDefault<S, void>>();
+	const [result, setResult] = React.useState<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>({});
+	const [clientInput, setClientInput] = React.useState<InferInputOrDefault<Schema, void>>();
 	const [isExecuting, setIsExecuting] = React.useState(false);
 	const [navigationError, setNavigationError] = React.useState<Error | null>(null);
 	const [thrownError, setThrownError] = React.useState<Error | null>(null);
@@ -44,7 +44,7 @@ export function useActionBase<ServerError, S extends StandardSchemaV1 | undefine
 	const onTransitionStartRef = React.useRef(onTransitionStart);
 	onTransitionStartRef.current = onTransitionStart;
 
-	const status = getActionStatus<ServerError, S, CVE, Data>({
+	const status = getActionStatus<ServerError, Schema, ShapedErrors, Data>({
 		isExecuting,
 		result,
 		isIdle,
@@ -53,7 +53,7 @@ export function useActionBase<ServerError, S extends StandardSchemaV1 | undefine
 	});
 
 	const execute = React.useCallback(
-		(input: InferInputOrDefault<S, void>) => {
+		(input: InferInputOrDefault<Schema, void>) => {
 			const thisRequestId = ++requestIdRef.current;
 
 			// Set state synchronously before starting the transition.
@@ -64,9 +64,9 @@ export function useActionBase<ServerError, S extends StandardSchemaV1 | undefine
 			setIsExecuting(true);
 
 			startTransition(() => {
-				onTransitionStartRef.current?.(input as InferInputOrDefault<S, undefined>);
+				onTransitionStartRef.current?.(input as InferInputOrDefault<Schema, undefined>);
 
-				safeActionFn(input as InferInputOrDefault<S, undefined>)
+				safeActionFn(input as InferInputOrDefault<Schema, undefined>)
 					.then((res) => {
 						if (thisRequestId !== requestIdRef.current) return;
 						setResult(res ?? {});
@@ -94,7 +94,7 @@ export function useActionBase<ServerError, S extends StandardSchemaV1 | undefine
 	);
 
 	const executeAsync = React.useCallback(
-		(input: InferInputOrDefault<S, void>) => {
+		(input: InferInputOrDefault<Schema, void>) => {
 			return new Promise<Awaited<ReturnType<typeof safeActionFn>>>((resolve, reject) => {
 				const thisRequestId = ++requestIdRef.current;
 
@@ -105,9 +105,9 @@ export function useActionBase<ServerError, S extends StandardSchemaV1 | undefine
 				setIsExecuting(true);
 
 				startTransition(() => {
-					onTransitionStartRef.current?.(input as InferInputOrDefault<S, undefined>);
+					onTransitionStartRef.current?.(input as InferInputOrDefault<Schema, undefined>);
 
-					safeActionFn(input as InferInputOrDefault<S, undefined>)
+					safeActionFn(input as InferInputOrDefault<Schema, undefined>)
 						.then((res) => {
 							if (thisRequestId === requestIdRef.current) {
 								setResult(res ?? {});
@@ -150,7 +150,7 @@ export function useActionBase<ServerError, S extends StandardSchemaV1 | undefine
 
 	useActionCallbacks({
 		result: result ?? {},
-		input: clientInput as InferInputOrDefault<S, undefined>,
+		input: clientInput as InferInputOrDefault<Schema, undefined>,
 		status,
 		navigationError,
 		thrownError,

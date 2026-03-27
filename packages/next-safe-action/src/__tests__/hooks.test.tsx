@@ -1,11 +1,11 @@
 import { renderHook, act } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { useAction, useOptimisticAction } from "../hooks";
-import type { HookSafeActionFn } from "../hooks.types";
+import type { SingleInputActionFn } from "../hooks.types";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-type TestActionFn = HookSafeActionFn<string, undefined, undefined, { message: string }>;
+type TestActionFn = SingleInputActionFn<string, undefined, undefined, { message: string }>;
 
 function createRedirectError(url = "/target"): Error {
 	const error = new Error("NEXT_REDIRECT");
@@ -72,7 +72,7 @@ describe("useAction", () => {
 	});
 
 	test("stores input after execution", async () => {
-		const action = vi.fn<HookSafeActionFn<string, undefined, undefined, string>>().mockResolvedValue({
+		const action = vi.fn<SingleInputActionFn<string, undefined, undefined, string>>().mockResolvedValue({
 			data: "done",
 		});
 

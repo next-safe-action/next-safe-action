@@ -1,15 +1,15 @@
 import { deepmerge } from "deepmerge-ts";
 import type {} from "zod";
 import type {
-	DVES,
+	ValidationErrorsFormat,
 	MiddlewareResult,
 	SafeActionClientArgs,
 	SafeActionFn,
 	SafeActionResult,
-	SafeActionUtils,
+	ActionCallbacks,
 	SafeStateActionFn,
 	ServerCodeFn,
-	StateServerCodeFn,
+	StatefulServerCodeFn,
 } from "./index.types";
 import { FrameworkErrorHandler } from "./next/errors";
 import type {
@@ -33,16 +33,16 @@ import type { ValidationErrors } from "./validation-errors.types";
 
 export function actionBuilder<
 	ServerError,
-	ODVES extends DVES | undefined, // override default validation errors shape
+	ErrorsFormat extends ValidationErrorsFormat | undefined, // override default validation errors shape
 	MetadataSchema extends StandardSchemaV1 | undefined = undefined,
-	MD = InferOutputOrDefault<MetadataSchema, undefined>, // metadata type (inferred from metadata schema)
+	Metadata = InferOutputOrDefault<MetadataSchema, undefined>, // metadata type (inferred from metadata schema)
 	Ctx extends object = {},
-	ISF extends ((clientInput?: unknown) => Promise<StandardSchemaV1>) | undefined = undefined, // input schema function
-	IS extends StandardSchemaV1 | undefined = ISF extends Function ? Awaited<ReturnType<ISF>> : undefined, // input schema
-	OS extends StandardSchemaV1 | undefined = undefined, // output schema
-	const BAS extends readonly StandardSchemaV1[] = [],
-	CVE = undefined,
->(args: SafeActionClientArgs<ServerError, ODVES, MetadataSchema, MD, true, Ctx, ISF, IS, OS, BAS, CVE>) {
+	InputSchemaFn extends ((clientInput?: unknown) => Promise<StandardSchemaV1>) | undefined = undefined, // input schema function
+	InputSchema extends StandardSchemaV1 | undefined = InputSchemaFn extends Function ? Awaited<ReturnType<InputSchemaFn>> : undefined, // input schema
+	OutputSchema extends StandardSchemaV1 | undefined = undefined, // output schema
+	const BindArgsSchemas extends readonly StandardSchemaV1[] = [],
+	ShapedErrors = undefined,
+>(args: SafeActionClientArgs<ServerError, ErrorsFormat, MetadataSchema, Metadata, true, Ctx, InputSchemaFn, InputSchema, OutputSchema, BindArgsSchemas, ShapedErrors>) {
 	const bindArgsSchemas = args.bindArgsSchemas ?? [];
 
 	// ─── Validate metadata schema ────────────────────────────────────────
@@ -61,8 +61,8 @@ export function actionBuilder<
 	// Returns parsed inputs on success, or null if validation errors were set on middlewareResult.
 
 	async function validateInputs(
-		mainClientInput: InferInputOrDefault<IS, undefined>,
-		bindArgsClientInputs: InferInputArray<BAS>,
+		mainClientInput: InferInputOrDefault<InputSchema, undefined>,
+		bindArgsClientInputs: InferInputArray<BindArgsSchemas>,
 		currentCtx: object,
 		middlewareResult: MiddlewareResult<ServerError, object>
 	): Promise<{ parsedMainInput: unknown; parsedBindArgsInputs: unknown[] } | null> {
@@ -86,7 +86,7 @@ export function actionBuilder<
 			if (!parsedInput.issues) {
 				parsedBindArgsInputs.push(parsedInput.value);
 			} else {
-				bindArgsValidationErrors[i] = buildValidationErrors<BAS[number]>(parsedInput.issues);
+				bindArgsValidationErrors[i] = buildValidationErrors<BindArgsSchemas[number]>(parsedInput.issues);
 				hasBindValidationErrors = true;
 			}
 		}
@@ -97,7 +97,7 @@ export function actionBuilder<
 		if (!parsedMainInputResult.issues) {
 			parsedMainInput = parsedMainInputResult.value;
 		} else {
-			const validationErrors = buildValidationErrors<IS>(parsedMainInputResult.issues);
+			const validationErrors = buildValidationErrors<InputSchema>(parsedMainInputResult.issues);
 
 			middlewareResult.validationErrors = await Promise.resolve(
 				args.handleValidationErrorsShape(validationErrors, {
@@ -125,14 +125,14 @@ export function actionBuilder<
 	// ─── Execute server code with output validation ──────────────────────
 
 	async function executeServerCode(
-		serverCodeFn: ServerCodeFn<MD, Ctx, IS, BAS, any> | StateServerCodeFn<ServerError, MD, Ctx, IS, BAS, CVE, any>,
-		mainClientInput: InferInputOrDefault<IS, undefined>,
-		bindArgsClientInputs: InferInputArray<BAS>,
+		serverCodeFn: ServerCodeFn<Metadata, Ctx, InputSchema, BindArgsSchemas, any> | StatefulServerCodeFn<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, any>,
+		mainClientInput: InferInputOrDefault<InputSchema, undefined>,
+		bindArgsClientInputs: InferInputArray<BindArgsSchemas>,
 		currentCtx: object,
 		middlewareResult: MiddlewareResult<ServerError, object>,
 		frameworkErrorHandler: FrameworkErrorHandler,
 		withState: boolean,
-		prevResult: SafeActionResult<ServerError, IS, CVE, any>
+		prevResult: SafeActionResult<ServerError, InputSchema, ShapedErrors, any>
 	) {
 		const validated = await validateInputs(mainClientInput, bindArgsClientInputs, currentCtx, middlewareResult);
 
@@ -144,8 +144,8 @@ export function actionBuilder<
 		// Build server code function arguments.
 		const serverCodeArgs: unknown[] = [
 			{
-				parsedInput: parsedMainInput as InferOutputOrDefault<IS, undefined>,
-				bindArgsParsedInputs: parsedBindArgsInputs as InferOutputArray<BAS>,
+				parsedInput: parsedMainInput as InferOutputOrDefault<InputSchema, undefined>,
+				bindArgsParsedInputs: parsedBindArgsInputs as InferOutputArray<BindArgsSchemas>,
 				clientInput: mainClientInput,
 				bindArgsClientInputs,
 				ctx: currentCtx as Ctx,
@@ -166,7 +166,7 @@ export function actionBuilder<
 			const parsedData = await standardParse(args.outputSchema, data);
 
 			if (parsedData.issues) {
-				throw new ActionOutputDataValidationError<OS>(buildValidationErrors(parsedData.issues));
+				throw new ActionOutputDataValidationError<OutputSchema>(buildValidationErrors(parsedData.issues));
 			}
 		}
 
@@ -187,8 +187,8 @@ export function actionBuilder<
 
 	async function handleExecutionError(
 		e: unknown,
-		mainClientInput: InferInputOrDefault<IS, undefined>,
-		bindArgsClientInputs: InferInputArray<BAS>,
+		mainClientInput: InferInputOrDefault<InputSchema, undefined>,
+		bindArgsClientInputs: InferInputArray<BindArgsSchemas>,
 		currentCtx: object,
 		middlewareResult: MiddlewareResult<ServerError, object>,
 		serverErrorHandled: { value: boolean }
@@ -197,7 +197,7 @@ export function actionBuilder<
 		// This check must come before the serverErrorHandled guard so middleware catch blocks
 		// using `returnValidationErrors` work even when handleServerError is configured to rethrow.
 		if (e instanceof ActionServerValidationError) {
-			const ve = e.validationErrors as ValidationErrors<IS>;
+			const ve = e.validationErrors as ValidationErrors<InputSchema>;
 
 			middlewareResult.validationErrors = await Promise.resolve(
 				args.handleValidationErrorsShape(ve, {
@@ -234,11 +234,11 @@ export function actionBuilder<
 	async function buildResultAndRunCallbacks<Data>(
 		middlewareResult: MiddlewareResult<ServerError, object>,
 		frameworkErrorHandler: FrameworkErrorHandler,
-		mainClientInput: InferInputOrDefault<IS, undefined>,
-		bindArgsClientInputs: InferInputArray<BAS>,
+		mainClientInput: InferInputOrDefault<InputSchema, undefined>,
+		bindArgsClientInputs: InferInputArray<BindArgsSchemas>,
 		currentCtx: object,
-		utils?: SafeActionUtils<ServerError, MD, Ctx, IS, BAS, CVE, Data>
-	): Promise<SafeActionResult<ServerError, IS, CVE, Data>> {
+		utils?: ActionCallbacks<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data>
+	): Promise<SafeActionResult<ServerError, InputSchema, ShapedErrors, Data>> {
 		const callbackPromises: (Promise<unknown> | undefined)[] = [];
 
 		// If a navigation framework error occurred, run navigation callbacks then rethrow
@@ -272,7 +272,7 @@ export function actionBuilder<
 		}
 
 		// Build the action result.
-		const actionResult: SafeActionResult<ServerError, IS, CVE, Data> = {};
+		const actionResult: SafeActionResult<ServerError, InputSchema, ShapedErrors, Data> = {};
 
 		if (typeof middlewareResult.validationErrors !== "undefined") {
 			// `utils.throwValidationErrors` has higher priority since it's set at the action level.
@@ -289,11 +289,11 @@ export function actionBuilder<
 						: undefined;
 
 				throw new ActionValidationError(
-					middlewareResult.validationErrors as CVE,
-					await overrideErrorMessageFn?.(middlewareResult.validationErrors as CVE)
+					middlewareResult.validationErrors as ShapedErrors,
+					await overrideErrorMessageFn?.(middlewareResult.validationErrors as ShapedErrors)
 				);
 			} else {
-				actionResult.validationErrors = middlewareResult.validationErrors as CVE;
+				actionResult.validationErrors = middlewareResult.validationErrors as ShapedErrors;
 			}
 		}
 
@@ -317,8 +317,8 @@ export function actionBuilder<
 					data: actionResult.data as Data,
 					clientInput: mainClientInput,
 					bindArgsClientInputs,
-					parsedInput: middlewareResult.parsedInput as InferOutputOrDefault<IS, undefined>,
-					bindArgsParsedInputs: middlewareResult.bindArgsParsedInputs as InferOutputArray<BAS>,
+					parsedInput: middlewareResult.parsedInput as InferOutputOrDefault<InputSchema, undefined>,
+					bindArgsParsedInputs: middlewareResult.bindArgsParsedInputs as InferOutputArray<BindArgsSchemas>,
 				})
 			);
 		} else {
@@ -352,29 +352,29 @@ export function actionBuilder<
 	// ─── Action builder ──────────────────────────────────────────────────
 
 	function buildAction({ withState }: { withState: false }): {
-		action: <Data extends InferOutputOrDefault<OS, any>>(
-			serverCodeFn: ServerCodeFn<MD, Ctx, IS, BAS, Data>,
-			utils?: SafeActionUtils<ServerError, MD, Ctx, IS, BAS, CVE, Data>
-		) => SafeActionFn<ServerError, IS, BAS, CVE, Data>;
+		action: <Data extends InferOutputOrDefault<OutputSchema, any>>(
+			serverCodeFn: ServerCodeFn<Metadata, Ctx, InputSchema, BindArgsSchemas, Data>,
+			utils?: ActionCallbacks<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data>
+		) => SafeActionFn<ServerError, InputSchema, BindArgsSchemas, ShapedErrors, Data>;
 	};
 	function buildAction({ withState }: { withState: true }): {
-		action: <Data extends InferOutputOrDefault<OS, any>>(
-			serverCodeFn: StateServerCodeFn<ServerError, MD, Ctx, IS, BAS, CVE, Data>,
-			utils?: SafeActionUtils<ServerError, MD, Ctx, IS, BAS, CVE, Data>
-		) => SafeStateActionFn<ServerError, IS, BAS, CVE, Data>;
+		action: <Data extends InferOutputOrDefault<OutputSchema, any>>(
+			serverCodeFn: StatefulServerCodeFn<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data>,
+			utils?: ActionCallbacks<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data>
+		) => SafeStateActionFn<ServerError, InputSchema, BindArgsSchemas, ShapedErrors, Data>;
 	};
 	function buildAction({ withState }: { withState: boolean }) {
 		return {
-			action: <Data extends InferOutputOrDefault<OS, any>>(
+			action: <Data extends InferOutputOrDefault<OutputSchema, any>>(
 				serverCodeFn:
-					| ServerCodeFn<MD, Ctx, IS, BAS, Data>
-					| StateServerCodeFn<ServerError, MD, Ctx, IS, BAS, CVE, Data>,
-				utils?: SafeActionUtils<ServerError, MD, Ctx, IS, BAS, CVE, Data>
+					| ServerCodeFn<Metadata, Ctx, InputSchema, BindArgsSchemas, Data>
+					| StatefulServerCodeFn<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data>,
+				utils?: ActionCallbacks<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data>
 			) => {
 				return async (...clientInputs: unknown[]) => {
 					let currentCtx: object = {};
 					const middlewareResult: MiddlewareResult<ServerError, object> = { success: false };
-					type PrevResult = SafeActionResult<ServerError, IS, CVE, Data>;
+					type PrevResult = SafeActionResult<ServerError, InputSchema, ShapedErrors, Data>;
 					let prevResult: PrevResult = {};
 					const frameworkErrorHandler = new FrameworkErrorHandler();
 					const serverErrorHandled = { value: false };
@@ -386,8 +386,8 @@ export function actionBuilder<
 
 					// Extract structured inputs based on schema definitions rather than iterating over
 					// clientInputs, so that excess arguments from external callers are silently ignored.
-					const mainClientInput = clientInputs[bindArgsSchemas.length] as InferInputOrDefault<IS, undefined>;
-					const bindArgsClientInputs = clientInputs.slice(0, bindArgsSchemas.length) as InferInputArray<BAS>;
+					const mainClientInput = clientInputs[bindArgsSchemas.length] as InferInputOrDefault<InputSchema, undefined>;
+					const bindArgsClientInputs = clientInputs.slice(0, bindArgsSchemas.length) as InferInputArray<BindArgsSchemas>;
 
 					// Validate metadata once, before running the middleware stack.
 					try {

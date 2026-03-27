@@ -13,7 +13,7 @@ const getIssueMessage = (issue: IssueWithUnionErrors): string[] => {
 };
 
 // This function is used internally to build the validation errors object from a list of validation issues.
-export const buildValidationErrors = <S extends StandardSchemaV1 | undefined>(
+export const buildValidationErrors = <Schema extends StandardSchemaV1 | undefined>(
 	issues: readonly IssueWithUnionErrors[]
 ) => {
 	// Using `any` because validation errors are dynamically-shaped nested objects
@@ -56,14 +56,14 @@ export const buildValidationErrors = <S extends StandardSchemaV1 | undefined>(
 			: { ...existing, _errors: [...issueMessage] };
 	}
 
-	return ve as ValidationErrors<S>;
+	return ve as ValidationErrors<Schema>;
 };
 
 // This class is internally used to throw validation errors in action's server code function, using
 // `returnValidationErrors`.
-export class ActionServerValidationError<S extends StandardSchemaV1> extends Error {
-	public validationErrors: ValidationErrors<S>;
-	constructor(validationErrors: ValidationErrors<S>) {
+export class ActionServerValidationError<Schema extends StandardSchemaV1> extends Error {
+	public validationErrors: ValidationErrors<Schema>;
+	constructor(validationErrors: ValidationErrors<Schema>) {
 		super("Server Action server validation error(s) occurred");
 		this.validationErrors = validationErrors;
 	}
@@ -71,9 +71,9 @@ export class ActionServerValidationError<S extends StandardSchemaV1> extends Err
 
 // This class is internally used to throw validation errors in action's server code function, using
 // `returnValidationErrors`.
-export class ActionValidationError<CVE> extends Error {
-	public validationErrors: CVE;
-	constructor(validationErrors: CVE, overriddenErrorMessage?: string) {
+export class ActionValidationError<ShapedErrors> extends Error {
+	public validationErrors: ShapedErrors;
+	constructor(validationErrors: ShapedErrors, overriddenErrorMessage?: string) {
 		super(overriddenErrorMessage ?? "Server Action validation error(s) occurred");
 		this.validationErrors = validationErrors;
 	}
@@ -98,9 +98,9 @@ export class ActionBindArgsValidationError extends Error {
  * {@link https://next-safe-action.dev/docs/define-actions/validation-errors#returnvalidationerrors See docs for more information}
  */
 export function returnValidationErrors<
-	S extends StandardSchemaV1 | (() => Promise<StandardSchemaV1>),
-	AS extends StandardSchemaV1 = S extends () => Promise<StandardSchemaV1> ? Awaited<ReturnType<S>> : S, // actual schema
->(schema: S, validationErrors: ValidationErrors<AS>): never {
+	Schema extends StandardSchemaV1 | (() => Promise<StandardSchemaV1>),
+	AS extends StandardSchemaV1 = Schema extends () => Promise<StandardSchemaV1> ? Awaited<ReturnType<Schema>> : Schema, // actual schema
+>(schema: Schema, validationErrors: ValidationErrors<AS>): never {
 	throw new ActionServerValidationError<AS>(validationErrors);
 }
 

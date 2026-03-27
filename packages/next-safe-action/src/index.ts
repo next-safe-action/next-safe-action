@@ -1,4 +1,4 @@
-import type { CreateClientOpts, DVES, HandleServerErrorFn } from "./index.types";
+import type { CreateClientOpts, ValidationErrorsFormat, HandleServerErrorFn } from "./index.types";
 import { SafeActionClient } from "./safe-action-client";
 import type { InferOutputOrDefault, StandardSchemaV1 } from "./standard-schema";
 import { DEFAULT_SERVER_ERROR_MESSAGE } from "./utils";
@@ -27,11 +27,11 @@ export type * from "./validation-errors.types";
  * {@link https://next-safe-action.dev/docs/define-actions/create-the-client#initialization-options See docs for more information}
  */
 export const createSafeActionClient = <
-	ODVES extends DVES | undefined = undefined,
+	ErrorsFormat extends ValidationErrorsFormat | undefined = undefined,
 	ServerError = string,
 	MetadataSchema extends StandardSchemaV1 | undefined = undefined,
 >(
-	createOpts?: CreateClientOpts<ODVES, ServerError, MetadataSchema>
+	createOpts?: CreateClientOpts<ErrorsFormat, ServerError, MetadataSchema>
 ) => {
 	// If `handleServerError` is provided, use it, otherwise default to log to console and generic error message.
 	const handleServerError: HandleServerErrorFn<ServerError, MetadataSchema> =
@@ -50,7 +50,7 @@ export const createSafeActionClient = <
 		ctxType: {},
 		metadataSchema: (createOpts?.defineMetadataSchema?.() ?? undefined) as MetadataSchema,
 		metadata: undefined as InferOutputOrDefault<MetadataSchema, undefined>,
-		defaultValidationErrorsShape: (createOpts?.defaultValidationErrorsShape ?? "formatted") as ODVES,
+		defaultValidationErrorsShape: (createOpts?.defaultValidationErrorsShape ?? "formatted") as ErrorsFormat,
 		throwValidationErrors: Boolean(createOpts?.throwValidationErrors),
 		handleValidationErrorsShape: async (ve) =>
 			createOpts?.defaultValidationErrorsShape === "flattened"

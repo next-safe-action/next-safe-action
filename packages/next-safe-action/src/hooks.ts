@@ -4,7 +4,7 @@ import * as React from "react";
 import { useActionBase } from "./hooks-shared";
 import type {
 	HookCallbacks,
-	HookSafeActionFn,
+	SingleInputActionFn,
 	UseActionHookReturn,
 	UseOptimisticActionHookReturn,
 } from "./hooks.types";
@@ -19,17 +19,17 @@ import type { InferInputOrDefault, StandardSchemaV1 } from "./standard-schema";
  *
  * {@link https://next-safe-action.dev/docs/execute-actions/hooks/useaction See docs for more information}
  */
-export const useAction = <ServerError, S extends StandardSchemaV1 | undefined, CVE, Data>(
-	safeActionFn: HookSafeActionFn<ServerError, S, CVE, Data>,
-	cb?: HookCallbacks<ServerError, S, CVE, Data>
-): UseActionHookReturn<ServerError, S, CVE, Data> => {
+export const useAction = <ServerError, Schema extends StandardSchemaV1 | undefined, ShapedErrors, Data>(
+	safeActionFn: SingleInputActionFn<ServerError, Schema, ShapedErrors, Data>,
+	cb?: HookCallbacks<ServerError, Schema, ShapedErrors, Data>
+): UseActionHookReturn<ServerError, Schema, ShapedErrors, Data> => {
 	const { result, clientInput, status, execute, executeAsync, reset, shorthandStatus } =
 		useActionBase(safeActionFn, cb);
 
 	return {
 		execute,
 		executeAsync,
-		input: clientInput as InferInputOrDefault<S, undefined>,
+		input: clientInput as InferInputOrDefault<Schema, undefined>,
 		result,
 		reset,
 		status,
@@ -44,14 +44,14 @@ export const useAction = <ServerError, S extends StandardSchemaV1 | undefined, C
  *
  * {@link https://next-safe-action.dev/docs/execute-actions/hooks/useoptimisticaction See docs for more information}
  */
-export const useOptimisticAction = <ServerError, S extends StandardSchemaV1 | undefined, CVE, Data, State>(
-	safeActionFn: HookSafeActionFn<ServerError, S, CVE, Data>,
+export const useOptimisticAction = <ServerError, Schema extends StandardSchemaV1 | undefined, ShapedErrors, Data, State>(
+	safeActionFn: SingleInputActionFn<ServerError, Schema, ShapedErrors, Data>,
 	utils: {
 		currentState: State;
-		updateFn: (state: State, input: InferInputOrDefault<S, void>) => State;
-	} & HookCallbacks<ServerError, S, CVE, Data>
-): UseOptimisticActionHookReturn<ServerError, S, CVE, Data, State> => {
-	const [optimisticState, setOptimisticValue] = React.useOptimistic<State, InferInputOrDefault<S, undefined>>(
+		updateFn: (state: State, input: InferInputOrDefault<Schema, void>) => State;
+	} & HookCallbacks<ServerError, Schema, ShapedErrors, Data>
+): UseOptimisticActionHookReturn<ServerError, Schema, ShapedErrors, Data, State> => {
+	const [optimisticState, setOptimisticValue] = React.useOptimistic<State, InferInputOrDefault<Schema, undefined>>(
 		utils.currentState,
 		utils.updateFn
 	);
@@ -71,7 +71,7 @@ export const useOptimisticAction = <ServerError, S extends StandardSchemaV1 | un
 	return {
 		execute,
 		executeAsync,
-		input: clientInput as InferInputOrDefault<S, undefined>,
+		input: clientInput as InferInputOrDefault<Schema, undefined>,
 		result,
 		optimisticState,
 		reset,

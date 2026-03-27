@@ -2,14 +2,14 @@ import type { InferInputArray, InferInputOrDefault, StandardSchemaV1 } from "./s
 import type { MaybeArray, Prettify } from "./utils.types";
 
 // Basic types and arrays.
-type NotObject = number | string | boolean | bigint | symbol | null | undefined | any[];
+type PrimitiveOrArray = number | string | boolean | bigint | symbol | null | undefined | any[];
 
 // Object with an optional list of validation errors.
-type VEList<K = undefined> = K extends any[] ? MaybeArray<{ _errors?: string[] }> : { _errors?: string[] };
+type ValidationErrorNode<K = undefined> = K extends any[] ? MaybeArray<{ _errors?: string[] }> : { _errors?: string[] };
 
 // Creates nested schema validation errors type using recursion.
-type SchemaErrors<S> = {
-	[K in keyof S]?: S[K] extends NotObject ? Prettify<VEList<S[K]>> : Prettify<VEList> & SchemaErrors<S[K]>;
+type SchemaErrors<Schema> = {
+	[K in keyof Schema]?: Schema[K] extends PrimitiveOrArray ? Prettify<ValidationErrorNode<Schema[K]>> : Prettify<ValidationErrorNode> & SchemaErrors<Schema[K]>;
 } & {};
 
 export type IssueWithUnionErrors = StandardSchemaV1.Issue & {
@@ -19,10 +19,10 @@ export type IssueWithUnionErrors = StandardSchemaV1.Issue & {
 /**
  * Type of the returned object when validation fails.
  */
-export type ValidationErrors<S extends StandardSchemaV1 | undefined> = S extends StandardSchemaV1
-	? StandardSchemaV1.InferOutput<S> extends NotObject
-		? Prettify<VEList>
-		: Prettify<VEList> & SchemaErrors<StandardSchemaV1.InferOutput<S>>
+export type ValidationErrors<Schema extends StandardSchemaV1 | undefined> = Schema extends StandardSchemaV1
+	? StandardSchemaV1.InferOutput<Schema> extends PrimitiveOrArray
+		? Prettify<ValidationErrorNode>
+		: Prettify<ValidationErrorNode> & SchemaErrors<StandardSchemaV1.InferOutput<Schema>>
 	: undefined;
 
 /**
@@ -40,17 +40,17 @@ export type FlattenedValidationErrors<VE extends ValidationErrors<any>> = Pretti
  * Type of the function used to format validation errors.
  */
 export type HandleValidationErrorsShapeFn<
-	S extends StandardSchemaV1 | undefined,
-	BAS extends readonly StandardSchemaV1[],
-	MD,
+	Schema extends StandardSchemaV1 | undefined,
+	BindArgsSchemas extends readonly StandardSchemaV1[],
+	Metadata,
 	Ctx extends object,
-	CVE,
+	ShapedErrors,
 > = (
-	validationErrors: ValidationErrors<S>,
+	validationErrors: ValidationErrors<Schema>,
 	utils: {
-		clientInput: InferInputOrDefault<S, undefined>;
-		bindArgsClientInputs: InferInputArray<BAS>;
-		metadata: MD;
+		clientInput: InferInputOrDefault<Schema, undefined>;
+		bindArgsClientInputs: InferInputArray<BindArgsSchemas>;
+		metadata: Metadata;
 		ctx: Prettify<Ctx>;
 	}
-) => Promise<CVE>;
+) => Promise<ShapedErrors>;
