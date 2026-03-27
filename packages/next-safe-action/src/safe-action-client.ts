@@ -1,12 +1,12 @@
 import { actionBuilder } from "./action-builder";
 import type {
-	DVES,
+	ValidationErrorsFormat,
 	InputSchemaFactoryFn,
 	MiddlewareFn,
 	SafeActionClientArgs,
-	SafeActionUtils,
+	ActionCallbacks,
 	ServerCodeFn,
-	StateServerCodeFn,
+	StatefulServerCodeFn,
 } from "./index.types";
 import type { InferOutputOrDefault, StandardSchemaV1 } from "./standard-schema";
 import { isStandardSchema } from "./standard-schema";
@@ -18,21 +18,21 @@ import type {
 
 export class SafeActionClient<
 	ServerError,
-	ODVES extends DVES | undefined, // override default validation errors shape
+	ErrorsFormat extends ValidationErrorsFormat | undefined, // override default validation errors shape
 	MetadataSchema extends StandardSchemaV1 | undefined = undefined,
-	MD = InferOutputOrDefault<MetadataSchema, undefined>, // metadata type (inferred from metadata schema)
-	MDProvided extends boolean = MetadataSchema extends undefined ? true : false,
+	Metadata = InferOutputOrDefault<MetadataSchema, undefined>, // metadata type (inferred from metadata schema)
+	HasMetadata extends boolean = MetadataSchema extends undefined ? true : false,
 	Ctx extends object = {},
-	ISF extends ((clientInput?: unknown) => Promise<StandardSchemaV1>) | undefined = undefined, // input schema function
-	IS extends StandardSchemaV1 | undefined = ISF extends Function ? Awaited<ReturnType<ISF>> : undefined, // input schema
-	OS extends StandardSchemaV1 | undefined = undefined, // output schema
-	const BAS extends readonly StandardSchemaV1[] = [],
-	CVE = undefined,
+	InputSchemaFn extends ((clientInput?: unknown) => Promise<StandardSchemaV1>) | undefined = undefined, // input schema function
+	InputSchema extends StandardSchemaV1 | undefined = InputSchemaFn extends Function ? Awaited<ReturnType<InputSchemaFn>> : undefined, // input schema
+	OutputSchema extends StandardSchemaV1 | undefined = undefined, // output schema
+	const BindArgsSchemas extends readonly StandardSchemaV1[] = [],
+	ShapedErrors = undefined,
 > {
-	readonly #args: SafeActionClientArgs<ServerError, ODVES, MetadataSchema, MD, MDProvided, Ctx, ISF, IS, OS, BAS, CVE>;
+	readonly #args: SafeActionClientArgs<ServerError, ErrorsFormat, MetadataSchema, Metadata, HasMetadata, Ctx, InputSchemaFn, InputSchema, OutputSchema, BindArgsSchemas, ShapedErrors>;
 
 	constructor(
-		args: SafeActionClientArgs<ServerError, ODVES, MetadataSchema, MD, MDProvided, Ctx, ISF, IS, OS, BAS, CVE>
+		args: SafeActionClientArgs<ServerError, ErrorsFormat, MetadataSchema, Metadata, HasMetadata, Ctx, InputSchemaFn, InputSchema, OutputSchema, BindArgsSchemas, ShapedErrors>
 	) {
 		this.#args = args;
 	}
@@ -43,7 +43,7 @@ export class SafeActionClient<
 	 *
 	 * {@link https://next-safe-action.dev/docs/define-actions/instance-methods#use See docs for more information}
 	 */
-	use<NextCtx extends object>(middlewareFn: MiddlewareFn<ServerError, MD, Ctx, Ctx & NextCtx>) {
+	use<NextCtx extends object>(middlewareFn: MiddlewareFn<ServerError, Metadata, Ctx, Ctx & NextCtx>) {
 		return new SafeActionClient({
 			...this.#args,
 			middlewareFns: [...this.#args.middlewareFns, middlewareFn],
@@ -57,7 +57,7 @@ export class SafeActionClient<
 	 *
 	 * {@link https://next-safe-action.dev/docs/define-actions/instance-methods#metadata See docs for more information}
 	 */
-	metadata(data: MD) {
+	metadata(data: Metadata) {
 		return new SafeActionClient({
 			...this.#args,
 			metadata: data,
@@ -73,16 +73,16 @@ export class SafeActionClient<
 	 * {@link https://next-safe-action.dev/docs/define-actions/create-the-client#inputschema See docs for more information}
 	 */
 	inputSchema<
-		OIS extends StandardSchemaV1 | InputSchemaFactoryFn<IS>, // override input schema
-		AIS extends StandardSchemaV1 = OIS extends InputSchemaFactoryFn<IS, infer NextSchema> // actual input schema
+		OIS extends StandardSchemaV1 | InputSchemaFactoryFn<InputSchema>, // override input schema
+		AIS extends StandardSchemaV1 = OIS extends InputSchemaFactoryFn<InputSchema, infer NextSchema> // actual input schema
 			? NextSchema
 			: OIS,
 		// override custom validation errors shape
-		OCVE = ODVES extends "flattened" ? FlattenedValidationErrors<ValidationErrors<AIS>> : ValidationErrors<AIS>,
+		OShapedErrors = ErrorsFormat extends "flattened" ? FlattenedValidationErrors<ValidationErrors<AIS>> : ValidationErrors<AIS>,
 	>(
 		inputSchema: OIS,
 		utils?: {
-			handleValidationErrorsShape?: HandleValidationErrorsShapeFn<AIS, BAS, MD, Ctx, OCVE>;
+			handleValidationErrorsShape?: HandleValidationErrorsShapeFn<AIS, BindArgsSchemas, Metadata, Ctx, OShapedErrors>;
 		}
 	) {
 		const isDirectStandardSchema = isStandardSchema(inputSchema);
@@ -103,13 +103,13 @@ export class SafeActionClient<
 				? async (clientInput?: unknown) => {
 						const prevSchema = await this.#args.inputSchemaFn?.(clientInput);
 
-						return (inputSchema as unknown as InputSchemaFactoryFn<IS, AIS>)(prevSchema as IS, {
+						return (inputSchema as unknown as InputSchemaFactoryFn<InputSchema, AIS>)(prevSchema as InputSchema, {
 							clientInput,
 						});
 					}
-				: async () => inputSchema) as unknown as ISF,
+				: async () => inputSchema) as unknown as InputSchemaFn,
 			handleValidationErrorsShape: (utils?.handleValidationErrorsShape ??
-				this.#args.handleValidationErrorsShape) as HandleValidationErrorsShapeFn<AIS, BAS, MD, Ctx, OCVE>,
+				this.#args.handleValidationErrorsShape) as HandleValidationErrorsShapeFn<AIS, BindArgsSchemas, Metadata, Ctx, OShapedErrors>,
 		});
 	}
 
@@ -125,16 +125,16 @@ export class SafeActionClient<
 	 *
 	 * {@link https://next-safe-action.dev/docs/define-actions/instance-methods#bindargsschemas See docs for more information}
 	 */
-	bindArgsSchemas<const OBAS extends readonly StandardSchemaV1[]>(bindArgsSchemas: OBAS) {
+	bindArgsSchemas<const OBindArgsSchemas extends readonly StandardSchemaV1[]>(bindArgsSchemas: OBindArgsSchemas) {
 		return new SafeActionClient({
 			...this.#args,
 			bindArgsSchemas,
 			handleValidationErrorsShape: this.#args.handleValidationErrorsShape as unknown as HandleValidationErrorsShapeFn<
-				IS,
-				OBAS,
-				MD,
+				InputSchema,
+				OBindArgsSchemas,
+				Metadata,
 				Ctx,
-				CVE
+				ShapedErrors
 			>,
 		});
 	}
@@ -159,12 +159,12 @@ export class SafeActionClient<
 	 *
 	 * {@link https://next-safe-action.dev/docs/define-actions/instance-methods#action--stateaction See docs for more information}
 	 */
-	action<Data extends InferOutputOrDefault<OS, any>>(
-		this: MDProvided extends true
-			? SafeActionClient<ServerError, ODVES, MetadataSchema, MD, MDProvided, Ctx, ISF, IS, OS, BAS, CVE>
+	action<Data extends InferOutputOrDefault<OutputSchema, any>>(
+		this: HasMetadata extends true
+			? SafeActionClient<ServerError, ErrorsFormat, MetadataSchema, Metadata, HasMetadata, Ctx, InputSchemaFn, InputSchema, OutputSchema, BindArgsSchemas, ShapedErrors>
 			: never,
-		serverCodeFn: ServerCodeFn<MD, Ctx, IS, BAS, Data>,
-		utils?: SafeActionUtils<ServerError, MD, Ctx, IS, BAS, CVE, Data>
+		serverCodeFn: ServerCodeFn<Metadata, Ctx, InputSchema, BindArgsSchemas, Data>,
+		utils?: ActionCallbacks<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data>
 	) {
 		return actionBuilder(this.#args).action(serverCodeFn, utils);
 	}
@@ -177,12 +177,12 @@ export class SafeActionClient<
 	 *
 	 * {@link https://next-safe-action.dev/docs/define-actions/instance-methods#action--stateaction See docs for more information}
 	 */
-	stateAction<Data extends InferOutputOrDefault<OS, any>>(
-		this: MDProvided extends true
-			? SafeActionClient<ServerError, ODVES, MetadataSchema, MD, MDProvided, Ctx, ISF, IS, OS, BAS, CVE>
+	stateAction<Data extends InferOutputOrDefault<OutputSchema, any>>(
+		this: HasMetadata extends true
+			? SafeActionClient<ServerError, ErrorsFormat, MetadataSchema, Metadata, HasMetadata, Ctx, InputSchemaFn, InputSchema, OutputSchema, BindArgsSchemas, ShapedErrors>
 			: never,
-		serverCodeFn: StateServerCodeFn<ServerError, MD, Ctx, IS, BAS, CVE, Data>,
-		utils?: SafeActionUtils<ServerError, MD, Ctx, IS, BAS, CVE, Data>
+		serverCodeFn: StatefulServerCodeFn<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data>,
+		utils?: ActionCallbacks<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data>
 	) {
 		return actionBuilder(this.#args).stateAction(serverCodeFn, utils);
 	}

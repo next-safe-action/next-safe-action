@@ -160,15 +160,15 @@ const { form, action, handleSubmitWithAction, resetFormAndAction } =
 	type={{
 		safeAction: {
 			description: "The safe action function created with .action(). When using bind arguments, pass the bound action.",
-			type: "HookSafeActionFn<ServerError, S, CVE, Data>",
+			type: "SingleInputActionFn<ServerError, Schema, ShapedErrors, Data>",
 		},
 		hookFormResolver: {
 			description: "A react-hook-form validation resolver (e.g. zodResolver, valibotResolver, yupResolver).",
-			type: "Resolver<InferInput<S>, FormContext, InferOutput<S>>",
+			type: "Resolver<InferInput<Schema>, FormContext, InferOutput<Schema>>",
 		},
 		props: {
 			description: "Optional props for the action hook, form hook, and error mapper.",
-			type: "HookProps<ServerError, S, CVE, Data, FormContext>",
+			type: "HookProps<ServerError, Schema, ShapedErrors, Data, FormContext>",
 			default: "undefined",
 		},
 	}}
@@ -187,7 +187,7 @@ The optional `props` object has the following shape:
 		},
 		actionProps: {
 			description: "Callbacks passed to the underlying useAction hook (onSuccess, onError, onExecute, onSettled, etc.).",
-			type: "HookCallbacks<ServerError, S, CVE, Data>",
+			type: "HookCallbacks<ServerError, Schema, ShapedErrors, Data>",
 			default: "undefined",
 		},
 		formProps: {
@@ -244,15 +244,15 @@ const { form, action, handleSubmitWithAction, resetFormAndAction } =
 	type={{
 		safeAction: {
 			description: "The safe action function created with .action().",
-			type: "HookSafeActionFn<ServerError, S, CVE, Data>",
+			type: "SingleInputActionFn<ServerError, Schema, ShapedErrors, Data>",
 		},
 		hookFormResolver: {
 			description: "A react-hook-form validation resolver.",
-			type: "Resolver<InferInput<S>, FormContext, InferOutput<S>>",
+			type: "Resolver<InferInput<Schema>, FormContext, InferOutput<Schema>>",
 		},
 		props: {
 			description: "Required props object. Must include actionProps.currentState and actionProps.updateFn.",
-			type: "HookProps & { actionProps: { currentState: State; updateFn: (state: State, input: InferInput<S>) => State } }",
+			type: "HookProps & { actionProps: { currentState: State; updateFn: (state: State, input: InferInput<Schema>) => State } }",
 		},
 	}}
 />
@@ -598,6 +598,6 @@ type MyOptimisticHookReturn = InferUseHookFormOptimisticActionHookReturn<typeof 
 
 - [Hooks guide](/docs/guides/hooks) — the `useAction` hook that the adapter builds on
 - [Hooks API reference](/docs/api/hooks-api) — full type signatures for `useAction` and `useOptimisticAction`
-- [Optimistic Updates](/docs/guides/optimistic-updates) — `useOptimisticAction` in depth
-- [Form Actions](/docs/guides/form-actions) — alternative form patterns without React Hook Form
-- [Custom Validation Errors](/docs/advanced/custom-validation-errors) — customizing error shapes for form display
+- [Optimistic updates](/docs/guides/optimistic-updates) — `useOptimisticAction` in depth
+- [Form actions](/docs/guides/form-actions) — alternative form patterns without React Hook Form
+- [Custom validation errors](/docs/advanced/custom-validation-errors) — customizing error shapes for form display

@@ -10,9 +10,18 @@
 		"dist"
 	],
 	"exports": {
-		".": "./dist/index.mjs",
-		"./hooks": "./dist/hooks.mjs",
-		"./stateful-hooks": "./dist/stateful-hooks.mjs"
+		".": {
+			"types": "./dist/index.d.mts",
+			"default": "./dist/index.mjs"
+		},
+		"./hooks": {
+			"types": "./dist/hooks.d.mts",
+			"default": "./dist/hooks.mjs"
+		},
+		"./stateful-hooks": {
+			"types": "./dist/stateful-hooks.d.mts",
+			"default": "./dist/stateful-hooks.mjs"
+		}
 	},
 	"typesVersions": {
 		"*": {

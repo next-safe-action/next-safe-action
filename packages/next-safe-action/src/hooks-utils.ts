@@ -4,7 +4,7 @@ import type { SafeActionResult } from "./index.types";
 import { FrameworkErrorHandler } from "./next/errors";
 import type { InferInputOrDefault, StandardSchemaV1 } from "./standard-schema";
 
-export const getActionStatus = <ServerError, S extends StandardSchemaV1 | undefined, CVE, Data>({
+export const getActionStatus = <ServerError, Schema extends StandardSchemaV1 | undefined, ShapedErrors, Data>({
 	isIdle,
 	isExecuting,
 	result,
@@ -15,7 +15,7 @@ export const getActionStatus = <ServerError, S extends StandardSchemaV1 | undefi
 	isExecuting: boolean;
 	hasNavigated: boolean;
 	hasThrownError: boolean;
-	result: SafeActionResult<ServerError, S, CVE, Data>;
+	result: SafeActionResult<ServerError, Schema, ShapedErrors, Data>;
 }): HookActionStatus => {
 	if (isIdle) {
 		return "idle";
@@ -64,7 +64,7 @@ function useCallbackRef<T extends (arg: any) => any>(callback: T | undefined): T
 	return React.useMemo(() => ((arg) => callbackRef.current?.(arg) as T) as T, []);
 }
 
-export const useActionCallbacks = <ServerError, S extends StandardSchemaV1 | undefined, CVE, Data>({
+export const useActionCallbacks = <ServerError, Schema extends StandardSchemaV1 | undefined, ShapedErrors, Data>({
 	result,
 	input,
 	status,
@@ -72,10 +72,10 @@ export const useActionCallbacks = <ServerError, S extends StandardSchemaV1 | und
 	navigationError,
 	thrownError,
 }: {
-	result: SafeActionResult<ServerError, S, CVE, Data>;
-	input: InferInputOrDefault<S, undefined>;
+	result: SafeActionResult<ServerError, Schema, ShapedErrors, Data>;
+	input: InferInputOrDefault<Schema, undefined>;
 	status: HookActionStatus;
-	cb?: HookCallbacks<ServerError, S, CVE, Data>;
+	cb?: HookCallbacks<ServerError, Schema, ShapedErrors, Data>;
 	navigationError: Error | null;
 	thrownError: Error | null;
 }) => {

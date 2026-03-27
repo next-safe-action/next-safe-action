@@ -1,6 +1,7 @@
 import { expect, test } from "vitest";
 import { z } from "zod";
 import { DEFAULT_SERVER_ERROR_MESSAGE, createSafeActionClient } from "..";
+import { ActionMetadataValidationError } from "../validation-errors";
 
 const ac = createSafeActionClient({
 	handleServerError: () => DEFAULT_SERVER_ERROR_MESSAGE, // disable server errors logging for these tests
@@ -75,4 +76,81 @@ test("metadata is passed to middleware functions and server code function", asyn
 	};
 
 	expect(actualResult).toStrictEqual(expectedResult);
+});
+
+test("action with invalid metadata type returns server error", async () => {
+	// @ts-expect-error
+	const action = ac.metadata({ actionName: 123 }).action(async ({ metadata }) => {
+		return {
+			metadata,
+		};
+	});
+
+	const actualResult = await action();
+	const expectedResult = {
+		serverError: DEFAULT_SERVER_ERROR_MESSAGE,
+	};
+
+	expect(actualResult).toStrictEqual(expectedResult);
+});
+
+test("ActionMetadataValidationError is thrown for invalid metadata when throwServerError is true", async () => {
+	const rethrowClient = createSafeActionClient({
+		handleServerError(e) {
+			throw e;
+		},
+		defineMetadataSchema() {
+			return z.object({
+				actionName: z.string(),
+			});
+		},
+	});
+
+	// @ts-expect-error
+	const action = rethrowClient.metadata({ actionName: 123 }).action(async () => {
+		return { ok: true };
+	});
+
+	await expect(() => action()).rejects.toThrow(ActionMetadataValidationError);
+
+	try {
+		await action();
+	} catch (e) {
+		expect(e).toBeInstanceOf(ActionMetadataValidationError);
+		expect((e as ActionMetadataValidationError<any>).validationErrors).toBeDefined();
+	}
+});
+
+test("action with metadata schema and input schema validates both", async () => {
+	const action = ac
+		.metadata({ actionName: "testAction" })
+		.inputSchema(z.object({ username: z.string().min(3) }))
+		.action(async ({ parsedInput }) => {
+			return {
+				username: parsedInput.username,
+			};
+		});
+
+	// Valid metadata, invalid input.
+	const actualResult = await action({ username: "ab" });
+
+	expect(actualResult).not.toHaveProperty("serverError");
+	expect(actualResult).toHaveProperty("validationErrors");
+});
+
+test("action with metadata schema and input schema, invalid metadata takes precedence", async () => {
+	const action = ac
+		// @ts-expect-error - intentionally passing invalid metadata type
+		.metadata({ actionName: 123 })
+		.inputSchema(z.object({ username: z.string().min(3) }))
+		.action(async ({ parsedInput }) => {
+			return {
+				username: parsedInput.username,
+			};
+		});
+
+	// Invalid metadata + invalid input. Metadata validation fails first (before input validation).
+	const actualResult = await action({ username: "ab" });
+
+	expect(actualResult).toHaveProperty("serverError", DEFAULT_SERVER_ERROR_MESSAGE);
 });

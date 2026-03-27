@@ -25,7 +25,7 @@ client.use(middlewareFn)
 	type={{
 		middlewareFn: {
 			description: "A middleware function that receives options and must call next() to continue the chain.",
-			type: "MiddlewareFn<ServerError, MD, Ctx, Ctx & NextCtx>",
+			type: "MiddlewareFn<ServerError, Metadata, Ctx, Ctx & NextCtx>",
 		},
 	}}
 />
@@ -48,7 +48,7 @@ The middleware function receives:
 		},
 		metadata: {
 			description: "Action metadata set via .metadata().",
-			type: "MD",
+			type: "Metadata",
 		},
 		next: {
 			description: "Call to proceed to the next middleware. Pass { ctx } to extend context.",
@@ -84,7 +84,7 @@ client.metadata(data)
 	type={{
 		data: {
 			description: "Metadata value matching the schema defined by defineMetadataSchema.",
-			type: "MD (inferred from metadata schema)",
+			type: "Metadata (inferred from metadata schema)",
 		},
 	}}
 />
@@ -123,7 +123,7 @@ client.inputSchema(schema, utils?)
 		},
 		"utils.handleValidationErrorsShape": {
 			description: "Custom function to transform the validation errors shape for this action. Overrides the client's defaultValidationErrorsShape.",
-			type: "(ve: ValidationErrors, utils) => Promise<CVE>",
+			type: "(ve: ValidationErrors, utils) => Promise<ShapedErrors>",
 			default: "undefined (uses client default)",
 		},
 	}}
@@ -236,11 +236,11 @@ client.action(serverCodeFn, utils?)
 	type={{
 		serverCodeFn: {
 			description: "Async function containing your server logic. Receives an args object.",
-			type: "ServerCodeFn<MD, Ctx, IS, BAS, Data>",
+			type: "ServerCodeFn<Metadata, Ctx, InputSchema, BindArgsSchemas, Data>",
 		},
 		utils: {
 			description: "Optional server-side callbacks and configuration.",
-			type: "SafeActionUtils",
+			type: "ActionCallbacks",
 			default: "undefined",
 		},
 	}}
@@ -260,11 +260,11 @@ The `serverCodeFn` receives a single argument object:
 		},
 		bindArgsParsedInputs: {
 			description: "Tuple of validated bind argument values.",
-			type: "InferOutputArray<BAS>",
+			type: "InferOutputArray<BindArgsSchemas>",
 		},
 		bindArgsClientInputs: {
 			description: "Tuple of raw bind argument values before validation.",
-			type: "InferInputArray<BAS>",
+			type: "InferInputArray<BindArgsSchemas>",
 		},
 		ctx: {
 			description: "Context object accumulated from the middleware chain.",
@@ -272,7 +272,7 @@ The `serverCodeFn` receives a single argument object:
 		},
 		metadata: {
 			description: "Metadata set via .metadata().",
-			type: "MD",
+			type: "Metadata",
 		},
 	}}
 />
@@ -295,7 +295,7 @@ Same as `.action()`, but the `serverCodeFn` receives a second argument `utils` w
 	type={{
 		"utils.prevResult": {
 			description: "The result of the previous action execution. Empty object {} on first call.",
-			type: "SafeActionResult<ServerError, S, CVE, Data>",
+			type: "SafeActionResult<ServerError, Schema, ShapedErrors, Data>",
 		},
 	}}
 />
@@ -304,7 +304,7 @@ Same as `.action()`, but the `serverCodeFn` receives a second argument `utils` w
 
 ---
 
-## `SafeActionUtils` (action callbacks)
+## `ActionCallbacks` (action callbacks)
 
 The optional second argument to `.action()` and `.stateAction()`:
 
@@ -317,7 +317,7 @@ The optional second argument to `.action()` and `.stateAction()`:
 		},
 		throwValidationErrors: {
 			description: "When true (or an object with overrideErrorMessage), validation errors are thrown as ActionValidationError. When an object, overrideErrorMessage receives the validation errors and returns a custom error message.",
-			type: "boolean | { overrideErrorMessage: (ve: CVE) => Promise<string> }",
+			type: "boolean | { overrideErrorMessage: (ve: ShapedErrors) => Promise<string> }",
 			default: "false",
 		},
 		onSuccess: {
@@ -378,7 +378,7 @@ actionClient
 
 ## See also
 
-- [Action Client](/docs/concepts/action-client) — conceptual overview and immutability pattern
+- [Action client](/docs/concepts/action-client) — conceptual overview and immutability pattern
 - [Middleware guide](/docs/guides/middleware) — practical patterns for `.use()`
 - [`createSafeActionClient()`](/docs/api/create-safe-action-client) — creating the client instance
 - [Types reference](/docs/api/types) — all exported TypeScript types

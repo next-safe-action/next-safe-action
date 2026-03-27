@@ -73,25 +73,49 @@ const actionClient = createSafeActionClient({
 **Security**: The default `handleServerError` returns a generic `"Something went wrong"` message. If you return `e.message`, make sure your errors don't contain sensitive information (stack traces, database queries, etc.).
 </Callout>
 
-### Throwing server errors explicitly
+### Throwing errors instead of returning them
 
-Use `throwServerError` in action utils to re-throw errors instead of catching them:
+By default, validation and server errors are **returned** in the result object. You can opt into **throwing** them instead using boolean flags, which is useful when you want errors to propagate to an error boundary or a try/catch block.
+
+**`throwServerError`** — action-level only. When enabled, server errors are re-thrown instead of being returned in `result.serverError`:
 
 ```ts
 export const myAction = actionClient
-	.action(async ({ parsedInput }, { throwServerError }) => {
-		// If this throws, the error is re-thrown (not caught by handleServerError)
-		throwServerError("Custom error message");
-	});
+	.inputSchema(schema)
+	.action(
+		async ({ parsedInput }) => {
+			// ...
+		},
+		{
+			throwServerError: true,
+		}
+	);
 ```
 
-Or enable it globally in client options:
+**`throwValidationErrors`** — available at both client and action level. When set at both levels, the action-level setting takes priority:
 
 ```ts
+// Client-level: applies to all actions created from this client
 const actionClient = createSafeActionClient({
-	throwValidationErrors: true, // Re-throw validation errors instead of returning them
+	throwValidationErrors: true,
 });
+
+// Action-level: overrides the client setting for this specific action
+export const myAction = actionClient
+	.inputSchema(schema)
+	.action(
+		async ({ parsedInput }) => {
+			// ...
+		},
+		{
+			throwValidationErrors: true,
+		}
+	);
 ```
+
+<Callout>
+These flags control whether the **final** error is returned in the result object or thrown. They don't replace `handleServerError` (which still processes server errors before the throw/return decision) or `returnValidationErrors()` (which is a function for manually producing validation errors in your server code).
+</Callout>
 
 ## Framework errors
 
@@ -151,10 +175,10 @@ See [Framework Errors](/docs/advanced/framework-errors) for advanced configurati
 ## What's next?
 
 <Cards>
-	<Card href="/docs/advanced/custom-validation-errors" title="Custom Validation Errors">
+	<Card href="/docs/advanced/custom-validation-errors" title="Custom validation errors">
 		Customize error shapes, flatten errors, and manually return validation errors.
 	</Card>
-	<Card href="/docs/advanced/framework-errors" title="Framework Errors">
+	<Card href="/docs/advanced/framework-errors" title="Framework errors">
 		Advanced configuration for redirect, notFound, forbidden, and unauthorized.
 	</Card>
 </Cards>

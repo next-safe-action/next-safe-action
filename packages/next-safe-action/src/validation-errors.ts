@@ -5,25 +5,28 @@ import type { FlattenedValidationErrors, IssueWithUnionErrors, ValidationErrors 
 const getKey = (segment: PropertyKey | StandardSchemaV1.PathSegment) =>
 	typeof segment === "object" ? segment.key : segment;
 
-const getIssueMessage = (issue: IssueWithUnionErrors) => {
+const getIssueMessage = (issue: IssueWithUnionErrors): string[] => {
 	if (issue.unionErrors) {
-		return issue.unionErrors.map((u) => u.issues.map((i) => i.message)).flat();
+		return issue.unionErrors.flatMap((u) => u.issues.map((i) => i.message));
 	}
-	return issue.message;
+	return [issue.message];
 };
 
 // This function is used internally to build the validation errors object from a list of validation issues.
-export const buildValidationErrors = <S extends StandardSchemaV1 | undefined>(
+export const buildValidationErrors = <Schema extends StandardSchemaV1 | undefined>(
 	issues: readonly IssueWithUnionErrors[]
 ) => {
+	// Using `any` because validation errors are dynamically-shaped nested objects
+	// built from schema paths with PropertyKey keys (string | number | symbol).
 	const ve: any = {};
 
 	for (const issue of issues) {
-		const { path, message, unionErrors } = issue;
+		const { path } = issue;
 
 		// When path is undefined or empty, set root errors.
 		if (!path || path.length === 0) {
-			ve._errors = ve._errors ? [...ve._errors, message] : [message];
+			const issueMessages = getIssueMessage(issue);
+			ve._errors = ve._errors ? [...ve._errors, ...issueMessages] : [...issueMessages];
 			continue;
 		}
 
@@ -47,22 +50,20 @@ export const buildValidationErrors = <S extends StandardSchemaV1 | undefined>(
 		const issueMessage = getIssueMessage(issue);
 
 		// Set error for the current path. If `_errors` array exists, add the message to it.
-		ref[key] = ref[key]?._errors
-			? {
-					...structuredClone(ref[key]),
-					_errors: [...ref[key]._errors, issueMessage],
-				}
-			: { ...structuredClone(ref[key]), _errors: unionErrors ? issueMessage : [issueMessage] };
+		const existing = ref[key] ? structuredClone(ref[key]) : {};
+		ref[key] = existing._errors
+			? { ...existing, _errors: [...existing._errors, ...issueMessage] }
+			: { ...existing, _errors: [...issueMessage] };
 	}
 
-	return ve as ValidationErrors<S>;
+	return ve as ValidationErrors<Schema>;
 };
 
 // This class is internally used to throw validation errors in action's server code function, using
 // `returnValidationErrors`.
-export class ActionServerValidationError<S extends StandardSchemaV1> extends Error {
-	public validationErrors: ValidationErrors<S>;
-	constructor(validationErrors: ValidationErrors<S>) {
+export class ActionServerValidationError<Schema extends StandardSchemaV1> extends Error {
+	public validationErrors: ValidationErrors<Schema>;
+	constructor(validationErrors: ValidationErrors<Schema>) {
 		super("Server Action server validation error(s) occurred");
 		this.validationErrors = validationErrors;
 	}
@@ -70,9 +71,9 @@ export class ActionServerValidationError<S extends StandardSchemaV1> extends Err
 
 // This class is internally used to throw validation errors in action's server code function, using
 // `returnValidationErrors`.
-export class ActionValidationError<CVE> extends Error {
-	public validationErrors: CVE;
-	constructor(validationErrors: CVE, overriddenErrorMessage?: string) {
+export class ActionValidationError<ShapedErrors> extends Error {
+	public validationErrors: ShapedErrors;
+	constructor(validationErrors: ShapedErrors, overriddenErrorMessage?: string) {
 		super(overriddenErrorMessage ?? "Server Action validation error(s) occurred");
 		this.validationErrors = validationErrors;
 	}
@@ -97,9 +98,9 @@ export class ActionBindArgsValidationError extends Error {
  * {@link https://next-safe-action.dev/docs/define-actions/validation-errors#returnvalidationerrors See docs for more information}
  */
 export function returnValidationErrors<
-	S extends StandardSchemaV1 | (() => Promise<StandardSchemaV1>),
-	AS extends StandardSchemaV1 = S extends () => Promise<StandardSchemaV1> ? Awaited<ReturnType<S>> : S, // actual schema
->(schema: S, validationErrors: ValidationErrors<AS>): never {
+	Schema extends StandardSchemaV1 | (() => Promise<StandardSchemaV1>),
+	AS extends StandardSchemaV1 = Schema extends () => Promise<StandardSchemaV1> ? Awaited<ReturnType<Schema>> : Schema, // actual schema
+>(schema: Schema, validationErrors: ValidationErrors<AS>): never {
 	throw new ActionServerValidationError<AS>(validationErrors);
 }
 

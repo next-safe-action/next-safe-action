@@ -89,3 +89,100 @@ test("action with invalid bind args input gives back a server error object with 
 
 	expect(actualResult).toStrictEqual(expectedResult);
 });
+
+test("action with all valid bind args and valid main input returns data", async () => {
+	const schema = z.object({
+		username: z.string().min(3),
+	});
+
+	const bindArgsSchemas: [age: z.ZodNumber, userId: z.ZodString] = [z.number().positive(), z.string().uuid()];
+
+	const action = dac
+		.inputSchema(schema)
+		.bindArgsSchemas(bindArgsSchemas)
+		.action(async ({ parsedInput, bindArgsParsedInputs }) => {
+			return {
+				username: parsedInput.username,
+				age: bindArgsParsedInputs[0],
+				userId: bindArgsParsedInputs[1],
+			};
+		});
+
+	const userId = crypto.randomUUID();
+	const actualResult = await action(25, userId, { username: "johndoe" });
+
+	const expectedResult = {
+		data: {
+			username: "johndoe",
+			age: 25,
+			userId,
+		},
+	};
+
+	expect(actualResult).toStrictEqual(expectedResult);
+});
+
+test("action with some valid and some invalid bind args returns server error with correct positions", async () => {
+	const bindArgsSchemas: [age: z.ZodNumber, userId: z.ZodString, product: z.ZodObject<{ id: z.ZodString }>] = [
+		z.number().positive(),
+		z.string().uuid(),
+		z.object({
+			id: z.string().uuid(),
+		}),
+	];
+
+	const action = uac.bindArgsSchemas(bindArgsSchemas).action(async () => {
+		return {
+			ok: true,
+		};
+	});
+
+	// First arg valid, second arg invalid, third arg valid.
+	const actualResult = await action(5, "not-a-uuid", { id: crypto.randomUUID() });
+
+	const expectedResult = {
+		serverError: {
+			bindArgsValidationErrors: [
+				{},
+				{
+					_errors: ["Invalid UUID"],
+				},
+				{},
+			],
+		},
+	};
+
+	expect(actualResult).toStrictEqual(expectedResult);
+});
+
+test("action with invalid bind args and invalid main input returns both errors", async () => {
+	const schema = z.object({
+		username: z.string().min(3),
+	});
+
+	const bindArgsSchemas: [age: z.ZodNumber] = [z.number().positive()];
+
+	const action = uac
+		.inputSchema(schema)
+		.bindArgsSchemas(bindArgsSchemas)
+		.action(async () => {
+			return {
+				ok: true,
+			};
+		});
+
+	// Invalid bind arg (-1 is not positive) and invalid main input ("ab" is less than 3 chars).
+	const actualResult = await action(-1, { username: "ab" });
+
+	// Both serverError (from bind args) and validationErrors (from main input) should be present.
+	expect(actualResult).toHaveProperty("serverError");
+	expect(actualResult).toHaveProperty("validationErrors");
+	expect((actualResult as any).serverError).toStrictEqual({
+		bindArgsValidationErrors: [
+			{
+				_errors: ["Too small: expected number to be >0"],
+			},
+		],
+	});
+	expect((actualResult as any).validationErrors).toHaveProperty("username");
+});

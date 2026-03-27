@@ -10,8 +10,14 @@
 		"dist"
 	],
 	"exports": {
-		".": "./dist/index.mjs",
-		"./hooks": "./dist/hooks.mjs"
+		".": {
+			"types": "./dist/index.d.mts",
+			"default": "./dist/index.mjs"
+		},
+		"./hooks": {
+			"types": "./dist/hooks.d.mts",
+			"default": "./dist/hooks.mjs"
+		}
 	},
 	"typesVersions": {
 		"*": {
@@ -81,7 +87,7 @@
 	"peerDependencies": {
 		"@hookform/resolvers": ">= 5.0.0",
 		"next": ">= 14.0.0",
-		"next-safe-action": ">=8.1.8",
+		"next-safe-action": ">=8.1.9",
 		"react": ">= 18.2.0",
 		"react-dom": ">= 18.2.0",
 		"react-hook-form": ">= 7.0.0"

@@ -16,15 +16,16 @@ export class FrameworkErrorHandler {
 	static getNavigationKind(error: Error): NavigationKind {
 		if (isRedirectError(error)) {
 			return "redirect";
-		} else if (isHTTPAccessFallbackError(error) && getAccessFallbackHTTPStatus(error) === 404) {
-			return "notFound";
-		} else if (isHTTPAccessFallbackError(error) && getAccessFallbackHTTPStatus(error) === 403) {
-			return "forbidden";
-		} else if (isHTTPAccessFallbackError(error) && getAccessFallbackHTTPStatus(error) === 401) {
-			return "unauthorized";
-		} else {
-			return "other";
 		}
+
+		if (isHTTPAccessFallbackError(error)) {
+			const status = getAccessFallbackHTTPStatus(error);
+			if (status === 404) return "notFound";
+			if (status === 403) return "forbidden";
+			if (status === 401) return "unauthorized";
+		}
+
+		return "other";
 	}
 
 	// Used in action builder.

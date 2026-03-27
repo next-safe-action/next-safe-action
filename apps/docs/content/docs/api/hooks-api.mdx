@@ -21,11 +21,11 @@ const { execute, result, status, ... } = useAction(safeActionFn, callbacks?);
 	type={{
 		safeActionFn: {
 			description: "The server action function created with .action(). When using bind arguments, pass the bound action (action.bind(null, ...args)).",
-			type: "HookSafeActionFn<ServerError, S, CVE, Data>",
+			type: "SingleInputActionFn<ServerError, Schema, ShapedErrors, Data>",
 		},
 		callbacks: {
 			description: "Optional object with lifecycle callbacks.",
-			type: "HookCallbacks<ServerError, S, CVE, Data>",
+			type: "HookCallbacks<ServerError, Schema, ShapedErrors, Data>",
 			default: "undefined",
 		},
 	}}
@@ -37,19 +37,19 @@ const { execute, result, status, ... } = useAction(safeActionFn, callbacks?);
 	type={{
 		execute: {
 			description: "Call the action. Fires and forgets, does not return a promise. Errors are caught and set in result.",
-			type: "(input: InferInput<S>) => void",
+			type: "(input: InferInput<Schema>) => void",
 		},
 		executeAsync: {
 			description: "Call the action and await the result. Throws on framework errors (redirect, notFound) and re-throws server/validation errors when throwServerError/throwValidationErrors is enabled.",
-			type: "(input: InferInput<S>) => Promise<SafeActionResult>",
+			type: "(input: InferInput<Schema>) => Promise<SafeActionResult>",
 		},
 		input: {
 			description: "The input passed to the most recent execute/executeAsync call.",
-			type: "InferInput<S> | undefined",
+			type: "InferInput<Schema> | undefined",
 		},
 		result: {
 			description: "The result of the most recent action execution. Contains data, serverError, and/or validationErrors.",
-			type: "SafeActionResult<ServerError, S, CVE, Data>",
+			type: "SafeActionResult<ServerError, Schema, ShapedErrors, Data>",
 		},
 		reset: {
 			description: "Reset the hook state back to idle. Clears result, input, and status.",
@@ -140,7 +140,7 @@ const { execute, optimisticState, ... } = useOptimisticAction(safeActionFn, util
 	type={{
 		safeActionFn: {
 			description: "The server action function.",
-			type: "HookSafeActionFn<ServerError, S, CVE, Data>",
+			type: "SingleInputActionFn<ServerError, Schema, ShapedErrors, Data>",
 		},
 		"utils.currentState": {
 			description: "The current server state. When the action succeeds, this should be the fresh data from the server.",
@@ -148,7 +148,7 @@ const { execute, optimisticState, ... } = useOptimisticAction(safeActionFn, util
 		},
 		"utils.updateFn": {
 			description: "Pure function that computes the optimistic state from the current state and the input being sent.",
-			type: "(state: State, input: InferInput<S>) => State",
+			type: "(state: State, input: InferInput<Schema>) => State",
 		},
 	}}
 />
@@ -218,11 +218,11 @@ const { execute, result, status, ... } = useStateAction(safeStatefulActionFn, ut
 	type={{
 		safeStatefulActionFn: {
 			description: "A stateful action function created with .stateAction().",
-			type: "HookSafeStateActionFn<ServerError, S, CVE, Data>",
+			type: "SingleInputStateActionFn<ServerError, Schema, ShapedErrors, Data>",
 		},
 		"utils.initResult": {
 			description: "Initial result before the first execution.",
-			type: "SafeActionResult<ServerError, S, CVE, Data>",
+			type: "SafeActionResult<ServerError, Schema, ShapedErrors, Data>",
 			default: "{}",
 		},
 		"utils.permalink": {
@@ -311,6 +311,6 @@ type HookShorthandStatus = {
 ## See also
 
 - [Hooks guide](/docs/guides/hooks) — practical guide with patterns and examples
-- [Optimistic Updates](/docs/guides/optimistic-updates) — `useOptimisticAction` in depth
-- [Framework Errors](/docs/advanced/framework-errors) — `onNavigation` and `hasNavigated` behavior
-- [Type Utilities](/docs/api/type-utilities) — `InferUseActionHookReturn` and related types
+- [Optimistic updates](/docs/guides/optimistic-updates) — `useOptimisticAction` in depth
+- [Framework errors](/docs/advanced/framework-errors) — `onNavigation` and `hasNavigated` behavior
+- [Type utilities](/docs/api/type-utilities) — `InferUseActionHookReturn` and related types

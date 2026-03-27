@@ -12,10 +12,10 @@ This page documents all the TypeScript types exported by next-safe-action. Types
 The result object returned by every action execution. Each field is optional, and the presence of fields indicates the action's outcome.
 
 ```ts
-type SafeActionResult<ServerError, S, CVE, Data> = {
+type SafeActionResult<ServerError, Schema, ShapedErrors, Data> = {
 	data?: Data;
 	serverError?: ServerError;
-	validationErrors?: CVE;
+	validationErrors?: ShapedErrors;
 };
 ```
 
@@ -31,7 +31,7 @@ type SafeActionResult<ServerError, S, CVE, Data> = {
 		},
 		validationErrors: {
 			description: "Validation errors when input doesn't match the schema or when returnValidationErrors is called. Shape depends on defaultValidationErrorsShape.",
-			type: "CVE | undefined",
+			type: "ShapedErrors | undefined",
 		},
 	}}
 />
@@ -43,9 +43,9 @@ type SafeActionResult<ServerError, S, CVE, Data> = {
 The callable function type returned by `.action()`.
 
 ```ts
-type SafeActionFn<ServerError, S, BAS, CVE, Data> = (
-	...clientInputs: [...bindArgsInputs: InferInputArray<BAS>, input: InferInput<S>]
-) => Promise<SafeActionResult<ServerError, S, CVE, Data>>;
+type SafeActionFn<ServerError, Schema, BindArgsSchemas, ShapedErrors, Data> = (
+	...clientInputs: [...bindArgsInputs: InferInputArray<BindArgsSchemas>, input: InferInput<Schema>]
+) => Promise<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>;
 ```
 
 When bind args are defined, they appear as leading parameters. The main input is always the last parameter.
@@ -57,13 +57,13 @@ When bind args are defined, they appear as leading parameters. The main input is
 The callable function type returned by `.stateAction()`.
 
 ```ts
-type SafeStateActionFn<ServerError, S, BAS, CVE, Data> = (
+type SafeStateActionFn<ServerError, Schema, BindArgsSchemas, ShapedErrors, Data> = (
 	...clientInputs: [
-		...bindArgsInputs: InferInputArray<BAS>,
-		prevResult: SafeActionResult<ServerError, S, CVE, Data>,
-		input: InferInput<S>,
+		...bindArgsInputs: InferInputArray<BindArgsSchemas>,
+		prevResult: SafeActionResult<ServerError, Schema, ShapedErrors, Data>,
+		input: InferInput<Schema>,
 	]
-) => Promise<SafeActionResult<ServerError, S, CVE, Data>>;
+) => Promise<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>;
 ```
 
 Same as `SafeActionFn` but includes `prevResult` as the second-to-last parameter, before the main input.
@@ -77,11 +77,11 @@ Same as `SafeActionFn` but includes `prevResult` as the second-to-last parameter
 The function type for middleware defined via `.use()` or `createMiddleware().define()`.
 
 ```ts
-type MiddlewareFn<ServerError, MD, Ctx, NextCtx> = (opts: {
+type MiddlewareFn<ServerError, Metadata, Ctx, NextCtx> = (opts: {
 	clientInput: unknown;
 	bindArgsClientInputs: unknown[];
 	ctx: Ctx;
-	metadata: MD;
+	metadata: Metadata;
 	next: <NC extends object = {}>(opts?: { ctx?: NC }) => Promise<MiddlewareResult<ServerError, NC>>;
 }) => Promise<MiddlewareResult<ServerError, NextCtx>>;
 ```
@@ -136,34 +136,34 @@ type MiddlewareResult<ServerError, NextCtx> = SafeActionResult<ServerError, any,
 The function type for the server code passed to `.action()`.
 
 ```ts
-type ServerCodeFn<MD, Ctx, S, BAS, Data> = (args: {
-	parsedInput: InferOutput<S> | undefined;
-	clientInput: InferInput<S> | undefined;
-	bindArgsParsedInputs: InferOutputArray<BAS>;
-	bindArgsClientInputs: InferInputArray<BAS>;
+type ServerCodeFn<Metadata, Ctx, Schema, BindArgsSchemas, Data> = (args: {
+	parsedInput: InferOutput<Schema> | undefined;
+	clientInput: InferInput<Schema> | undefined;
+	bindArgsParsedInputs: InferOutputArray<BindArgsSchemas>;
+	bindArgsClientInputs: InferInputArray<BindArgsSchemas>;
 	ctx: Ctx;
-	metadata: MD;
+	metadata: Metadata;
 }) => Promise<Data>;
 ```
 
 ---
 
-### `StateServerCodeFn`
+### `StatefulServerCodeFn`
 
 The function type for the server code passed to `.stateAction()`. Same as `ServerCodeFn` but with a second `utils` argument.
 
 ```ts
-type StateServerCodeFn<ServerError, MD, Ctx, S, BAS, CVE, Data> = (
+type StatefulServerCodeFn<ServerError, Metadata, Ctx, Schema, BindArgsSchemas, ShapedErrors, Data> = (
 	args: {
-		parsedInput: InferOutput<S> | undefined;
-		clientInput: InferInput<S> | undefined;
-		bindArgsParsedInputs: InferOutputArray<BAS>;
-		bindArgsClientInputs: InferInputArray<BAS>;
+		parsedInput: InferOutput<Schema> | undefined;
+		clientInput: InferInput<Schema> | undefined;
+		bindArgsParsedInputs: InferOutputArray<BindArgsSchemas>;
+		bindArgsClientInputs: InferInputArray<BindArgsSchemas>;
 		ctx: Ctx;
-		metadata: MD;
+		metadata: Metadata;
 	},
 	utils: {
-		prevResult: SafeActionResult<ServerError, S, CVE, Data>;
+		prevResult: SafeActionResult<ServerError, Schema, ShapedErrors, Data>;
 	}
 ) => Promise<Data>;
 ```
@@ -177,25 +177,25 @@ type StateServerCodeFn<ServerError, MD, Ctx, S, BAS, CVE, Data> = (
 Options passed to [`createSafeActionClient()`](/docs/api/create-safe-action-client).
 
 ```ts
-type CreateClientOpts<ODVES, ServerError, MetadataSchema> = {
+type CreateClientOpts<ErrorsFormat, ServerError, MetadataSchema> = {
 	defineMetadataSchema?: () => MetadataSchema;
 	handleServerError?: HandleServerErrorFn<ServerError, MetadataSchema>;
-	defaultValidationErrorsShape?: ODVES;
+	defaultValidationErrorsShape?: ErrorsFormat;
 	throwValidationErrors?: boolean;
 };
 ```
 
 ---
 
-### `SafeActionUtils`
+### `ActionCallbacks`
 
 Server-side callbacks and options passed as the second argument to `.action()` and `.stateAction()`.
 
 ```ts
-type SafeActionUtils<ServerError, MD, Ctx, S, BAS, CVE, Data> = {
+type ActionCallbacks<ServerError, Metadata, Ctx, Schema, BindArgsSchemas, ShapedErrors, Data> = {
 	throwServerError?: boolean;
 	throwValidationErrors?: boolean | {
-		overrideErrorMessage: (validationErrors: CVE) => Promise<string>;
+		overrideErrorMessage: (validationErrors: ShapedErrors) => Promise<string>;
 	};
 	onSuccess?: (args: { data?, metadata, ctx?, clientInput, bindArgsClientInputs, parsedInput, bindArgsParsedInputs }) => Promise<unknown>;
 	onNavigation?: (args: { metadata, ctx?, clientInput, bindArgsClientInputs, navigationKind }) => Promise<unknown>;
@@ -241,10 +241,10 @@ type ServerErrorFunctionUtils<MetadataSchema> = {
 The formatted validation errors type, mirroring the schema structure.
 
 ```ts
-type ValidationErrors<S> = S extends StandardSchemaV1
-	? InferOutput<S> extends NotObject
+type ValidationErrors<Schema> = Schema extends StandardSchemaV1
+	? InferOutput<Schema> extends PrimitiveOrArray
 		? { _errors?: string[] }
-		: { _errors?: string[] } & SchemaErrors<InferOutput<S>>
+		: { _errors?: string[] } & SchemaErrors<InferOutput<Schema>>
 	: undefined;
 ```
 
@@ -272,15 +272,15 @@ type FlattenedValidationErrors<VE> = {
 Function type for custom validation error shaping.
 
 ```ts
-type HandleValidationErrorsShapeFn<S, BAS, MD, Ctx, CVE> = (
-	validationErrors: ValidationErrors<S>,
+type HandleValidationErrorsShapeFn<Schema, BindArgsSchemas, Metadata, Ctx, ShapedErrors> = (
+	validationErrors: ValidationErrors<Schema>,
 	utils: {
-		clientInput: InferInput<S> | undefined;
-		bindArgsClientInputs: InferInputArray<BAS>;
-		metadata: MD;
+		clientInput: InferInput<Schema> | undefined;
+		bindArgsClientInputs: InferInputArray<BindArgsSchemas>;
+		metadata: Metadata;
 		ctx: Ctx;
 	}
-) => Promise<CVE>;
+) => Promise<ShapedErrors>;
 ```
 
 ---
@@ -299,12 +299,12 @@ type NavigationKind = "redirect" | "notFound" | "forbidden" | "unauthorized" | "
 
 ## Enums and constants
 
-### `DVES`
+### `ValidationErrorsFormat`
 
 The default validation errors shape type.
 
 ```ts
-type DVES = "formatted" | "flattened";
+type ValidationErrorsFormat = "formatted" | "flattened";
 ```
 
 ---
@@ -337,6 +337,6 @@ type MaybeArray<T> = T | T[];
 
 ## See also
 
-- [Type Utilities](/docs/api/type-utilities) — `Infer*` types for extracting types from actions and clients
-- [Action Result](/docs/concepts/action-result) — understanding `SafeActionResult`
+- [Type utilities](/docs/api/type-utilities) — `Infer*` types for extracting types from actions and clients
+- [Action result](/docs/concepts/action-result) — understanding `SafeActionResult`
 - [Hooks API](/docs/api/hooks-api) — `HookCallbacks`, `HookActionStatus`, and hook return types

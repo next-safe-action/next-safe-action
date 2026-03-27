@@ -30,10 +30,10 @@ type InferSafeActionFnInput<T extends Function>
 
 ```ts
 {
-	clientInput: StandardSchemaV1.InferInput<S>;
-	bindArgsClientInputs: InferInputArray<BAS>;
-	parsedInput: StandardSchemaV1.InferOutput<S>;
-	bindArgsParsedInputs: InferOutputArray<BAS>;
+	clientInput: StandardSchemaV1.InferInput<Schema>;
+	bindArgsClientInputs: InferInputArray<BindArgsSchemas>;
+	parsedInput: StandardSchemaV1.InferOutput<Schema>;
+	bindArgsParsedInputs: InferOutputArray<BindArgsSchemas>;
 }
 ```
 
@@ -60,7 +60,7 @@ Infer the result type from an action function.
 type InferSafeActionFnResult<T extends Function>
 ```
 
-**Produces:** `SafeActionResult<ServerError, S, CVE, Data>`
+**Produces:** `SafeActionResult<ServerError, Schema, ShapedErrors, Data>`
 
 **Works with:** `SafeActionFn`, `SafeStateActionFn`
 
@@ -128,7 +128,7 @@ Infer the metadata type from a safe action client or middleware function.
 type InferMetadata<T>
 ```
 
-**Produces:** The `MD` type, inferred from the metadata schema or `undefined` if none.
+**Produces:** The `Metadata` type, inferred from the metadata schema or `undefined` if none.
 
 **Works with:** `SafeActionClient`, `MiddlewareFn`
 
@@ -212,4 +212,4 @@ type InferUseStateActionHookReturn<T extends Function>
 
 - [Types reference](/docs/api/types) — all exported TypeScript types
 - [Hooks API](/docs/api/hooks-api) — the hooks these types infer from
-- [Action Result](/docs/concepts/action-result) — understanding `InferSafeActionFnResult`
+- [Action result](/docs/concepts/action-result) — understanding `InferSafeActionFnResult`

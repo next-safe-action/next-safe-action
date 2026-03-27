@@ -21,8 +21,8 @@ import {
 Thrown when input validation fails **and** `throwValidationErrors` is enabled (either at the client level or per action). Contains the shaped validation errors (after `handleValidationErrorsShape` is applied).
 
 ```ts
-class ActionValidationError<CVE> extends Error {
-	validationErrors: CVE;
+class ActionValidationError<ShapedErrors> extends Error {
+	validationErrors: ShapedErrors;
 }
 ```
 
@@ -30,7 +30,7 @@ class ActionValidationError<CVE> extends Error {
 	type={{
 		validationErrors: {
 			description: "The validation errors object, shaped according to the client's defaultValidationErrorsShape or the action's handleValidationErrorsShape.",
-			type: "CVE",
+			type: "ShapedErrors",
 		},
 		message: {
 			description: "Error message. Defaults to 'Server Action validation error(s) occurred'. Can be overridden via throwValidationErrors.overrideErrorMessage.",
@@ -188,7 +188,7 @@ const actionClient = createSafeActionClient({
 
 ## See also
 
-- [Error Handling](/docs/concepts/error-handling) — the complete error taxonomy
-- [Custom Validation Errors](/docs/advanced/custom-validation-errors) — customizing error shapes and manual error returns
-- [Validation Utilities](/docs/api/validation-utilities) — `returnValidationErrors` and formatting functions
+- [Error handling](/docs/concepts/error-handling) — the complete error taxonomy
+- [Custom validation errors](/docs/advanced/custom-validation-errors) — customizing error shapes and manual error returns
+- [Validation utilities](/docs/api/validation-utilities) — `returnValidationErrors` and formatting functions
 - [`createSafeActionClient()`](/docs/api/create-safe-action-client) — `handleServerError` and `throwValidationErrors` options
