@@ -11,7 +11,7 @@ interface Feature {
 
 const features: Feature[] = [
 	{
-		title: "End-to-End Type Safety",
+		title: "End-to-end type safety",
 		description: "Full TypeScript inference from schema definition to React hooks. No manual type wiring needed.",
 		icon: (
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-6 w-6">
@@ -24,7 +24,7 @@ const features: Feature[] = [
 		),
 	},
 	{
-		title: "Standard Schema support",
+		title: "Standard schema support",
 		description: "Standard Schema v1 support: Zod, Valibot, ArkType, Yup, and any compliant validator.",
 		icon: (
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-6 w-6">
@@ -37,7 +37,7 @@ const features: Feature[] = [
 		),
 	},
 	{
-		title: "Chainable Middleware",
+		title: "Chainable middleware",
 		description: "Composable .use() middleware with typed context propagation across the entire chain.",
 		icon: (
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-6 w-6">
@@ -50,7 +50,7 @@ const features: Feature[] = [
 		),
 	},
 	{
-		title: "React Hooks",
+		title: "React hooks",
 		description: "useAction and useOptimisticAction hooks with rich status tracking and callbacks.",
 		icon: (
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-6 w-6">
@@ -63,7 +63,7 @@ const features: Feature[] = [
 		),
 	},
 	{
-		title: "Smart Error Handling",
+		title: "Smart error handling",
 		description: "Validation, server, and Next.js navigation errors handled gracefully with typed results.",
 		icon: (
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-6 w-6">
@@ -76,7 +76,7 @@ const features: Feature[] = [
 		),
 	},
 	{
-		title: "Optimistic Updates",
+		title: "Optimistic updates",
 		description: "Built-in optimistic UI support with automatic rollback on server action failure.",
 		icon: (
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-6 w-6">
