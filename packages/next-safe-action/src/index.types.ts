@@ -342,3 +342,38 @@ export type InferServerError<T> = T extends
  * Type of the core safe action client.
  */
 export { SafeActionClient };
+
+/**
+ * Deprecated aliases kept for backward compatibility.
+ */
+
+/**
+ * @deprecated Use `ValidationErrorsFormat` instead.
+ */
+export type DVES = ValidationErrorsFormat;
+
+/**
+ * @deprecated Use `StatefulServerCodeFn` instead.
+ */
+export type StateServerCodeFn<
+	ServerError,
+	Metadata,
+	Ctx extends object,
+	Schema extends StandardSchemaV1 | undefined,
+	BindArgsSchemas extends readonly StandardSchemaV1[],
+	ShapedErrors,
+	Data,
+> = StatefulServerCodeFn<ServerError, Metadata, Ctx, Schema, BindArgsSchemas, ShapedErrors, Data>;
+
+/**
+ * @deprecated Use `ActionCallbacks` instead.
+ */
+export type SafeActionUtils<
+	ServerError,
+	Metadata,
+	Ctx extends object,
+	Schema extends StandardSchemaV1 | undefined,
+	BindArgsSchemas extends readonly StandardSchemaV1[],
+	ShapedErrors,
+	Data,
+> = ActionCallbacks<ServerError, Metadata, Ctx, Schema, BindArgsSchemas, ShapedErrors, Data>;

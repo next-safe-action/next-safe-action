@@ -123,3 +123,27 @@ export type InferUseStateActionHookReturn<T extends Function> =
 	>
 		? UseStateActionHookReturn<ServerError, Schema, ShapedErrors, Data>
 		: never;
+
+/**
+ * Deprecated aliases kept for backward compatibility.
+ */
+
+/**
+ * @deprecated Use `SingleInputActionFn` instead.
+ */
+export type HookSafeActionFn<
+	ServerError,
+	Schema extends StandardSchemaV1 | undefined,
+	ShapedErrors,
+	Data,
+> = SingleInputActionFn<ServerError, Schema, ShapedErrors, Data>;
+
+/**
+ * @deprecated Use `SingleInputStateActionFn` instead.
+ */
+export type HookSafeStateActionFn<
+	ServerError,
+	Schema extends StandardSchemaV1 | undefined,
+	ShapedErrors,
+	Data,
+> = SingleInputStateActionFn<ServerError, Schema, ShapedErrors, Data>;
