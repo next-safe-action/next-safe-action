@@ -33,15 +33,15 @@
 		"url": "https://github.com/next-safe-action/next-safe-action.git"
 	},
 	"dependencies": {
-		"@manypkg/cli": "^0.23.0",
+		"@manypkg/cli": "^0.25.1",
 		"oxfmt": "catalog:",
 		"oxlint": "catalog:",
 		"turbo": "^2.8.14",
 		"typescript": "catalog:"
 	},
 	"devDependencies": {
-		"@changesets/changelog-github": "^0.5.2",
-		"@changesets/cli": "^2.29.8"
+		"@changesets/changelog-github": "^0.6.0",
+		"@changesets/cli": "^2.30.0"
 	},
 	"packageManager": "pnpm@10.31.0"
 }
