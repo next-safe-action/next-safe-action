@@ -5,6 +5,8 @@
 > [!IMPORTANT]
 > next-safe-action v8.1.9 or later is required for this adapter version due to internal code restructuring.
 
+## Restructure internals for clarity and maintainability
+
 #### Hook deduplication
 
 `useHookFormAction` and `useHookFormOptimisticAction` shared identical form integration logic (error mapping, form setup, submit handler, reset). This has been extracted into a `useFormIntegration` internal helper. Both hooks now compose `useFormIntegration` with their respective action hooks.
