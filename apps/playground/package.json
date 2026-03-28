@@ -12,6 +12,8 @@
 	"dependencies": {
 		"@hookform/resolvers": "catalog:",
 		"@next-safe-action/adapter-react-hook-form": "workspace:*",
+		"@next-safe-action/adapter-tanstack-query": "workspace:*",
+		"@tanstack/react-query": "catalog:",
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
 		"lucide-react": "^0.483.0",

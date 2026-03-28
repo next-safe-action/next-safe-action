@@ -4,7 +4,29 @@ TanStack Query mutation adapter for [next-safe-action](https://github.com/next-s
 
 This adapter provides a `mutationOptions()` factory function that creates a properly typed `UseMutationOptions` object for use with TanStack Query's `useMutation` hook. It bridges next-safe-action's result-based error model to TanStack Query's thrown-error model using a typed `ActionMutationError` class.
 
-**Mutations only.** This adapter intentionally does not support queries. Server Actions are not suitable for data fetching — the React and Next.js teams recommend against it due to waterfall issues, lack of caching, and no request deduplication.
+**Mutations only** — see [Why mutations only?](#why-mutations-only) below.
+
+## Why mutations only?
+
+This adapter intentionally provides only `mutationOptions()` for use with `useMutation()`. There is no `queryOptions()` or `useQuery()` support, and this is by design — Server Actions in React and Next.js are built exclusively for mutations, not data fetching.
+
+### Technical reasons
+
+- **POST-only transport.** Server Actions always use the HTTP `POST` method. Quoting the [Next.js docs](https://nextjs.org/docs/app/getting-started/updating-data): _"Behind the scenes, actions use the POST method, and only this HTTP method can invoke them."_ Queries should use `GET` — the correct method for safe, idempotent, cacheable reads.
+
+- **Sequential queuing.** Server Actions are queued and executed one at a time per client to preserve action ordering. From the [Next.js docs](https://nextjs.org/docs/app/guides/backend-for-frontend): _"Server Actions are queued, which means using them for data fetching introduces sequential execution."_ This creates request waterfalls where concurrent reads should be running in parallel.
+
+- **No HTTP caching.** `POST` requests bypass the browser cache entirely — no `Cache-Control`, no `ETag`, no conditional requests (`If-None-Match`). `useQuery` relies on stable cache keys derived from URLs and parameters to avoid redundant fetches; Server Actions provide neither.
+
+- **No request deduplication.** Without a stable resource identity (URL + params), TanStack Query cannot deduplicate simultaneous reads to the same resource across components.
+
+- **Designed for form submissions.** Server Actions semantically represent form submissions — create, update, delete operations that produce side effects. This maps perfectly to TanStack Query's `useMutation` model: imperative, one-shot operations with lifecycle callbacks (`onMutate`, `onSuccess`, `onError`, `onSettled`).
+
+### What to use instead for data fetching
+
+- **Server-side reads:** Use [React Server Components](https://nextjs.org/docs/app/getting-started/fetching-data). Data is fetched during rendering on the server with full access to the Next.js caching layer — no client-side hook needed.
+
+- **Client-side reads:** Create a [Route Handler](https://nextjs.org/docs/app/building-your-application/routing/route-handlers) with a `GET` endpoint and use `useQuery` / `queryOptions` to fetch from it. This gives you HTTP caching, deduplication, `staleTime`, background refetching, and all TanStack Query cache features.
 
 ## Installation
 

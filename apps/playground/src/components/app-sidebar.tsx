@@ -13,6 +13,7 @@ import {
 	ShieldAlertIcon,
 	SparklesIcon,
 	SunIcon,
+	ZapIcon,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import Image from "next/image";
@@ -58,6 +59,7 @@ const navGroups = [
 		items: [
 			{ title: "Form Integration", href: "/forms", icon: FileTextIcon },
 			{ title: "React Hook Form", href: "/react-hook-form", icon: CircuitBoardIcon },
+			{ title: "TanStack Query", href: "/tanstack-query", icon: ZapIcon },
 		],
 	},
 	{

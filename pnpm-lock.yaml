@@ -163,6 +163,12 @@ importers:
       '@next-safe-action/adapter-react-hook-form':
         specifier: workspace:*
         version: link:../../packages/adapter-react-hook-form
+      '@next-safe-action/adapter-tanstack-query':
+        specifier: workspace:*
+        version: link:../../packages/adapter-tanstack-query
+      '@tanstack/react-query':
+        specifier: 'catalog:'
+        version: 5.95.2(react@19.2.4)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
