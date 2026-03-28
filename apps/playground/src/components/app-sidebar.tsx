@@ -55,7 +55,7 @@ const navGroups = [
 		],
 	},
 	{
-		label: "Forms",
+		label: "Integrations",
 		items: [
 			{ title: "Form Integration", href: "/forms", icon: FileTextIcon },
 			{ title: "React Hook Form", href: "/react-hook-form", icon: CircuitBoardIcon },

@@ -19,6 +19,7 @@ export function OptimisticMutationDemo({ initialTodos, source }: Props) {
 
 	const { data: todos } = useQuery({
 		queryKey: ["todos"],
+		queryFn: () => Promise.resolve(initialTodos),
 		initialData: initialTodos,
 		staleTime: Infinity,
 	});
