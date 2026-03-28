@@ -43,9 +43,10 @@ export function mutationOptions<
 	safeActionFn: SingleInputActionFn<ServerError, Schema, ShapedErrors, Data>,
 	opts?: MutationOptionsOpts<ServerError, Schema, ShapedErrors, Data, TOnMutateResult>
 ): MutationOptionsReturn<ServerError, Schema, ShapedErrors, Data, TOnMutateResult> {
-	// Capture user's throwOnError before spreading opts, so we can compose it
-	// with navigation error detection.
+	// Capture user's throwOnError and retry before spreading opts, so we can
+	// compose them with navigation error detection.
 	const userThrowOnError = opts?.throwOnError;
+	const userRetry = opts?.retry;
 
 	return {
 		...opts,
@@ -56,6 +57,15 @@ export function mutationOptions<
 			if (isNavigationError(error)) return true;
 			if (typeof userThrowOnError === "function") return userThrowOnError(error);
 			return userThrowOnError ?? false;
+		},
+		// Compose retry: never retry navigation errors (they are control-flow signals,
+		// not retryable failures), while preserving the user's retry behavior for all
+		// other errors.
+		retry: (failureCount, error) => {
+			if (isNavigationError(error)) return false;
+			if (typeof userRetry === "function") return userRetry(failureCount, error);
+			if (typeof userRetry === "number") return failureCount < userRetry;
+			return userRetry ?? false;
 		},
 		mutationFn: async (input: InferInputOrDefault<Schema, void>, _context) => {
 			const result = await safeActionFn(input as InferInputOrDefault<Schema, undefined>);

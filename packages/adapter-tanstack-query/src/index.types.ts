@@ -39,7 +39,17 @@ export type MutationOptionsReturn<
 	ActionMutationError<ServerError, ShapedErrors>,
 	InferInputOrDefault<Schema, void>,
 	TOnMutateResult
->;
+> & {
+	/** Always provided by the `mutationOptions` factory. */
+	mutationFn: NonNullable<
+		UseMutationOptions<
+			Data,
+			ActionMutationError<ServerError, ShapedErrors>,
+			InferInputOrDefault<Schema, void>,
+			TOnMutateResult
+		>["mutationFn"]
+	>;
+};
 
 /**
  * Infer the `UseMutationOptions` type from a safe action function.

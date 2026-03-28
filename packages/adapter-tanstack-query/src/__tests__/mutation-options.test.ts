@@ -51,7 +51,7 @@ describe("mutationOptions", () => {
 		it("should return data on successful action", async () => {
 			const action = createMockAction({ data: { id: 1, name: "Test" } });
 			const opts = mutationOptions(action);
-			const result = await opts.mutationFn!({ name: "Test" }, ctx);
+			const result = await opts.mutationFn({ name: "Test" }, ctx);
 			expect(result).toEqual({ id: 1, name: "Test" });
 			expect(action).toHaveBeenCalledWith({ name: "Test" });
 		});
@@ -60,10 +60,10 @@ describe("mutationOptions", () => {
 			const action = createMockAction({ serverError: "Internal server error" });
 			const opts = mutationOptions(action);
 
-			await expect(opts.mutationFn!({ name: "Test" }, ctx)).rejects.toThrow(ActionMutationError);
+			await expect(opts.mutationFn({ name: "Test" }, ctx)).rejects.toThrow(ActionMutationError);
 
 			try {
-				await opts.mutationFn!({ name: "Test" }, ctx);
+				await opts.mutationFn({ name: "Test" }, ctx);
 			} catch (e) {
 				expect(isActionMutationError(e)).toBe(true);
 				const err = e as ActionMutationError<string, unknown>;
@@ -78,10 +78,10 @@ describe("mutationOptions", () => {
 			const action = createMockAction({ validationErrors: ve });
 			const opts = mutationOptions(action);
 
-			await expect(opts.mutationFn!({ name: "" }, ctx)).rejects.toThrow(ActionMutationError);
+			await expect(opts.mutationFn({ name: "" }, ctx)).rejects.toThrow(ActionMutationError);
 
 			try {
-				await opts.mutationFn!({ name: "" }, ctx);
+				await opts.mutationFn({ name: "" }, ctx);
 			} catch (e) {
 				const err = e as ActionMutationError<string, typeof ve>;
 				expect(err.validationErrors).toEqual(ve);
@@ -91,6 +91,7 @@ describe("mutationOptions", () => {
 		});
 
 		it("should throw ActionMutationError with both errors when result has both", async () => {
+			expect.assertions(3);
 			const action = createMockAction({
 				serverError: "Server failed",
 				validationErrors: { _errors: ["Bad input"] },
@@ -98,7 +99,7 @@ describe("mutationOptions", () => {
 			const opts = mutationOptions(action);
 
 			try {
-				await opts.mutationFn!({}, ctx);
+				await opts.mutationFn({}, ctx);
 			} catch (e) {
 				const err = e as ActionMutationError<string, unknown>;
 				expect(err.kind).toBe("both");
@@ -112,10 +113,10 @@ describe("mutationOptions", () => {
 			const action = vi.fn().mockRejectedValue(navError);
 			const opts = mutationOptions(action);
 
-			await expect(opts.mutationFn!({}, ctx)).rejects.toThrow(navError);
+			await expect(opts.mutationFn({}, ctx)).rejects.toThrow(navError);
 
 			try {
-				await opts.mutationFn!({}, ctx);
+				await opts.mutationFn({}, ctx);
 			} catch (e) {
 				// Should be the exact same error, not wrapped in ActionMutationError
 				expect(e).toBe(navError);
@@ -128,7 +129,7 @@ describe("mutationOptions", () => {
 			const action = vi.fn().mockRejectedValue(navError);
 			const opts = mutationOptions(action);
 
-			await expect(opts.mutationFn!({}, ctx)).rejects.toThrow(navError);
+			await expect(opts.mutationFn({}, ctx)).rejects.toThrow(navError);
 		});
 
 		it("should re-throw unknown errors as-is", async () => {
@@ -136,10 +137,10 @@ describe("mutationOptions", () => {
 			const action = vi.fn().mockRejectedValue(unknownError);
 			const opts = mutationOptions(action);
 
-			await expect(opts.mutationFn!({}, ctx)).rejects.toThrow(unknownError);
+			await expect(opts.mutationFn({}, ctx)).rejects.toThrow(unknownError);
 
 			try {
-				await opts.mutationFn!({}, ctx);
+				await opts.mutationFn({}, ctx);
 			} catch (e) {
 				expect(e).toBe(unknownError);
 				expect(isActionMutationError(e)).toBe(false);
@@ -149,7 +150,7 @@ describe("mutationOptions", () => {
 		it("should handle undefined data in successful result", async () => {
 			const action = createMockAction({});
 			const opts = mutationOptions(action);
-			const result = await opts.mutationFn!({}, ctx);
+			const result = await opts.mutationFn({}, ctx);
 			expect(result).toBeUndefined();
 		});
 
@@ -157,7 +158,7 @@ describe("mutationOptions", () => {
 			const action = createMockAction({ data: "ok" });
 			const opts = mutationOptions(action);
 			const input = { email: "test@example.com", name: "Test User" };
-			await opts.mutationFn!(input, ctx);
+			await opts.mutationFn(input, ctx);
 			expect(action).toHaveBeenCalledWith(input);
 		});
 	});
@@ -212,6 +213,68 @@ describe("mutationOptions", () => {
 			const opts = mutationOptions(action, { throwOnError: false });
 			const navError = createNavigationError("NEXT_REDIRECT;replace;/home;303;");
 			expect(callThrowOnError(opts, navError)).toBe(true);
+		});
+	});
+
+	describe("retry", () => {
+		function callRetry(opts: ReturnType<typeof mutationOptions>, failureCount: number, error: unknown) {
+			const retry = opts.retry as (failureCount: number, error: unknown) => boolean;
+			return retry(failureCount, error);
+		}
+
+		it("should return false for navigation errors (redirect)", () => {
+			const action = createMockAction({ data: "ok" });
+			const opts = mutationOptions(action);
+			const navError = createNavigationError("NEXT_REDIRECT;replace;/dashboard;303;");
+			expect(callRetry(opts, 0, navError)).toBe(false);
+		});
+
+		it("should return false for navigation errors (notFound)", () => {
+			const action = createMockAction({ data: "ok" });
+			const opts = mutationOptions(action);
+			const navError = createNavigationError("NEXT_HTTP_ERROR_FALLBACK;404");
+			expect(callRetry(opts, 0, navError)).toBe(false);
+		});
+
+		it("should return false by default for non-navigation errors", () => {
+			const action = createMockAction({ data: "ok" });
+			const opts = mutationOptions(action);
+			const error = new ActionMutationError({ serverError: "fail" });
+			expect(callRetry(opts, 0, error)).toBe(false);
+		});
+
+		it("should defer to user retry function for non-navigation errors", () => {
+			const action = createMockAction({ data: "ok" });
+			const userFn = vi.fn().mockReturnValue(true);
+			const opts = mutationOptions(action, { retry: userFn });
+			const error = new ActionMutationError({ serverError: "fail" });
+			expect(callRetry(opts, 0, error)).toBe(true);
+			expect(userFn).toHaveBeenCalledWith(0, error);
+		});
+
+		it("should defer to user retry number for non-navigation errors", () => {
+			const action = createMockAction({ data: "ok" });
+			const opts = mutationOptions(action, { retry: 3 });
+			const error = new ActionMutationError({ serverError: "fail" });
+			expect(callRetry(opts, 0, error)).toBe(true);
+			expect(callRetry(opts, 2, error)).toBe(true);
+			expect(callRetry(opts, 3, error)).toBe(false);
+		});
+
+		it("should always return false for navigation errors even when user sets retry to 3", () => {
+			const action = createMockAction({ data: "ok" });
+			const opts = mutationOptions(action, { retry: 3 });
+			const navError = createNavigationError("NEXT_REDIRECT;replace;/home;303;");
+			expect(callRetry(opts, 0, navError)).toBe(false);
+		});
+
+		it("should always return false for navigation errors even when user retry function returns true", () => {
+			const action = createMockAction({ data: "ok" });
+			const userFn = vi.fn().mockReturnValue(true);
+			const opts = mutationOptions(action, { retry: userFn });
+			const navError = createNavigationError("NEXT_REDIRECT;replace;/home;303;");
+			expect(callRetry(opts, 0, navError)).toBe(false);
+			expect(userFn).not.toHaveBeenCalled();
 		});
 	});
 });
