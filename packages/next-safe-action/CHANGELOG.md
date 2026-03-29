@@ -1,5 +1,11 @@
 # next-safe-action
 
+## 8.1.10
+
+### Patch Changes
+
+- [#419](https://github.com/next-safe-action/next-safe-action/pull/419) [`18cd6c1`](https://github.com/next-safe-action/next-safe-action/commit/18cd6c121597ae27d10b7000472b40fe4cac0e06) Thanks [@TheEdoRan](https://github.com/TheEdoRan)! - Export `isNavigationError`, `ThrowsErrorsBrand`, and `MaybeBrandThrows` from core package.
+
 ## 8.1.9
 
 ### Patch Changes
