@@ -1,4 +1,5 @@
 import type { CreateClientOpts, ValidationErrorsFormat, HandleServerErrorFn } from "./index.types";
+import { FrameworkErrorHandler } from "./next/errors";
 import { SafeActionClient } from "./safe-action-client";
 import type { InferOutputOrDefault, StandardSchemaV1 } from "./standard-schema";
 import { DEFAULT_SERVER_ERROR_MESSAGE } from "./utils";
@@ -6,6 +7,14 @@ import { flattenValidationErrors, formatValidationErrors } from "./validation-er
 
 export { createMiddleware } from "./middleware";
 export { DEFAULT_SERVER_ERROR_MESSAGE } from "./utils";
+
+/**
+ * Detect Next.js navigation/framework errors (redirect, notFound, forbidden, unauthorized, etc.)
+ * that must be re-thrown to let the framework handle them.
+ */
+export function isNavigationError(error: unknown): error is Error {
+	return FrameworkErrorHandler.isNavigationError(error);
+}
 export {
 	ActionBindArgsValidationError,
 	ActionMetadataValidationError,
@@ -30,8 +39,9 @@ export const createSafeActionClient = <
 	ErrorsFormat extends ValidationErrorsFormat | undefined = undefined,
 	ServerError = string,
 	MetadataSchema extends StandardSchemaV1 | undefined = undefined,
+	ThrowsValidationErrors extends boolean = false,
 >(
-	createOpts?: CreateClientOpts<ErrorsFormat, ServerError, MetadataSchema>
+	createOpts?: CreateClientOpts<ErrorsFormat, ServerError, MetadataSchema, ThrowsValidationErrors>
 ) => {
 	// If `handleServerError` is provided, use it, otherwise default to log to console and generic error message.
 	const handleServerError: HandleServerErrorFn<ServerError, MetadataSchema> =
@@ -51,7 +61,7 @@ export const createSafeActionClient = <
 		metadataSchema: (createOpts?.defineMetadataSchema?.() ?? undefined) as MetadataSchema,
 		metadata: undefined as InferOutputOrDefault<MetadataSchema, undefined>,
 		defaultValidationErrorsShape: (createOpts?.defaultValidationErrorsShape ?? "formatted") as ErrorsFormat,
-		throwValidationErrors: Boolean(createOpts?.throwValidationErrors),
+		throwValidationErrors: (createOpts?.throwValidationErrors ?? false) as ThrowsValidationErrors,
 		handleValidationErrorsShape: async (ve) =>
 			createOpts?.defaultValidationErrorsShape === "flattened"
 				? flattenValidationErrors(ve)

@@ -297,10 +297,9 @@ describe("callback stability", () => {
 		const onSuccess1 = vi.fn();
 		const onSuccess2 = vi.fn();
 
-		const { result, rerender } = renderHook(
-			({ cb }: { cb: TestCallbacks }) => useAction(action, cb),
-			{ initialProps: { cb: { onSuccess: onSuccess1 } } }
-		);
+		const { result, rerender } = renderHook(({ cb }: { cb: TestCallbacks }) => useAction(action, cb), {
+			initialProps: { cb: { onSuccess: onSuccess1 } },
+		});
 
 		act(() => {
 			result.current.execute(undefined);
@@ -310,7 +309,7 @@ describe("callback stability", () => {
 
 		expect(onSuccess1).toHaveBeenCalledTimes(1);
 
-		// Re-render with a new callback identity — should NOT retrigger the effect.
+		// Re-render with a new callback identity, should NOT retrigger the effect.
 		rerender({ cb: { onSuccess: onSuccess2 } });
 
 		await act(async () => {});

@@ -46,7 +46,7 @@ export const actionClient = createSafeActionClient({
 Every chainable method returns a **new client instance**, the original is never modified. This is the key design principle that enables client hierarchies:
 
 ```ts
-// This doesn't modify actionClient — it returns a new instance
+// This doesn't modify actionClient, it returns a new instance
 const authClient = actionClient.use(authMiddleware);
 
 // actionClient still has no middleware
@@ -67,7 +67,7 @@ In real applications, you typically create a tree of clients with increasingly s
 ```ts title="src/lib/safe-action.ts"
 import { createSafeActionClient } from "next-safe-action";
 
-// Base client — error handling, logging, metadata
+// Base client: error handling, logging, metadata
 export const actionClient = createSafeActionClient({
 	handleServerError(e) {
 		console.error("Action error:", e.message);
@@ -75,14 +75,14 @@ export const actionClient = createSafeActionClient({
 	},
 });
 
-// Authenticated client — requires valid session
+// Authenticated client: requires valid session
 export const authClient = actionClient.use(async ({ next }) => {
 	const session = await getSession();
 	if (!session) throw new Error("Unauthorized");
 	return next({ ctx: { user: session.user } });
 });
 
-// Admin client — requires admin role
+// Admin client: requires admin role
 export const adminClient = authClient.use(async ({ next, ctx }) => {
 	// ctx.user is available here (typed!) from the auth middleware
 	if (ctx.user.role !== "admin") throw new Error("Forbidden");
@@ -95,18 +95,18 @@ Then use the appropriate client for each action:
 ```ts title="src/app/actions.ts"
 "use server";
 
-// Public action — no auth needed
+// Public action: no auth needed
 export const getPublicData = actionClient
 	.action(async () => { /* ... */ });
 
-// Authenticated action — user must be logged in
+// Authenticated action: user must be logged in
 export const updateProfile = authClient
 	.inputSchema(profileSchema)
 	.action(async ({ parsedInput, ctx }) => {
 		// ctx.user is typed and available
 	});
 
-// Admin action — user must be admin
+// Admin action: user must be admin
 export const deleteUser = adminClient
 	.inputSchema(z.object({ userId: z.string() }))
 	.action(async ({ parsedInput, ctx }) => {

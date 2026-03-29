@@ -52,10 +52,10 @@ export const adminGuard = createMiddleware<{
 Now TypeScript will error if you try to use `adminGuard` on a client that doesn't have `user` in its context:
 
 ```ts
-// ✅ Works — authClient has ctx.user from auth middleware
+// ✅ Works: authClient has ctx.user from auth middleware
 const adminClient = authClient.use(adminGuard);
 
-// ❌ Type error — actionClient doesn't have ctx.user
+// ❌ Type error: actionClient doesn't have ctx.user
 const broken = actionClient.use(adminGuard);
 ```
 
@@ -85,6 +85,6 @@ The constraint defines the **minimum** required shape. The actual context/metada
 
 ## See also
 
-- [Middleware guide](/docs/guides/middleware) — foundational middleware concepts and patterns
-- [`createMiddleware()` API](/docs/api/create-middleware) — full API reference
-- [Metadata](/docs/advanced/metadata) — use metadata constraints in standalone middleware
+- [Middleware guide](/docs/guides/middleware): foundational middleware concepts and patterns
+- [`createMiddleware()` API](/docs/api/create-middleware): full API reference
+- [Metadata](/docs/advanced/metadata): use metadata constraints in standalone middleware

@@ -7,6 +7,7 @@ import {
 	NavigationIcon,
 	ShieldAlertIcon,
 	SparklesIcon,
+	ZapIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,6 +54,12 @@ const pages = [
 		description: "Adapter hooks for react-hook-form integration",
 		href: "/react-hook-form",
 		icon: CircuitBoardIcon,
+	},
+	{
+		title: "TanStack Query",
+		description: "mutationOptions adapter for type-safe TanStack Query mutations",
+		href: "/tanstack-query",
+		icon: ZapIcon,
 	},
 	{
 		title: "Navigation & Framework",

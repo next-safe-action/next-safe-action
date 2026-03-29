@@ -17,7 +17,7 @@ export const addItem = action
 		await new Promise((res) => setTimeout(res, 500));
 
 		if (Math.random() > 0.7) {
-			throw new ActionError("Random server error — please try again.");
+			throw new ActionError("Random server error, please try again.");
 		}
 
 		const item = { ...parsedInput, id: crypto.randomUUID() };

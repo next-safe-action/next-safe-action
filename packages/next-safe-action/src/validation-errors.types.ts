@@ -9,7 +9,9 @@ type ValidationErrorNode<K = undefined> = K extends any[] ? MaybeArray<{ _errors
 
 // Creates nested schema validation errors type using recursion.
 type SchemaErrors<Schema> = {
-	[K in keyof Schema]?: Schema[K] extends PrimitiveOrArray ? Prettify<ValidationErrorNode<Schema[K]>> : Prettify<ValidationErrorNode> & SchemaErrors<Schema[K]>;
+	[K in keyof Schema]?: Schema[K] extends PrimitiveOrArray
+		? Prettify<ValidationErrorNode<Schema[K]>>
+		: Prettify<ValidationErrorNode> & SchemaErrors<Schema[K]>;
 } & {};
 
 export type IssueWithUnionErrors = StandardSchemaV1.Issue & {

@@ -23,8 +23,10 @@ export const useAction = <ServerError, Schema extends StandardSchemaV1 | undefin
 	safeActionFn: SingleInputActionFn<ServerError, Schema, ShapedErrors, Data>,
 	cb?: HookCallbacks<ServerError, Schema, ShapedErrors, Data>
 ): UseActionHookReturn<ServerError, Schema, ShapedErrors, Data> => {
-	const { result, clientInput, status, execute, executeAsync, reset, shorthandStatus } =
-		useActionBase(safeActionFn, cb);
+	const { result, clientInput, status, execute, executeAsync, reset, shorthandStatus } = useActionBase(
+		safeActionFn,
+		cb
+	);
 
 	return {
 		execute,
@@ -44,7 +46,13 @@ export const useAction = <ServerError, Schema extends StandardSchemaV1 | undefin
  *
  * {@link https://next-safe-action.dev/docs/execute-actions/hooks/useoptimisticaction See docs for more information}
  */
-export const useOptimisticAction = <ServerError, Schema extends StandardSchemaV1 | undefined, ShapedErrors, Data, State>(
+export const useOptimisticAction = <
+	ServerError,
+	Schema extends StandardSchemaV1 | undefined,
+	ShapedErrors,
+	Data,
+	State,
+>(
 	safeActionFn: SingleInputActionFn<ServerError, Schema, ShapedErrors, Data>,
 	utils: {
 		currentState: State;

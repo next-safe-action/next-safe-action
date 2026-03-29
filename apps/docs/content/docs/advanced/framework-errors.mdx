@@ -25,13 +25,13 @@ export const loginAction = actionClient
 		const user = await authenticate(parsedInput);
 
 		if (!user) {
-			// Return validation error — NOT a framework error
+			// Return validation error, NOT a framework error
 			return returnValidationErrors(loginSchema, {
 				_errors: ["Invalid credentials"],
 			});
 		}
 
-		// This is a framework error — triggers navigation
+		// This is a framework error: triggers navigation
 		redirect("/dashboard");
 	});
 ```
@@ -103,6 +103,6 @@ const result = await loginAction(input);
 
 ## See also
 
-- [Error handling](/docs/concepts/error-handling) — where framework errors fit in the error taxonomy
-- [Hooks](/docs/guides/hooks) — `onNavigation` callback and `hasNavigated` status
-- [ActionCallbacks](/docs/api/safe-action-client#actioncallbacks-action-callbacks) — server-side `onNavigation` callback
+- [Error handling](/docs/concepts/error-handling): where framework errors fit in the error taxonomy
+- [Hooks](/docs/guides/hooks): `onNavigation` callback and `hasNavigated` status
+- [ActionCallbacks](/docs/api/safe-action-client#actioncallbacks-action-callbacks): server-side `onNavigation` callback

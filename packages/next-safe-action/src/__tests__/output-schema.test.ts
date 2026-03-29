@@ -6,14 +6,12 @@ import { ActionOutputDataValidationError } from "../validation-errors";
 test("action with valid output matching schema returns data", async () => {
 	const ac = createSafeActionClient();
 
-	const action = ac
-		.outputSchema(z.object({ id: z.string(), name: z.string() }))
-		.action(async () => {
-			return {
-				id: "123",
-				name: "John",
-			};
-		});
+	const action = ac.outputSchema(z.object({ id: z.string(), name: z.string() })).action(async () => {
+		return {
+			id: "123",
+			name: "John",
+		};
+	});
 
 	const actualResult = await action();
 
@@ -32,13 +30,11 @@ test("action with invalid output returns serverError", async () => {
 		handleServerError: () => DEFAULT_SERVER_ERROR_MESSAGE,
 	});
 
-	const action = ac
-		.outputSchema(z.object({ id: z.string() }))
-		.action(async () => {
-			return {
-				id: 123 as unknown as string,
-			};
-		});
+	const action = ac.outputSchema(z.object({ id: z.string() })).action(async () => {
+		return {
+			id: 123 as unknown as string,
+		};
+	});
 
 	const actualResult = await action();
 
@@ -117,11 +113,9 @@ test("action with no return value and outputSchema returns serverError", async (
 		handleServerError: () => DEFAULT_SERVER_ERROR_MESSAGE,
 	});
 
-	const action = ac
-		.outputSchema(z.object({ id: z.string() }))
-		.action(async () => {
-			return undefined as unknown as { id: string };
-		});
+	const action = ac.outputSchema(z.object({ id: z.string() })).action(async () => {
+		return undefined as unknown as { id: string };
+	});
 
 	const actualResult = await action();
 

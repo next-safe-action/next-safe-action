@@ -12,11 +12,11 @@ When you call a safe action, it goes through a well-defined pipeline on the serv
 	<img src="/img/diagrams/action-lifecycle-light.svg" alt="Action lifecycle diagram showing: Client Call → Middleware → Validate Input → Server Code → Validate Output" />
 </picture>
 
-1. **Client Call** — the action function is called from a Client Component (directly, via `useAction`, or via a form)
-2. **Middleware** — the middleware stack runs in order, each layer can short-circuit or extend the context
-3. **Validate Input** — the raw client input is parsed and validated against the input schema via [Standard Schema](https://github.com/standard-schema/standard-schema)
-4. **Server Code** — your async function runs with the validated `parsedInput` and accumulated `ctx`
-5. **Validate Output** — if an `outputSchema` is defined, the return value is validated before being sent to the client
+1. **Client Call**: the action function is called from a Client Component (directly, via `useAction`, or via a form)
+2. **Middleware**: the middleware stack runs in order, each layer can short-circuit or extend the context
+3. **Validate Input**: the raw client input is parsed and validated against the input schema via [Standard Schema](https://github.com/standard-schema/standard-schema)
+4. **Server Code**: your async function runs with the validated `parsedInput` and accumulated `ctx`
+5. **Validate Output**: if an `outputSchema` is defined, the return value is validated before being sent to the client
 
 If any step fails, the pipeline stops and returns an appropriate error in the [action result](/docs/concepts/action-result).
 

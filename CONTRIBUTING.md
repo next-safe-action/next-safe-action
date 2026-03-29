@@ -32,6 +32,7 @@ Lint and format configuration files are organized as:
 
 - [`packages/next-safe-action`](./packages/next-safe-action): contains the source code of the library;
 - [`packages/adapter-react-hook-form`](./packages/adapter-react-hook-form): contains the source code of the `@next-safe-action/adapter-react-hook-form` adapter for react-hook-form integration;
+- [`packages/adapter-tanstack-query`](./packages/adapter-tanstack-query): contains the source code of the `@next-safe-action/adapter-tanstack-query` adapter for TanStack Query mutation integration;
 - [`apps/playground`](./apps/playground): contains the source code of the Next.js playground app, which is a basic implementation of the library;
 - [`apps/docs`](./apps/docs): contains the source code of the [next-safe-action documentation website](https://next-safe-action.dev), built with Fumadocs (content in `content/docs/`).
 
@@ -63,7 +64,7 @@ pnpm run build:lib && pnpm run pg
 
 If you updated user facing APIs of the library, you're **not required**, but **highly encouraged** to:
 - update [the documentation](./apps/docs/content/docs) of the library to reflect the changes you've made.
-- write tests for the changes you've made. They should be placed in the appropriate `__tests__` directory for the affected package ([`next-safe-action`](./packages/next-safe-action/src/__tests__) or [`adapter-react-hook-form`](./packages/adapter-react-hook-form/src/__tests__)).
+- write tests for the changes you've made. They should be placed in the appropriate `__tests__` directory for the affected package ([`next-safe-action`](./packages/next-safe-action/src/__tests__), [`adapter-react-hook-form`](./packages/adapter-react-hook-form/src/__tests__), or [`adapter-tanstack-query`](./packages/adapter-tanstack-query/src/__tests__)).
 - add a Changeset file using `pnpm run changeset`.
 
 These steps can be done in later stages of the PR too, for instance when a maintainer already approved your code updates.

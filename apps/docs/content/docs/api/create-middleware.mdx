@@ -148,7 +148,7 @@ import { adminGuard } from "./middleware/admin-guard";
 
 const baseClient = createSafeActionClient().use(loggingMiddleware);
 
-// ✅ Works — adminGuard requires ctx.user, which authMiddleware provides
+// ✅ Works: adminGuard requires ctx.user, which authMiddleware provides
 const adminClient = baseClient
 	.use(async ({ next }) => {
 		const user = await getUser();
@@ -156,12 +156,12 @@ const adminClient = baseClient
 	})
 	.use(adminGuard);
 
-// ❌ Type error — adminGuard requires ctx.user, but baseClient doesn't have it
+// ❌ Type error: adminGuard requires ctx.user, but baseClient doesn't have it
 const broken = baseClient.use(adminGuard);
 ```
 
 ## See also
 
-- [Middleware guide](/docs/guides/middleware) — foundational middleware concepts
-- [Standalone middleware](/docs/advanced/standalone-middleware) — guide with more patterns and use cases
-- [`.use()` method](/docs/api/safe-action-client#use) — how standalone middleware is consumed by clients
+- [Middleware guide](/docs/guides/middleware): foundational middleware concepts
+- [Standalone middleware](/docs/advanced/standalone-middleware): guide with more patterns and use cases
+- [`.use()` method](/docs/api/safe-action-client#use): how standalone middleware is consumed by clients

@@ -69,7 +69,7 @@ export function CoreActionsClient({ sources }: Props) {
 
 			<ExampleCard
 				title="Async Schema"
-				description="inputSchema with an async factory function — schema is resolved at runtime."
+				description="inputSchema with an async factory function, schema is resolved at runtime."
 				source={sources.asyncSchemaAction}
 			>
 				<form
@@ -101,7 +101,7 @@ export function CoreActionsClient({ sources }: Props) {
 
 			<ExampleCard
 				title="Auth Context"
-				description="authAction with chained .use() middleware — ctx.userId and ctx.sessionId available in the action."
+				description="authAction with chained .use() middleware, ctx.userId and ctx.sessionId available in the action."
 				source={sources.authContextAction}
 			>
 				<form
@@ -133,7 +133,7 @@ export function CoreActionsClient({ sources }: Props) {
 
 			<ExampleCard
 				title="No Arguments"
-				description="Action without an input schema — just call it."
+				description="Action without an input schema, just call it."
 				source={sources.noArgsAction}
 			>
 				<Button
@@ -149,7 +149,7 @@ export function CoreActionsClient({ sources }: Props) {
 
 			<ExampleCard
 				title="Empty Response"
-				description="Action that returns void — useful for side-effect-only operations."
+				description="Action that returns void, useful for side-effect-only operations."
 				source={sources.emptyResponseAction}
 			>
 				<form

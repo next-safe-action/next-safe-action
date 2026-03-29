@@ -23,8 +23,8 @@ result.validationErrors;
 
 Validation errors are produced in two ways:
 
-1. **Automatically** — when Standard Schema validation fails on input or bind args
-2. **Manually** — when you call `returnValidationErrors()` in your server code (e.g., "email already taken")
+1. **Automatically**: when Standard Schema validation fails on input or bind args
+2. **Manually**: when you call `returnValidationErrors()` in your server code (e.g., "email already taken")
 
 ```ts
 import { returnValidationErrors } from "next-safe-action";
@@ -77,7 +77,7 @@ const actionClient = createSafeActionClient({
 
 By default, validation and server errors are **returned** in the result object. You can opt into **throwing** them instead using boolean flags, which is useful when you want errors to propagate to an error boundary or a try/catch block.
 
-**`throwServerError`** — action-level only. When enabled, server errors are re-thrown instead of being returned in `result.serverError`:
+**`throwServerError`**: action-level only. When enabled, server errors are re-thrown instead of being returned in `result.serverError`:
 
 ```ts
 export const myAction = actionClient
@@ -92,7 +92,7 @@ export const myAction = actionClient
 	);
 ```
 
-**`throwValidationErrors`** — available at both client and action level. When set at both levels, the action-level setting takes priority:
+**`throwValidationErrors`**: available at both client and action level. When set at both levels, the action-level setting takes priority:
 
 ```ts
 // Client-level: applies to all actions created from this client
@@ -130,7 +130,7 @@ export const loginAction = actionClient
 	.inputSchema(loginSchema)
 	.action(async ({ parsedInput }) => {
 		const user = await authenticate(parsedInput);
-		// This triggers a redirect — not a normal return
+		// This triggers a redirect, not a normal return
 		redirect("/dashboard");
 	});
 ```

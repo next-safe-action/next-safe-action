@@ -109,7 +109,7 @@ const testimonials: Testimonial[] = [
 		authorName: "Rajdeep",
 		authorHandle: "Rajdeep__ds",
 		date: "Jan 1, 2025",
-		text: "Just tried @TheEdoRan's next-safe-action with @nextjs 15 Server Actions—it's a game-changer! 🚀 Type-safe server actions + seamless DX = 🔥 Highly recommend checking it out! 🤩",
+		text: "Just tried @TheEdoRan's next-safe-action with @nextjs 15 Server Actions, it's a game-changer! 🚀 Type-safe server actions + seamless DX = 🔥 Highly recommend checking it out! 🤩",
 	},
 	{
 		tweetUrl: "https://x.com/JustinLicata/status/2009255152092418215",

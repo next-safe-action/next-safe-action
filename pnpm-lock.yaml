@@ -12,6 +12,9 @@ catalogs:
     '@tailwindcss/postcss':
       specifier: ^4
       version: 4.2.2
+    '@tanstack/react-query':
+      specifier: ^5.80.7
+      version: 5.95.2
     '@testing-library/dom':
       specifier: ^10
       version: 10.4.1
@@ -160,6 +163,12 @@ importers:
       '@next-safe-action/adapter-react-hook-form':
         specifier: workspace:*
         version: link:../../packages/adapter-react-hook-form
+      '@next-safe-action/adapter-tanstack-query':
+        specifier: workspace:*
+        version: link:../../packages/adapter-tanstack-query
+      '@tanstack/react-query':
+        specifier: 'catalog:'
+        version: 5.95.2(react@19.2.4)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -278,6 +287,48 @@ importers:
       react-hook-form:
         specifier: 'catalog:'
         version: 7.72.0(react@19.2.4)
+      tsdown:
+        specifier: 'catalog:'
+        version: 0.21.6(typescript@6.0.2)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 3.2.4(@types/debug@4.1.13)(@types/node@24.12.0)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.32.0)(msw@2.12.14(@types/node@24.12.0)(typescript@6.0.2))
+      zod:
+        specifier: 'catalog:'
+        version: 4.3.6
+
+  packages/adapter-tanstack-query:
+    devDependencies:
+      '@tanstack/react-query':
+        specifier: 'catalog:'
+        version: 5.95.2(react@19.2.4)
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.12.0
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.14
+      next:
+        specifier: 'catalog:'
+        version: 16.2.1(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      next-safe-action:
+        specifier: workspace:*
+        version: link:../next-safe-action
+      oxlint:
+        specifier: 'catalog:'
+        version: 1.57.0(oxlint-tsgolint@0.15.0)
+      oxlint-tsgolint:
+        specifier: 'catalog:'
+        version: 0.15.0
+      react:
+        specifier: 'catalog:'
+        version: 19.2.4
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.2.4(react@19.2.4)
       tsdown:
         specifier: 'catalog:'
         version: 0.21.6(typescript@6.0.2)
@@ -2547,6 +2598,14 @@ packages:
 
   '@tailwindcss/postcss@4.2.2':
     resolution: {integrity: sha512-n4goKQbW8RVXIbNKRB/45LzyUqN451deQK0nzIeauVEqjlI49slUlgKYJM2QyUzap/PcpnS7kzSUmPb1sCRvYQ==}
+
+  '@tanstack/query-core@5.95.2':
+    resolution: {integrity: sha512-o4T8vZHZET4Bib3jZ/tCW9/7080urD4c+0/AUaYVpIqOsr7y0reBc1oX3ttNaSW5mYyvZHctiQ/UOP2PfdmFEQ==}
+
+  '@tanstack/react-query@5.95.2':
+    resolution: {integrity: sha512-/wGkvLj/st5Ud1Q76KF1uFxScV7WeqN1slQx5280ycwAyYkIPGaRZAEgHxe3bjirSd5Zpwkj6zNcR4cqYni/ZA==}
+    peerDependencies:
+      react: ^18 || ^19
 
   '@testing-library/dom@10.4.1':
     resolution: {integrity: sha512-o4PXJQidqJl82ckFaXUeoAW+XysPLauYI43Abki5hABd853iMhitooc6znOnczgbTYmEP6U6/y1ZyKAIsvMKGg==}
@@ -7485,6 +7544,13 @@ snapshots:
       '@tailwindcss/oxide': 4.2.2
       postcss: 8.5.8
       tailwindcss: 4.2.2
+
+  '@tanstack/query-core@5.95.2': {}
+
+  '@tanstack/react-query@5.95.2(react@19.2.4)':
+    dependencies:
+      '@tanstack/query-core': 5.95.2
+      react: 19.2.4
 
   '@testing-library/dom@10.4.1':
     dependencies:

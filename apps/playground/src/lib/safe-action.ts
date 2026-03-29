@@ -109,10 +109,10 @@ export const flattenedAction = createSafeActionClient({
 // --- Standalone middleware: logging ---
 
 export const loggingMiddleware = createMiddleware().define(async ({ next, clientInput }) => {
-	console.log("STANDALONE LOGGING MIDDLEWARE — input:", clientInput);
+	console.log("STANDALONE LOGGING MIDDLEWARE, input:", clientInput);
 	const start = Date.now();
 	const result = await next();
-	console.log(`STANDALONE LOGGING MIDDLEWARE — completed in ${Date.now() - start}ms`);
+	console.log(`STANDALONE LOGGING MIDDLEWARE, completed in ${Date.now() - start}ms`);
 	return result;
 });
 

@@ -22,7 +22,7 @@ export function StatefulFormDemo({ source }: Props) {
 	return (
 		<ExampleCard
 			title="Stateful Form"
-			description="stateAction with React useActionState — the previous result is available in the server function."
+			description="stateAction with React useActionState, the previous result is available in the server function."
 			source={source}
 		>
 			<form action={formAction} className="space-y-4">
