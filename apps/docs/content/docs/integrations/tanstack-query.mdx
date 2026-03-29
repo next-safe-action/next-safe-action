@@ -99,7 +99,7 @@ next-safe-action provides two ways to call server actions from client components
 
 The built-in hooks are built on top of React 19 concurrent primitives: [`useTransition`](https://react.dev/reference/react/useTransition), [`useOptimistic`](https://react.dev/reference/react/useOptimistic), and [`useActionState`](https://react.dev/reference/react/useActionState). When you call `execute()`, the action runs inside a React Transition, which means React keeps the current UI responsive while the action is in flight, and features like Suspense boundaries and optimistic state rollbacks integrate automatically. The hooks also work directly with next-safe-action's result envelope, so you access `result.data`, `result.serverError`, and `result.validationErrors` as structured fields without any error transformation.
 
-The TanStack Query adapter delegates all state management to TanStack Query's `useMutation`. It bridges the result envelope to TanStack Query's thrown-error model: when an action returns `serverError` or `validationErrors`, the adapter extracts them from the result and wraps them in a typed `ActionMutationError` instance on the client. In return, you gain TanStack Query's full mutation lifecycle: configurable retry strategies with exponential backoff, query cache invalidation after mutations, TanStack Query DevTools integration, mutation persistence for offline support, and the ability to coordinate mutations with queries in a single cache.
+The TanStack Query adapter delegates all state management to TanStack Query's `useMutation`. It bridges the result envelope to TanStack Query's thrown-error model: when an action returns `serverError` or `validationErrors`, the adapter extracts them from the result and wraps them in a typed `ActionMutationError` instance on the client. In return, you gain TanStack Query's full mutation lifecycle: configurable retry strategies with exponential backoff, client-side query cache invalidation after mutations (in addition to Next.js's server-side `revalidatePath`/`revalidateTag`, which work with both approaches), TanStack Query DevTools integration, mutation persistence for offline support, and the ability to coordinate mutations with queries in a single client cache.
 
 ### When to use which
 
@@ -112,9 +112,9 @@ The TanStack Query adapter delegates all state management to TanStack Query's `u
 | Already using TanStack Query for data fetching | Adapter |
 | Already using tRPC + TanStack Query | Adapter |
 | You need automatic retries with backoff | Adapter |
-| You need to invalidate query caches after a mutation | Adapter |
+| You need to invalidate TanStack Query's client cache after a mutation | Adapter |
 | You want TanStack Query DevTools visibility for mutations | Adapter |
-| You need mutation persistence (offline/resume support) | Adapter |
+| You need mutations to survive page reloads or network loss (offline persistence) | Adapter |
 
 ### Feature comparison
 
@@ -123,11 +123,11 @@ The TanStack Query adapter delegates all state management to TanStack Query's `u
 | React Transitions | Yes, actions run inside `startTransition` | No |
 | Optimistic updates | `useOptimisticAction` via React's `useOptimistic` | Manual via `onMutate` + query cache |
 | Automatic retries | No | Yes, `retry` option with backoff |
-| Query cache invalidation | No | Yes, `queryClient.invalidateQueries()` |
+| Server cache invalidation | Yes, `revalidatePath()` / `revalidateTag()` inside server actions | Yes, same Next.js APIs inside server actions |
+| Client query cache invalidation | No (not applicable) | Yes, `queryClient.invalidateQueries()` in `onSuccess` |
 | DevTools | No | Yes, TanStack Query DevTools |
 | Error model | Result envelope (`result.serverError`, `result.validationErrors`) | Thrown `ActionMutationError` with type guards |
-| Navigation handling | `onNavigation` callback with `NavigationKind` | Automatic re-throw during render |
-| Mutation persistence | No | Yes, dehydration/hydration |
+| Offline mutation persistence | No, state is lost on unmount or reload | Yes, paused mutations can be serialized to storage and resumed via `dehydrate`/`hydrate` |
 | Async execution | `executeAsync()` returns `Promise<Result>` | `mutateAsync()` returns `Promise<Data>` |
 | Status tracking | `status` string + shorthand booleans (`isIdle`, `isPending`, `hasSucceeded`, `hasErrored`) | Boolean flags (`isPending`, `isError`, `isSuccess`) |
 | Extra dependencies | None (React only) | `@tanstack/react-query` |
@@ -136,7 +136,7 @@ The TanStack Query adapter delegates all state management to TanStack Query's `u
 
 **Prefer built-in hooks** for most Next.js applications. They require no extra dependencies, integrate deeply with React's concurrent rendering model, and give you direct access to the result envelope without error transformation. If your app primarily uses Server Components for data fetching and only needs server actions for mutations (forms, button clicks, state changes), the built-in hooks are the simplest and most natural choice.
 
-**Prefer the adapter** when TanStack Query is already part of your stack, especially alongside tRPC for a type-safe API layer. If you are fetching data with `useQuery` and want mutations to participate in the same cache lifecycle (invalidation, optimistic cache updates, retry strategies, DevTools inspection), the adapter keeps everything in one ecosystem instead of splitting state management between two systems.
+**Prefer the adapter** when TanStack Query is already part of your stack, especially alongside tRPC for a type-safe API layer. If you are fetching data with `useQuery` and want mutations to participate in the same client-side cache lifecycle (query invalidation, optimistic cache updates, retry strategies, DevTools inspection), the adapter keeps everything in one ecosystem instead of splitting state management between two systems. Note that Next.js's server-side cache invalidation (`revalidatePath`/`revalidateTag`) works regardless of which approach you choose, since it runs inside the server action itself.
 
 ## Why mutations only?
 
