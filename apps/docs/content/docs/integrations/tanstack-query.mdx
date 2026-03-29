@@ -91,6 +91,53 @@ export function CreateUserForm() {
 </Step>
 </Steps>
 
+## Hooks vs. adapter
+
+next-safe-action provides two ways to call server actions from client components: the **built-in hooks** (`useAction`, `useOptimisticAction`, `useStateAction`) from `next-safe-action/hooks`, and this **TanStack Query adapter** (`mutationOptions`) from `@next-safe-action/adapter-tanstack-query`. Both give you type-safe action execution, but they use fundamentally different mechanisms under the hood and shine in different scenarios.
+
+### How they differ
+
+The built-in hooks are built on top of React 19 concurrent primitives: [`useTransition`](https://react.dev/reference/react/useTransition), [`useOptimistic`](https://react.dev/reference/react/useOptimistic), and [`useActionState`](https://react.dev/reference/react/useActionState). When you call `execute()`, the action runs inside a React Transition, which means React keeps the current UI responsive while the action is in flight, and features like Suspense boundaries and optimistic state rollbacks integrate automatically. The hooks also work directly with next-safe-action's result envelope, so you access `result.data`, `result.serverError`, and `result.validationErrors` as structured fields without any error transformation.
+
+The TanStack Query adapter delegates all state management to TanStack Query's `useMutation`. It bridges the result envelope to TanStack Query's thrown-error model: when an action returns `serverError` or `validationErrors`, the adapter extracts them from the result and wraps them in a typed `ActionMutationError` instance on the client. In return, you gain TanStack Query's full mutation lifecycle: configurable retry strategies with exponential backoff, query cache invalidation after mutations, TanStack Query DevTools integration, mutation persistence for offline support, and the ability to coordinate mutations with queries in a single cache.
+
+### When to use which
+
+| Scenario | Recommendation |
+|---|---|
+| New Next.js project without TanStack Query | Built-in hooks |
+| Simple form submissions and button actions | Built-in hooks |
+| You want instant optimistic UI via React's `useOptimistic` | Built-in hooks (`useOptimisticAction`) |
+| You want zero additional dependencies | Built-in hooks |
+| Already using TanStack Query for data fetching | Adapter |
+| Already using tRPC + TanStack Query | Adapter |
+| You need automatic retries with backoff | Adapter |
+| You need to invalidate query caches after a mutation | Adapter |
+| You want TanStack Query DevTools visibility for mutations | Adapter |
+| You need mutation persistence (offline/resume support) | Adapter |
+
+### Feature comparison
+
+| Feature | Built-in hooks | Adapter |
+|---|---|---|
+| React Transitions | Yes, actions run inside `startTransition` | No |
+| Optimistic updates | `useOptimisticAction` via React's `useOptimistic` | Manual via `onMutate` + query cache |
+| Automatic retries | No | Yes, `retry` option with backoff |
+| Query cache invalidation | No | Yes, `queryClient.invalidateQueries()` |
+| DevTools | No | Yes, TanStack Query DevTools |
+| Error model | Result envelope (`result.serverError`, `result.validationErrors`) | Thrown `ActionMutationError` with type guards |
+| Navigation handling | `onNavigation` callback with `NavigationKind` | Automatic re-throw during render |
+| Mutation persistence | No | Yes, dehydration/hydration |
+| Async execution | `executeAsync()` returns `Promise<Result>` | `mutateAsync()` returns `Promise<Data>` |
+| Status tracking | `status` string + shorthand booleans (`isIdle`, `isPending`, `hasSucceeded`, `hasErrored`) | Boolean flags (`isPending`, `isError`, `isSuccess`) |
+| Extra dependencies | None (React only) | `@tanstack/react-query` |
+
+### General guidance
+
+**Prefer built-in hooks** for most Next.js applications. They require no extra dependencies, integrate deeply with React's concurrent rendering model, and give you direct access to the result envelope without error transformation. If your app primarily uses Server Components for data fetching and only needs server actions for mutations (forms, button clicks, state changes), the built-in hooks are the simplest and most natural choice.
+
+**Prefer the adapter** when TanStack Query is already part of your stack, especially alongside tRPC for a type-safe API layer. If you are fetching data with `useQuery` and want mutations to participate in the same cache lifecycle (invalidation, optimistic cache updates, retry strategies, DevTools inspection), the adapter keeps everything in one ecosystem instead of splitting state management between two systems.
+
 ## Why mutations only?
 
 <Callout>
