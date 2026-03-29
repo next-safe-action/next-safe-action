@@ -15,7 +15,7 @@ vi.mock("next-safe-action/hooks", () => ({
 
 import { useHookFormActionErrorMapper, useHookFormAction, useHookFormOptimisticAction } from "../hooks";
 
-// Fake safe action function (just a callable — the mock controls useAction's behavior).
+// Fake safe action function (just a callable, the mock controls useAction's behavior).
 const fakeSafeAction = vi.fn() as any;
 
 // Fake resolver that always passes validation, forwarding actual form values.
@@ -116,7 +116,7 @@ describe("useHookFormAction", () => {
 			})
 		);
 
-		// react-hook-form's useForm picks up defaultValues — the form's initial value reflects it.
+		// react-hook-form's useForm picks up defaultValues, the form's initial value reflects it.
 		const form = result.current.form as UseFormReturn<{ name: string }>;
 		expect(form.getValues("name")).toBe("test");
 	});
@@ -161,7 +161,7 @@ describe("useHookFormAction", () => {
 		});
 
 		// The fake resolver always passes, so executeAsync should be called with form values.
-		// react-hook-form's handleSubmit passes (data, event) — so executeAsync also gets the event arg.
+		// react-hook-form's handleSubmit passes (data, event), so executeAsync also gets the event arg.
 		expect(mockExecuteAsync).toHaveBeenCalledWith({ name: "John" }, undefined);
 	});
 

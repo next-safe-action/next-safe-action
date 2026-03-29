@@ -74,7 +74,7 @@ import { z } from "zod";
 export const updateProfile = authClient
 	.inputSchema(z.object({ name: z.string().min(2) }))
 	.action(async ({ parsedInput, ctx }) => {
-		// ctx.user is typed — TypeScript knows it exists
+		// ctx.user is typed: TypeScript knows it exists
 		await db.user.update({
 			where: { id: ctx.user.id },
 			data: { name: parsedInput.name },

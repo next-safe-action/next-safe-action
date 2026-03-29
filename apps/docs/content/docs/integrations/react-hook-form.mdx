@@ -181,7 +181,7 @@ The optional `props` object has the following shape:
 <TypeTable
 	type={{
 		errorMapProps: {
-			description: "Props passed to the error mapper. Currently supports joinBy — the string used to join multiple validation error messages for a single field.",
+			description: "Props passed to the error mapper. Currently supports joinBy, the string used to join multiple validation error messages for a single field.",
 			type: "ErrorMapperProps",
 			default: "undefined",
 		},
@@ -229,7 +229,7 @@ See the [Quick start](#quick-start) section above for a full example.
 
 ## `useHookFormOptimisticAction`
 
-Combines `useOptimisticAction` and `useForm` into a single hook. Use this when you want optimistic UI updates — the form's result updates immediately before the server responds, then reverts if the action fails.
+Combines `useOptimisticAction` and `useForm` into a single hook. Use this when you want optimistic UI updates: the form's result updates immediately before the server responds, then reverts if the action fails.
 
 ```ts
 import { useHookFormOptimisticAction } from "@next-safe-action/adapter-react-hook-form/hooks";
@@ -596,8 +596,8 @@ type MyOptimisticHookReturn = InferUseHookFormOptimisticActionHookReturn<typeof 
 
 ## See also
 
-- [Hooks guide](/docs/guides/hooks) — the `useAction` hook that the adapter builds on
-- [Hooks API reference](/docs/api/hooks-api) — full type signatures for `useAction` and `useOptimisticAction`
-- [Optimistic updates](/docs/guides/optimistic-updates) — `useOptimisticAction` in depth
-- [Form actions](/docs/guides/form-actions) — alternative form patterns without React Hook Form
-- [Custom validation errors](/docs/advanced/custom-validation-errors) — customizing error shapes for form display
+- [Hooks guide](/docs/guides/hooks): the `useAction` hook that the adapter builds on
+- [Hooks API reference](/docs/api/hooks-api): full type signatures for `useAction` and `useOptimisticAction`
+- [Optimistic updates](/docs/guides/optimistic-updates): `useOptimisticAction` in depth
+- [Form actions](/docs/guides/form-actions): alternative form patterns without React Hook Form
+- [Custom validation errors](/docs/advanced/custom-validation-errors): customizing error shapes for form display

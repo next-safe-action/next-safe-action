@@ -60,8 +60,8 @@ The `parsedInput` parameter in your server code is **fully typed** based on the 
 
 When an action is called, the input goes through this flow:
 
-1. **Client sends raw input** — the unvalidated data from the client
-2. **Standard Schema parse** — the input is validated against your schema
+1. **Client sends raw input**: the unvalidated data from the client
+2. **Standard Schema parse**: the input is validated against your schema
 3. **Success** → your server code receives `parsedInput` (typed and validated)
 4. **Failure** → the action returns `validationErrors` immediately (your server code never runs)
 

@@ -15,7 +15,7 @@ import type { InferInputOrDefault, StandardSchemaV1 } from "./standard-schema";
  * 4. Returns `data` on success
  *
  * Navigation errors (`redirect()`, `notFound()`, etc.) are automatically propagated
- * to Next.js via TanStack Query's `throwOnError` mechanism — they are re-thrown during
+ * to Next.js via TanStack Query's `throwOnError` mechanism, they are re-thrown during
  * React's render phase so the framework can handle navigation.
  *
  * **Important:** Do not use `throwValidationErrors` or `throwServerError` on actions
@@ -70,7 +70,7 @@ export function mutationOptions<
 		mutationFn: async (input: InferInputOrDefault<Schema, void>, _context) => {
 			const result = await safeActionFn(input as InferInputOrDefault<Schema, undefined>);
 
-			// Check the result envelope for errors — the only reliable path for
+			// Check the result envelope for errors, the only reliable path for
 			// structured error data across the server-client boundary.
 			if (result.serverError !== undefined || result.validationErrors !== undefined) {
 				throw new ActionMutationError<ServerError, ShapedErrors>({

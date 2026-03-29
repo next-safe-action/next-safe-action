@@ -99,19 +99,19 @@ This adapter intentionally provides only `mutationOptions()` for `useMutation()`
 
 Server Actions in React and Next.js are built exclusively for mutations, not data fetching:
 
-- **POST-only transport.** Server Actions always use `POST`. [Next.js docs](https://nextjs.org/docs/13/app/building-your-application/data-fetching/server-actions-and-mutations): _"Behind the scenes, actions use the POST method, and only this HTTP method can invoke them."_ Queries should use `GET` — the correct method for safe, cacheable reads.
+- **POST-only transport.** Server Actions always use `POST`. [Next.js docs](https://nextjs.org/docs/13/app/building-your-application/data-fetching/server-actions-and-mutations): _"Behind the scenes, actions use the POST method, and only this HTTP method can invoke them."_ Queries should use `GET`, the correct method for safe, cacheable reads.
 
 - **Sequential queuing.** Server Actions are queued per client to preserve ordering. [Next.js docs](https://nextjs.org/docs/app/guides/backend-for-frontend): _"Server Actions are queued, which means using them for data fetching introduces sequential execution."_ This creates request waterfalls where concurrent reads should run in parallel.
 
-- **No HTTP caching.** `POST` requests bypass browser cache, `Cache-Control`, `ETag`, and conditional requests. `useQuery` relies on stable cache keys from URLs and parameters — Server Actions provide neither.
+- **No HTTP caching.** `POST` requests bypass browser cache, `Cache-Control`, `ETag`, and conditional requests. `useQuery` relies on stable cache keys from URLs and parameters, which Server Actions provide neither.
 
 - **No request deduplication.** Without a stable resource identity, TanStack Query cannot deduplicate simultaneous reads across components.
 
 ### What to use instead for data fetching
 
-- **Server-side reads:** [React Server Components](https://nextjs.org/docs/app/getting-started/fetching-data) — data is fetched during rendering on the server with full Next.js caching support.
+- **Server-side reads:** [React Server Components](https://nextjs.org/docs/app/getting-started/fetching-data): data is fetched during rendering on the server with full Next.js caching support.
 - **Client-side reads:** Create a [Route Handler](https://nextjs.org/docs/app/building-your-application/routing/route-handlers) (`GET` endpoint) and use `useQuery` / `queryOptions`. This gives you HTTP caching, deduplication, `staleTime`, background refetching, and all TanStack Query cache features.
-- **Full-stack type-safe API layer:** If you want end-to-end type safety for both queries (`GET`) and mutations (`POST`), first-class TanStack Query integration, and the ability to share your API procedures across multiple clients or applications, [tRPC](https://trpc.io) is the best fit. tRPC provides `queryOptions()` and `mutationOptions()` factories that plug directly into `useQuery` and `useMutation`, giving you the complete TanStack Query experience — caching, deduplication, background refetching, and optimistic updates — for reads and writes alike.
+- **Full-stack type-safe API layer:** If you want end-to-end type safety for both queries (`GET`) and mutations (`POST`), first-class TanStack Query integration, and the ability to share your API procedures across multiple clients or applications, [tRPC](https://trpc.io) is the best fit. tRPC provides `queryOptions()` and `mutationOptions()` factories that plug directly into `useQuery` and `useMutation`, giving you the complete TanStack Query experience (caching, deduplication, background refetching, and optimistic updates) for reads and writes alike.
 
 ## How it works
 
@@ -119,7 +119,7 @@ The `mutationOptions()` function creates a complete `UseMutationOptions` object 
 
 1. **Calls the safe action** with the input provided to `mutate()` / `mutateAsync()`
 2. **Inspects the result envelope** for `serverError` or `validationErrors`
-3. **Throws `ActionMutationError`** if either is present — this is a custom error class created on the client, so `instanceof` checks work reliably
+3. **Throws `ActionMutationError`** if either is present, a custom error class created on the client, so `instanceof` checks work reliably
 4. **Returns `data`** directly as TanStack Query's `TData` on success
 5. **Handles navigation errors** (`redirect()`, `notFound()`, `forbidden()`, `unauthorized()`) by composing TanStack Query's `throwOnError` option to always re-throw them during React's render phase, allowing Next.js to catch them and perform the navigation
 
@@ -146,7 +146,7 @@ const options = mutationOptions(safeActionFn, opts?);
 <TypeTable
 	type={{
 		safeActionFn: {
-			description: "A safe action function — the return value of .action() or bound with .bind().",
+			description: "A safe action function, the return value of .action() or bound with .bind().",
 			type: "SafeActionFn<ServerError, Schema, ShapedErrors, Data> | SingleInputActionFn<ServerError, Schema, ShapedErrors, Data>",
 		},
 		opts: {
@@ -276,9 +276,9 @@ class ActionMutationError<ServerError, ShapedErrors> extends Error {
 
 The `kind` property tells you which errors are present:
 
-- `"server"` — only `serverError` is set
-- `"validation"` — only `validationErrors` is set
-- `"both"` — both are set
+- `"server"`: only `serverError` is set
+- `"validation"`: only `validationErrors` is set
+- `"both"`: both are set
 
 ### Type guards
 
@@ -312,7 +312,7 @@ if (hasValidationErrors(error)) {
 **Do not** use `throwValidationErrors: true` or `throwServerError: true` on actions passed to `mutationOptions()`.
 </Callout>
 
-React's Flight protocol serializes errors thrown in Server Actions across the server–client boundary. Custom error classes are converted to plain `Error` objects — all custom properties (like `validationErrors`) are lost, and `instanceof` checks fail. In production, even the error message is replaced with a generic string.
+React's Flight protocol serializes errors thrown in Server Actions across the server–client boundary. Custom error classes are converted to plain `Error` objects, all custom properties (like `validationErrors`) are lost, and `instanceof` checks fail. In production, even the error message is replaced with a generic string.
 
 The adapter relies on the result envelope (the default behavior) to extract structured error data. When `throwValidationErrors` or `throwServerError` is enabled, errors are thrown on the server and lose all structured data before reaching the client.
 
@@ -350,7 +350,7 @@ type MyError = InferActionMutationError<typeof createUser>;
 
 ## See also
 
-- [Hooks guide](/docs/guides/hooks) — the `useAction` hook for direct server action calls without TanStack Query
-- [React Hook Form integration](/docs/integrations/react-hook-form) — sibling adapter for react-hook-form
-- [Optimistic updates](/docs/guides/optimistic-updates) — `useOptimisticAction` in depth
-- [Custom validation errors](/docs/advanced/custom-validation-errors) — customizing error shapes
+- [Hooks guide](/docs/guides/hooks): the `useAction` hook for direct server action calls without TanStack Query
+- [React Hook Form integration](/docs/integrations/react-hook-form): sibling adapter for react-hook-form
+- [Optimistic updates](/docs/guides/optimistic-updates): `useOptimisticAction` in depth
+- [Custom validation errors](/docs/advanced/custom-validation-errors): customizing error shapes

@@ -14,7 +14,7 @@ function createNavigationError(digest: string) {
 	return error;
 }
 
-// Mock MutationFunctionContext — we only need an empty-ish object for unit tests.
+// Mock MutationFunctionContext, we only need an empty-ish object for unit tests.
 const ctx = {} as any;
 
 describe("mutationOptions", () => {

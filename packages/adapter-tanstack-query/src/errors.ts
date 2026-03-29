@@ -2,7 +2,7 @@
  * Error thrown by the `mutationFn` inside `mutationOptions` when a safe action result
  * contains `serverError`, `validationErrors`, or both.
  *
- * This error is created entirely on the client side — it never crosses the server-client
+ * This error is created entirely on the client side, it never crosses the server-client
  * boundary, so `instanceof` checks work reliably.
  */
 export class ActionMutationError<ServerError, ShapedErrors> extends Error {

@@ -50,7 +50,7 @@ export function OptimisticMutationDemo({ initialTodos, source }: Props) {
 	return (
 		<ExampleCard
 			title="Optimistic updates"
-			description="Todos toggle instantly via onMutate — reverts on server error (30% random failure rate)."
+			description="Todos toggle instantly via onMutate, reverts on server error (30% random failure rate)."
 			source={source}
 		>
 			<div className="space-y-2">

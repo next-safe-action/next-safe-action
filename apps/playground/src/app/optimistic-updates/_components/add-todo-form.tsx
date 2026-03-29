@@ -32,7 +32,7 @@ export function AddTodoForm({ todos, source }: Props) {
 	return (
 		<ExampleCard
 			title="Optimistic Todo List"
-			description="useOptimisticAction with currentState/updateFn — items appear instantly before server confirms."
+			description="useOptimisticAction with currentState/updateFn, items appear instantly before server confirms."
 			source={source}
 		>
 			<form

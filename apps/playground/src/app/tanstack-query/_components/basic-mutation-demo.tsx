@@ -20,7 +20,7 @@ export function BasicMutationDemo({ source }: Props) {
 	return (
 		<ExampleCard
 			title="Basic mutationOptions"
-			description='Simple useMutation with mutationOptions() — try email "taken@example.com" for a validation error.'
+			description='Simple useMutation with mutationOptions(), try email "taken@example.com" for a validation error.'
 			source={source}
 		>
 			<form
@@ -80,7 +80,7 @@ export function BasicMutationDemo({ source }: Props) {
 			<div className="mt-4">
 				<span className="text-sm font-medium">Result:</span>
 				<pre className="bg-muted mt-1 max-h-64 overflow-auto rounded-md border p-3 font-mono text-sm">
-					{mutation.data !== undefined ? JSON.stringify(mutation.data, null, 2) : "—"}
+					{mutation.data !== undefined ? JSON.stringify(mutation.data, null, 2) : "-"}
 				</pre>
 			</div>
 		</ExampleCard>

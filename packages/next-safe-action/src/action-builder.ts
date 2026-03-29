@@ -156,7 +156,7 @@ export function actionBuilder<
 	) {
 		const validated = await validateInputs(mainClientInput, bindArgsClientInputs, currentCtx, middlewareResult);
 
-		// Validation errors were set — skip server code execution.
+		// Validation errors were set, skip server code execution.
 		if (!validated) return;
 
 		const { parsedMainInput, parsedBindArgsInputs } = validated;

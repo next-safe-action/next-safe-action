@@ -131,7 +131,7 @@ export function ValidationErrorsClient({ sources }: Props) {
 
 			<ExampleCard
 				title="returnValidationErrors"
-				description="Manually returning validation errors from server action code (use the formatted errors example above — try username 'johndoe')."
+				description="Manually returning validation errors from server action code (use the formatted errors example above, try username 'johndoe')."
 			>
 				<p className="text-muted-foreground text-sm">
 					The formatted and flattened examples above both use <code>returnValidationErrors</code> to manually set
@@ -142,7 +142,7 @@ export function ValidationErrorsClient({ sources }: Props) {
 
 			<ExampleCard
 				title="throwValidationErrors"
-				description="Client created with throwValidationErrors: true — validation errors throw instead of returning."
+				description="Client created with throwValidationErrors: true, validation errors throw instead of returning."
 				source={sources.throwingAction}
 			>
 				<form

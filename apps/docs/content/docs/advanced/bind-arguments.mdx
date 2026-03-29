@@ -42,7 +42,7 @@ Use JavaScript's `.bind()` to attach the extra arguments:
 import { updateItem } from "./actions";
 import { ItemForm } from "./item-form";
 
-// Server Component — has access to the item ID
+// Server Component: has access to the item ID
 export default async function ItemPage({ params }: { params: { id: string } }) {
 	// Bind the item ID to the action
 	const updateThisItem = updateItem.bind(null, params.id);
@@ -79,11 +79,11 @@ export function ItemForm({ action }: { action: typeof updateItem }) {
 The generic parameter `<[itemId: z.ZodString]>` creates a **named tuple type**. This gives you readable names when destructuring `bindArgsParsedInputs`:
 
 ```ts
-// Without named tuple — positional, harder to read
+// Without named tuple: positional, harder to read
 .bindArgsSchemas([z.string(), z.number()])
 .action(async ({ bindArgsParsedInputs: [arg0, arg1] }) => { ... })
 
-// With named tuple — self-documenting
+// With named tuple: self-documenting
 .bindArgsSchemas<[itemId: z.ZodString, version: z.ZodNumber]>([z.string(), z.number()])
 .action(async ({ bindArgsParsedInputs: [itemId, version] }) => { ... })
 ```
@@ -96,7 +96,7 @@ Bind args work with form actions too. The bound values are sent as hidden fields
 // Server Component
 const deleteItem = deleteItemAction.bind(null, item.id);
 
-// Client form — works without JavaScript
+// Client form: works without JavaScript
 <form action={deleteItem}>
 	<button type="submit">Delete</button>
 </form>
@@ -104,6 +104,6 @@ const deleteItem = deleteItemAction.bind(null, item.id);
 
 ## See also
 
-- [Action result](/docs/concepts/action-result) — how bind args validation errors appear in the result
-- [`.bindArgsSchemas()` method](/docs/api/safe-action-client#bindargsschemas) — API reference
-- [Form actions](/docs/guides/form-actions) — using bind args with progressive enhancement
+- [Action result](/docs/concepts/action-result): how bind args validation errors appear in the result
+- [`.bindArgsSchemas()` method](/docs/api/safe-action-client#bindargsschemas): API reference
+- [Form actions](/docs/guides/form-actions): using bind args with progressive enhancement

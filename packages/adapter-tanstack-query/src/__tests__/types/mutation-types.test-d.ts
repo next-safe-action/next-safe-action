@@ -34,7 +34,7 @@ test("mutationOptions infers TVariables from action input schema", () => {
 
 test("opts parameter omits mutationFn", () => {
 	const action = (() => Promise.resolve({ data: { id: 1 } })) as unknown as TestAction;
-	// This should compile — all options except mutationFn are allowed
+	// This should compile, all options except mutationFn are allowed
 	mutationOptions(action, {
 		onSuccess: (_data) => {},
 		onError: (_error) => {},

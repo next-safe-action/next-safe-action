@@ -32,7 +32,7 @@ Server Actions are powerful, but using them directly means writing a lot of boil
 "use server";
 
 export async function updateUser(formData: FormData) {
-	// ❌ No type safety — raw FormData
+	// ❌ No type safety: raw FormData
 	const name = formData.get("name");
 
 	// ❌ Manual validation
@@ -40,7 +40,7 @@ export async function updateUser(formData: FormData) {
 		return { error: "Invalid name" };
 	}
 
-	// ❌ Untyped result — caller doesn't know the shape
+	// ❌ Untyped result: caller doesn't know the shape
 	try {
 		await db.user.update({ name });
 		return { success: true };

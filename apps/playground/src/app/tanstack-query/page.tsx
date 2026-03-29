@@ -19,7 +19,7 @@ export default async function TanStackQueryPage() {
 		<div>
 			<PageHeader
 				title="TanStack Query"
-				description="mutationOptions() adapter for @tanstack/react-query — type-safe mutations with error bridging."
+				description="mutationOptions() adapter for @tanstack/react-query, type-safe mutations with error bridging."
 			/>
 			<div className="space-y-6">
 				<BasicMutationDemo source={createUserSource} />

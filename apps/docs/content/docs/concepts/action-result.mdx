@@ -21,10 +21,10 @@ Only **one** of these will be present at a time, as they're mutually exclusive o
 
 | Outcome | `data` | `validationErrors` | `serverError` |
 |---|---|---|---|
-| Success | Present | — | — |
-| Validation failure | — | Present | — |
-| Server error | — | — | Present |
-| Framework error (redirect, etc.) | — | — | — |
+| Success | Present | - | - |
+| Validation failure | - | Present | - |
+| Server error | - | - | Present |
+| Framework error (redirect, etc.) | - | - | - |
 
 <Callout>
 Framework errors (like `redirect()` or `notFound()`) are a special case. They don't return a result at all. Instead, Next.js handles the navigation directly. See [Error Handling](/docs/concepts/error-handling) for details.
@@ -119,11 +119,11 @@ A typical pattern for handling all cases:
 const result = await myAction(input);
 
 if (result?.data) {
-	// Success — use result.data
+	// Success: use result.data
 } else if (result?.validationErrors) {
-	// Validation failed — show errors to user
+	// Validation failed: show errors to user
 } else if (result?.serverError) {
-	// Server error — show error message
+	// Server error: show error message
 }
 ```
 

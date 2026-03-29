@@ -67,10 +67,10 @@ The boolean shortcuts (`isExecuting`, `hasSucceeded`, etc.) are derived from `st
 | `executeAsync(input)` | `Promise<Result>` | You need to `await` the result inline (e.g., sequential calls, conditional logic) |
 
 ```tsx
-// Fire-and-forget — result is available reactively
+// Fire-and-forget, result is available reactively
 execute({ name: "Alice" });
 
-// Await the result — useful for sequential operations
+// Await the result: useful for sequential operations
 const result = await executeAsync({ name: "Alice" });
 if (result?.data) {
 	await executeAsync({ name: "Bob" });
@@ -118,9 +118,9 @@ const { execute } = useAction(myAction, {
 
 ### Callback execution order
 
-1. `onExecute` — always first
+1. `onExecute`: always first
 2. One of: `onSuccess`, `onError`, or `onNavigation`
-3. `onSettled` — always last
+3. `onSettled`: always last
 
 <Accordions>
 <Accordion title="Deprecated: useStateAction">

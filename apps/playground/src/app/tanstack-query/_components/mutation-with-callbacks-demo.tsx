@@ -108,7 +108,7 @@ export function MutationWithCallbacksDemo({ source }: Props) {
 			<div className="mt-4">
 				<span className="text-sm font-medium">Result:</span>
 				<pre className="bg-muted mt-1 max-h-64 overflow-auto rounded-md border p-3 font-mono text-sm">
-					{mutation.data !== undefined ? JSON.stringify(mutation.data, null, 2) : "—"}
+					{mutation.data !== undefined ? JSON.stringify(mutation.data, null, 2) : "-"}
 				</pre>
 			</div>
 		</ExampleCard>
