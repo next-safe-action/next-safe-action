@@ -5,7 +5,8 @@ import { baseLayoutOptions } from "@/lib/shared-layout";
 import { source } from "@/lib/source";
 
 export default function Layout({ children }: { children: ReactNode }) {
-	const tree = addSidebarBadge(source.getPageTree(), "/docs/ai-skills", "NEW");
+	let tree = addSidebarBadge(source.getPageTree(), "/docs/ai-skills", "NEW");
+	tree = addSidebarBadge(tree, "/docs/integrations/tanstack-query", "NEW");
 
 	return (
 		<DocsLayout tree={tree} {...baseLayoutOptions}>
