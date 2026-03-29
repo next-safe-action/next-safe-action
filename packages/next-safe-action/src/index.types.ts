@@ -58,6 +58,41 @@ export type ThrowsErrorsBrand = { readonly [THROWS_ERRORS]: true };
 export type MaybeBrandThrows<T, Throws extends boolean> = Throws extends true ? T & ThrowsErrorsBrand : T;
 
 /**
+ * Constraint type that rejects actions branded with `ThrowsErrorsBrand`.
+ * Used by adapters (e.g., TanStack Query) to ensure only non-throwing actions are accepted.
+ * An optional `never` property means: absent is OK, but present-with-a-value fails.
+ */
+export type NonThrowingActionConstraint = { readonly [THROWS_ERRORS]?: never };
+
+/**
+ * Detect if action-level `throwServerError` is set to `true`.
+ */
+type ActionUtilsThrowServer<U> = U extends { throwServerError: true } ? true : false;
+
+/**
+ * Detect if action-level `throwValidationErrors` is set to `true` (or the object form with `overrideErrorMessage`).
+ * Returns `true` if enabled, `false` if explicitly disabled, `undefined` if not specified.
+ */
+type ActionUtilsThrowValidation<U> = U extends
+	{ throwValidationErrors: true | { overrideErrorMessage: (...args: any[]) => any } }
+	? true
+	: U extends { throwValidationErrors: false }
+		? false
+		: undefined;
+
+/**
+ * Determine whether an action effectively throws errors, combining client-level and action-level settings.
+ * Action-level settings take precedence over client-level defaults.
+ */
+export type EffectiveThrows<ClientThrows extends boolean, U> = ActionUtilsThrowServer<U> extends true
+	? true
+	: ActionUtilsThrowValidation<U> extends true
+		? true
+		: ActionUtilsThrowValidation<U> extends false
+			? false
+			: ClientThrows;
+
+/**
  * Type of the arguments passed to the `SafeActionClient` constructor.
  */
 export type SafeActionClientArgs<

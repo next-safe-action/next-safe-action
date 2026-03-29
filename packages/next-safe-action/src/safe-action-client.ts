@@ -1,6 +1,7 @@
 import { actionBuilder } from "./action-builder";
 import type {
 	ValidationErrorsFormat,
+	EffectiveThrows,
 	InputSchemaFactoryFn,
 	MaybeBrandThrows,
 	MiddlewareFn,
@@ -199,7 +200,18 @@ export class SafeActionClient<
 	 *
 	 * {@link https://next-safe-action.dev/docs/define-actions/instance-methods#action--stateaction See docs for more information}
 	 */
-	action<Data extends InferOutputOrDefault<OutputSchema, any>>(
+	action<
+		Data extends InferOutputOrDefault<OutputSchema, any>,
+		Utils extends ActionCallbacks<
+			ServerError,
+			Metadata,
+			Ctx,
+			InputSchema,
+			BindArgsSchemas,
+			ShapedErrors,
+			Data
+		> = ActionCallbacks<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data>,
+	>(
 		this: HasMetadata extends true
 			? SafeActionClient<
 					ServerError,
@@ -217,14 +229,14 @@ export class SafeActionClient<
 				>
 			: never,
 		serverCodeFn: ServerCodeFn<Metadata, Ctx, InputSchema, BindArgsSchemas, Data>,
-		utils?: ActionCallbacks<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data>
+		utils?: Utils
 	): MaybeBrandThrows<
 		SafeActionFn<ServerError, InputSchema, BindArgsSchemas, ShapedErrors, Data>,
-		ThrowsValidationErrors
+		EffectiveThrows<ThrowsValidationErrors, Utils>
 	> {
 		return actionBuilder(this.#args).action(serverCodeFn, utils) as MaybeBrandThrows<
 			SafeActionFn<ServerError, InputSchema, BindArgsSchemas, ShapedErrors, Data>,
-			ThrowsValidationErrors
+			EffectiveThrows<ThrowsValidationErrors, Utils>
 		>;
 	}
 
@@ -236,7 +248,18 @@ export class SafeActionClient<
 	 *
 	 * {@link https://next-safe-action.dev/docs/define-actions/instance-methods#action--stateaction See docs for more information}
 	 */
-	stateAction<Data extends InferOutputOrDefault<OutputSchema, any>>(
+	stateAction<
+		Data extends InferOutputOrDefault<OutputSchema, any>,
+		Utils extends ActionCallbacks<
+			ServerError,
+			Metadata,
+			Ctx,
+			InputSchema,
+			BindArgsSchemas,
+			ShapedErrors,
+			Data
+		> = ActionCallbacks<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data>,
+	>(
 		this: HasMetadata extends true
 			? SafeActionClient<
 					ServerError,
@@ -254,14 +277,14 @@ export class SafeActionClient<
 				>
 			: never,
 		serverCodeFn: StatefulServerCodeFn<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data>,
-		utils?: ActionCallbacks<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data>
+		utils?: Utils
 	): MaybeBrandThrows<
 		SafeStateActionFn<ServerError, InputSchema, BindArgsSchemas, ShapedErrors, Data>,
-		ThrowsValidationErrors
+		EffectiveThrows<ThrowsValidationErrors, Utils>
 	> {
 		return actionBuilder(this.#args).stateAction(serverCodeFn, utils) as MaybeBrandThrows<
 			SafeStateActionFn<ServerError, InputSchema, BindArgsSchemas, ShapedErrors, Data>,
-			ThrowsValidationErrors
+			EffectiveThrows<ThrowsValidationErrors, Utils>
 		>;
 	}
 }

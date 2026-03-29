@@ -1,4 +1,5 @@
 import { isNavigationError } from "next-safe-action";
+import type { NonThrowingActionConstraint } from "next-safe-action";
 import type { SingleInputActionFn } from "next-safe-action/hooks";
 import { ActionMutationError } from "./errors";
 import type { MutationOptionsOpts, MutationOptionsReturn } from "./index.types";
@@ -40,7 +41,7 @@ export function mutationOptions<
 	Data,
 	TOnMutateResult = unknown,
 >(
-	safeActionFn: SingleInputActionFn<ServerError, Schema, ShapedErrors, Data>,
+	safeActionFn: SingleInputActionFn<ServerError, Schema, ShapedErrors, Data> & NonThrowingActionConstraint,
 	opts?: MutationOptionsOpts<ServerError, Schema, ShapedErrors, Data, TOnMutateResult>
 ): MutationOptionsReturn<ServerError, Schema, ShapedErrors, Data, TOnMutateResult> {
 	// Capture user's throwOnError and retry before spreading opts, so we can
