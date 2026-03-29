@@ -21,7 +21,7 @@ export function ResultDisplay({ result, status, label }: Props) {
 			<div>
 				<span className="text-sm font-medium">{label ?? "Result:"}</span>
 				<pre className="bg-muted mt-1 max-h-64 overflow-auto rounded-md border p-3 font-mono text-sm">
-					{result !== undefined ? JSON.stringify(result, null, 2) : "—"}
+					{result !== undefined ? JSON.stringify(result, null, 2) : "-"}
 				</pre>
 			</div>
 		</div>

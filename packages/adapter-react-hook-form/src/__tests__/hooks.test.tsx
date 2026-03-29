@@ -1,6 +1,6 @@
 import { renderHook, act } from "@testing-library/react";
-import { describe, expect, test, vi, beforeEach } from "vitest";
 import type { UseFormReturn } from "react-hook-form";
+import { describe, expect, test, vi, beforeEach } from "vitest";
 
 // vi.hoisted() ensures these are available when the hoisted vi.mock factory runs.
 const { mockUseAction, mockUseOptimisticAction } = vi.hoisted(() => ({
@@ -15,7 +15,7 @@ vi.mock("next-safe-action/hooks", () => ({
 
 import { useHookFormActionErrorMapper, useHookFormAction, useHookFormOptimisticAction } from "../hooks";
 
-// Fake safe action function (just a callable — the mock controls useAction's behavior).
+// Fake safe action function (just a callable, the mock controls useAction's behavior).
 const fakeSafeAction = vi.fn() as any;
 
 // Fake resolver that always passes validation, forwarding actual form values.
@@ -116,7 +116,7 @@ describe("useHookFormAction", () => {
 			})
 		);
 
-		// react-hook-form's useForm picks up defaultValues — the form's initial value reflects it.
+		// react-hook-form's useForm picks up defaultValues, the form's initial value reflects it.
 		const form = result.current.form as UseFormReturn<{ name: string }>;
 		expect(form.getValues("name")).toBe("test");
 	});
@@ -161,7 +161,7 @@ describe("useHookFormAction", () => {
 		});
 
 		// The fake resolver always passes, so executeAsync should be called with form values.
-		// react-hook-form's handleSubmit passes (data, event) — so executeAsync also gets the event arg.
+		// react-hook-form's handleSubmit passes (data, event), so executeAsync also gets the event arg.
 		expect(mockExecuteAsync).toHaveBeenCalledWith({ name: "John" }, undefined);
 	});
 
@@ -226,9 +226,7 @@ describe("useHookFormOptimisticAction", () => {
 	};
 
 	test("returns action, form, handleSubmitWithAction, and resetFormAndAction", () => {
-		const { result } = renderHook(() =>
-			useHookFormOptimisticAction(fakeSafeAction, fakeResolver, optimisticProps)
-		);
+		const { result } = renderHook(() => useHookFormOptimisticAction(fakeSafeAction, fakeResolver, optimisticProps));
 
 		expect(result.current).toHaveProperty("action");
 		expect(result.current).toHaveProperty("form");
@@ -248,9 +246,7 @@ describe("useHookFormOptimisticAction", () => {
 			optimisticState: { count: 42 },
 		});
 
-		const { result } = renderHook(() =>
-			useHookFormOptimisticAction(fakeSafeAction, fakeResolver, optimisticProps)
-		);
+		const { result } = renderHook(() => useHookFormOptimisticAction(fakeSafeAction, fakeResolver, optimisticProps));
 
 		expect(result.current.action.optimisticState).toEqual({ count: 42 });
 	});
@@ -265,9 +261,7 @@ describe("useHookFormOptimisticAction", () => {
 			optimisticState: { count: 0 },
 		});
 
-		const { result } = renderHook(() =>
-			useHookFormOptimisticAction(fakeSafeAction, fakeResolver, optimisticProps)
-		);
+		const { result } = renderHook(() => useHookFormOptimisticAction(fakeSafeAction, fakeResolver, optimisticProps));
 
 		const form = result.current.form as UseFormReturn<{ email: string }>;
 		expect(form.formState.errors.email?.message).toBe("Already taken");

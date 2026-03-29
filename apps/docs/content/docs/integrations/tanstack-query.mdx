@@ -1,0 +1,403 @@
+---
+title: TanStack Query
+description: Learn how to integrate next-safe-action with TanStack Query's useMutation.
+---
+
+next-safe-action has a first-party adapter for [TanStack Query](https://tanstack.com/query) that provides a `mutationOptions()` factory function for use with `useMutation()`. It bridges next-safe-action's result-based error model to TanStack Query's thrown-error model via a typed `ActionMutationError` class.
+
+## Installation
+
+```package-install
+next-safe-action @tanstack/react-query @next-safe-action/adapter-tanstack-query
+```
+
+## Quick start
+
+<Steps>
+<Step>
+
+### Define the action
+
+Create a standard server action with an input schema:
+
+```ts title="src/app/actions.ts"
+"use server";
+
+import { z } from "zod";
+import { actionClient } from "@/lib/safe-action";
+
+const createUserSchema = z.object({
+	name: z.string().min(2, "Name must be at least 2 characters"),
+	email: z.string().email("Invalid email address"),
+});
+
+export const createUser = actionClient
+	.inputSchema(createUserSchema)
+	.action(async ({ parsedInput }) => {
+		const user = await db.user.create({ data: parsedInput });
+		return { user };
+	});
+```
+
+</Step>
+<Step>
+
+### Create the mutation component
+
+Use `mutationOptions()` from the adapter with TanStack Query's `useMutation`:
+
+```tsx title="src/app/create-user-form.tsx"
+"use client";
+
+import { useMutation } from "@tanstack/react-query";
+import { mutationOptions, hasValidationErrors } from "@next-safe-action/adapter-tanstack-query";
+import { createUser } from "./actions";
+
+export function CreateUserForm() {
+	const { mutate, isPending, isError, error, data } = useMutation(
+		mutationOptions(createUser)
+	);
+
+	return (
+		<form
+			onSubmit={(e) => {
+				e.preventDefault();
+				const formData = new FormData(e.currentTarget);
+				mutate({
+					name: formData.get("name") as string,
+					email: formData.get("email") as string,
+				});
+			}}
+		>
+			<input name="name" placeholder="Name" />
+			<input name="email" placeholder="Email" />
+
+			{isError && hasValidationErrors(error) && (
+				<p>Validation failed</p>
+			)}
+			{isError && !hasValidationErrors(error) && (
+				<p>Server error: {String(error.serverError)}</p>
+			)}
+			{data && <p>Created: {data.user.name}</p>}
+
+			<button type="submit" disabled={isPending}>
+				{isPending ? "Creating..." : "Create User"}
+			</button>
+		</form>
+	);
+}
+```
+
+</Step>
+</Steps>
+
+## Hooks vs. adapter
+
+next-safe-action provides two ways to call server actions from client components: the **built-in hooks** (`useAction`, `useOptimisticAction`, `useStateAction`) from `next-safe-action/hooks`, and this **TanStack Query adapter** (`mutationOptions`) from `@next-safe-action/adapter-tanstack-query`. Both give you type-safe action execution, but they use fundamentally different mechanisms under the hood and shine in different scenarios.
+
+### How they differ
+
+The built-in hooks are built on top of React 19 concurrent primitives: [`useTransition`](https://react.dev/reference/react/useTransition), [`useOptimistic`](https://react.dev/reference/react/useOptimistic), and [`useActionState`](https://react.dev/reference/react/useActionState). When you call `execute()`, the action runs inside a React Transition, which means React keeps the current UI responsive while the action is in flight, and features like Suspense boundaries and optimistic state rollbacks integrate automatically. The hooks also work directly with next-safe-action's result envelope, so you access `result.data`, `result.serverError`, and `result.validationErrors` as structured fields without any error transformation.
+
+The TanStack Query adapter delegates all state management to TanStack Query's `useMutation`. It bridges the result envelope to TanStack Query's thrown-error model: when an action returns `serverError` or `validationErrors`, the adapter extracts them from the result and wraps them in a typed `ActionMutationError` instance on the client. In return, you gain TanStack Query's full mutation lifecycle: configurable retry strategies with exponential backoff, client-side query cache invalidation after mutations (in addition to Next.js's server-side `revalidatePath`/`revalidateTag`, which work with both approaches), TanStack Query DevTools integration, mutation persistence for offline support, and the ability to coordinate mutations with queries in a single client cache.
+
+### When to use which
+
+| Scenario | Recommendation |
+|---|---|
+| New Next.js project without TanStack Query | Built-in hooks |
+| Simple form submissions and button actions | Built-in hooks |
+| You want instant optimistic UI via React's `useOptimistic` | Built-in hooks (`useOptimisticAction`) |
+| You want zero additional dependencies | Built-in hooks |
+| Already using TanStack Query for data fetching | Adapter |
+| Already using tRPC + TanStack Query | Adapter |
+| You need automatic retries with backoff | Adapter |
+| You need to invalidate TanStack Query's client cache after a mutation | Adapter |
+| You want TanStack Query DevTools visibility for mutations | Adapter |
+| You need mutations to survive page reloads or network loss (offline persistence) | Adapter |
+
+### Feature comparison
+
+| Feature | Built-in hooks | Adapter |
+|---|---|---|
+| React Transitions | Yes, actions run inside `startTransition` | No |
+| Optimistic updates | `useOptimisticAction` via React's `useOptimistic` | Manual via `onMutate` + query cache |
+| Automatic retries | No | Yes, `retry` option with backoff |
+| Server cache invalidation | Yes, `revalidatePath()` / `revalidateTag()` inside server actions | Yes, same Next.js APIs inside server actions |
+| Client query cache invalidation | No (not applicable) | Yes, `queryClient.invalidateQueries()` in `onSuccess` |
+| DevTools | No | Yes, TanStack Query DevTools |
+| Error model | Result envelope (`result.serverError`, `result.validationErrors`) | Thrown `ActionMutationError` with type guards |
+| Offline mutation persistence | No, state is lost on unmount or reload | Yes, paused mutations can be serialized to storage and resumed via `dehydrate`/`hydrate` |
+| Async execution | `executeAsync()` returns `Promise<Result>` | `mutateAsync()` returns `Promise<Data>` |
+| Status tracking | `status` string + shorthand booleans (`isIdle`, `isPending`, `hasSucceeded`, `hasErrored`) | Boolean flags (`isPending`, `isError`, `isSuccess`) |
+| Extra dependencies | None (React only) | `@tanstack/react-query` |
+
+### General guidance
+
+**Prefer built-in hooks** for most Next.js applications. They require no extra dependencies, integrate deeply with React's concurrent rendering model, and give you direct access to the result envelope without error transformation. If your app primarily uses Server Components for data fetching and only needs server actions for mutations (forms, button clicks, state changes), the built-in hooks are the simplest and most natural choice.
+
+**Prefer the adapter** when TanStack Query is already part of your stack, especially alongside tRPC for a type-safe API layer. If you are fetching data with `useQuery` and want mutations to participate in the same client-side cache lifecycle (query invalidation, optimistic cache updates, retry strategies, DevTools inspection), the adapter keeps everything in one ecosystem instead of splitting state management between two systems. Note that Next.js's server-side cache invalidation (`revalidatePath`/`revalidateTag`) works regardless of which approach you choose, since it runs inside the server action itself.
+
+## Why mutations only?
+
+<Callout>
+This adapter intentionally provides only `mutationOptions()` for `useMutation()`. There is **no** `queryOptions()` or `useQuery()` support, by design.
+</Callout>
+
+Server Actions in React and Next.js are built exclusively for mutations, not data fetching:
+
+- **POST-only transport.** Server Actions always use `POST`. [Next.js docs](https://nextjs.org/docs/13/app/building-your-application/data-fetching/server-actions-and-mutations): _"Behind the scenes, actions use the POST method, and only this HTTP method can invoke them."_ Queries should use `GET`, the correct method for safe, cacheable reads.
+
+- **Sequential queuing.** Server Actions are queued per client to preserve ordering. [Next.js docs](https://nextjs.org/docs/app/guides/backend-for-frontend): _"Server Actions are queued, which means using them for data fetching introduces sequential execution."_ This creates request waterfalls where concurrent reads should run in parallel.
+
+- **No HTTP caching.** `POST` requests bypass browser cache, `Cache-Control`, `ETag`, and conditional requests. `useQuery` relies on stable cache keys from URLs and parameters, which Server Actions provide neither.
+
+- **No request deduplication.** Without a stable resource identity, TanStack Query cannot deduplicate simultaneous reads across components.
+
+### What to use instead for data fetching
+
+- **Server-side reads:** [React Server Components](https://nextjs.org/docs/app/getting-started/fetching-data): data is fetched during rendering on the server with full Next.js caching support.
+- **Client-side reads:** Create a [Route Handler](https://nextjs.org/docs/app/building-your-application/routing/route-handlers) (`GET` endpoint) and use `useQuery` / `queryOptions`. This gives you HTTP caching, deduplication, `staleTime`, background refetching, and all TanStack Query cache features.
+- **Full-stack type-safe API layer:** If you want end-to-end type safety for both queries (`GET`) and mutations (`POST`), first-class TanStack Query integration, and the ability to share your API procedures across multiple clients or applications, [tRPC](https://trpc.io) is the best fit. tRPC provides `queryOptions()` and `mutationOptions()` factories that plug directly into `useQuery` and `useMutation`, giving you the complete TanStack Query experience (caching, deduplication, background refetching, and optimistic updates) for reads and writes alike.
+
+## How it works
+
+The `mutationOptions()` function creates a complete `UseMutationOptions` object that bridges next-safe-action's result envelope to TanStack Query's error model:
+
+1. **Calls the safe action** with the input provided to `mutate()` / `mutateAsync()`
+2. **Inspects the result envelope** for `serverError` or `validationErrors`
+3. **Throws `ActionMutationError`** if either is present, a custom error class created on the client, so `instanceof` checks work reliably
+4. **Returns `data`** directly as TanStack Query's `TData` on success
+5. **Handles navigation errors** (`redirect()`, `notFound()`, `forbidden()`, `unauthorized()`) by composing TanStack Query's `throwOnError` option to always re-throw them during React's render phase, allowing Next.js to catch them and perform the navigation
+
+## Package entry points
+
+| Entry point | Exports | Environment |
+|---|---|---|
+| `@next-safe-action/adapter-tanstack-query` | `mutationOptions`, `ActionMutationError`, `isActionMutationError`, `hasServerError`, `hasValidationErrors` | Client |
+
+---
+
+## `mutationOptions`
+
+Creates a complete `UseMutationOptions` object for use with `useMutation`.
+
+```ts
+import { mutationOptions } from "@next-safe-action/adapter-tanstack-query";
+
+const options = mutationOptions(safeActionFn, opts?);
+```
+
+### Parameters
+
+<TypeTable
+	type={{
+		safeActionFn: {
+			description: "A safe action function, the return value of .action() or bound with .bind().",
+			type: "SafeActionFn<ServerError, Schema, ShapedErrors, Data> | SingleInputActionFn<ServerError, Schema, ShapedErrors, Data>",
+		},
+		opts: {
+			description: "Optional TanStack Query mutation options. All UseMutationOptions properties are accepted except mutationFn (which is provided by the adapter).",
+			type: "Omit<UseMutationOptions, 'mutationFn'>",
+			default: "undefined",
+		},
+	}}
+/>
+
+### Return value
+
+Returns a complete `UseMutationOptions<Data, ActionMutationError<ServerError, ShapedErrors>, Input, TOnMutateResult>` object, ready to be spread into `useMutation()`.
+
+### Examples
+
+#### Basic
+
+```tsx
+import { useMutation } from "@tanstack/react-query";
+import { mutationOptions } from "@next-safe-action/adapter-tanstack-query";
+import { createUserAction } from "./actions";
+
+function CreateUserForm() {
+	const { mutate, isPending, isError, error, data } = useMutation(
+		mutationOptions(createUserAction)
+	);
+
+	return (
+		<form onSubmit={(e) => { e.preventDefault(); mutate({ name: "John" }); }}>
+			<button disabled={isPending}>Create User</button>
+			{isError && error.serverError && <p>{error.serverError}</p>}
+			{data && <p>Created: {data.name}</p>}
+		</form>
+	);
+}
+```
+
+#### With callbacks and query invalidation
+
+```tsx
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { mutationOptions, hasValidationErrors } from "@next-safe-action/adapter-tanstack-query";
+
+function CreateUserForm() {
+	const queryClient = useQueryClient();
+
+	const mutation = useMutation(mutationOptions(createUserAction, {
+		onSuccess: (data) => {
+			toast.success(`Created ${data.name}`);
+			queryClient.invalidateQueries({ queryKey: ["users"] });
+		},
+		onError: (error) => {
+			if (hasValidationErrors(error)) {
+				showFieldErrors(error.validationErrors);
+			} else {
+				toast.error(`Server error: ${error.serverError}`);
+			}
+		},
+		retry: (count, error) => {
+			if (hasValidationErrors(error)) return false;
+			return count < 3;
+		},
+	}));
+}
+```
+
+#### With optimistic updates
+
+```tsx
+const mutation = useMutation(mutationOptions(toggleTodoAction, {
+	onMutate: async (input) => {
+		await queryClient.cancelQueries({ queryKey: ["todos"] });
+		const previous = queryClient.getQueryData(["todos"]);
+		queryClient.setQueryData(["todos"], (old) =>
+			old.map((t) => t.id === input.id ? { ...t, done: !t.done } : t)
+		);
+		return { previous };
+	},
+	onError: (_error, _input, context) => {
+		if (context?.previous) {
+			queryClient.setQueryData(["todos"], context.previous);
+		}
+	},
+	onSettled: () => {
+		queryClient.invalidateQueries({ queryKey: ["todos"] });
+	},
+}));
+```
+
+#### With `mutateAsync`
+
+```tsx
+const { mutateAsync } = useMutation(mutationOptions(createUserAction));
+
+async function handleSubmit(formData: FormData) {
+	try {
+		const user = await mutateAsync({ name: formData.get("name") as string });
+		router.push(`/users/${user.id}`);
+	} catch (error) {
+		if (isActionMutationError(error) && hasValidationErrors(error)) {
+			// handle validation errors
+		}
+	}
+}
+```
+
+---
+
+## Error handling
+
+When a safe action returns `serverError` or `validationErrors`, the adapter throws an `ActionMutationError`. This means TanStack Query's `isError`, `error`, `failureCount`, and retry mechanism all work naturally:
+
+- `isSuccess` is only `true` when the action succeeds without errors
+- `isError` is `true` when the action has server or validation errors
+- `error` is a typed `ActionMutationError` with `serverError` and `validationErrors` properties
+
+### `ActionMutationError`
+
+```ts
+class ActionMutationError<ServerError, ShapedErrors> extends Error {
+	readonly kind: "server" | "validation" | "both";
+	readonly serverError?: ServerError;
+	readonly validationErrors?: ShapedErrors;
+}
+```
+
+The `kind` property tells you which errors are present:
+
+- `"server"`: only `serverError` is set
+- `"validation"`: only `validationErrors` is set
+- `"both"`: both are set
+
+### Type guards
+
+```ts
+import {
+	isActionMutationError,
+	hasServerError,
+	hasValidationErrors,
+} from "@next-safe-action/adapter-tanstack-query";
+
+// Check if an unknown error is an ActionMutationError
+if (isActionMutationError(error)) {
+	error.serverError;      // typed access
+	error.validationErrors; // typed access
+}
+
+// Narrow to server errors
+if (hasServerError(error)) {
+	error.serverError; // guaranteed non-undefined
+}
+
+// Narrow to validation errors
+if (hasValidationErrors(error)) {
+	error.validationErrors; // guaranteed non-undefined
+}
+```
+
+### `throwValidationErrors` / `throwServerError` incompatibility
+
+<Callout type="warn">
+**Do not** use `throwValidationErrors: true` or `throwServerError: true` on actions passed to `mutationOptions()`.
+</Callout>
+
+React's Flight protocol serializes errors thrown in Server Actions across the server–client boundary. Custom error classes are converted to plain `Error` objects, all custom properties (like `validationErrors`) are lost, and `instanceof` checks fail. In production, even the error message is replaced with a generic string.
+
+The adapter relies on the result envelope (the default behavior) to extract structured error data. When `throwValidationErrors` or `throwServerError` is enabled, errors are thrown on the server and lose all structured data before reaching the client.
+
+### Navigation errors
+
+Server actions that call `redirect()`, `notFound()`, `forbidden()`, or `unauthorized()` throw framework-level navigation errors. The adapter automatically handles these by composing TanStack Query's `throwOnError` option to always re-throw navigation errors during React's render phase, allowing Next.js to catch them and perform the navigation.
+
+If you provide your own `throwOnError` option, the adapter composes it: navigation errors are always re-thrown, and your function handles everything else.
+
+---
+
+## Type utilities
+
+### `InferMutationOptions`
+
+Infer the `UseMutationOptions` type from a safe action function:
+
+```ts
+import type { InferMutationOptions } from "@next-safe-action/adapter-tanstack-query";
+
+type MyMutationOptions = InferMutationOptions<typeof createUser>;
+```
+
+### `InferActionMutationError`
+
+Infer the `ActionMutationError` type from a safe action function:
+
+```ts
+import type { InferActionMutationError } from "@next-safe-action/adapter-tanstack-query";
+
+type MyError = InferActionMutationError<typeof createUser>;
+```
+
+---
+
+## See also
+
+- [Hooks guide](/docs/guides/hooks): the `useAction` hook for direct server action calls without TanStack Query
+- [React Hook Form integration](/docs/integrations/react-hook-form): sibling adapter for react-hook-form
+- [Optimistic updates](/docs/guides/optimistic-updates): `useOptimisticAction` in depth
+- [Custom validation errors](/docs/advanced/custom-validation-errors): customizing error shapes

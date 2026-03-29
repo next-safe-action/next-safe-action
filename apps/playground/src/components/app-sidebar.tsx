@@ -13,6 +13,7 @@ import {
 	ShieldAlertIcon,
 	SparklesIcon,
 	SunIcon,
+	ZapIcon,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import Image from "next/image";
@@ -54,10 +55,11 @@ const navGroups = [
 		],
 	},
 	{
-		label: "Forms",
+		label: "Integrations",
 		items: [
 			{ title: "Form Integration", href: "/forms", icon: FileTextIcon },
 			{ title: "React Hook Form", href: "/react-hook-form", icon: CircuitBoardIcon },
+			{ title: "TanStack Query", href: "/tanstack-query", icon: ZapIcon },
 		],
 	},
 	{
@@ -76,13 +78,7 @@ export function AppSidebar() {
 				<div className="flex items-center justify-between px-2 py-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
 					<div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
 						<Image src="/img/logo-light-mode.svg" alt="" width={26} height={20} className="dark:hidden" />
-						<Image
-							src="/img/logo-dark-mode.svg"
-							alt=""
-							width={26}
-							height={20}
-							className="hidden dark:block"
-						/>
+						<Image src="/img/logo-dark-mode.svg" alt="" width={26} height={20} className="hidden dark:block" />
 						<div className="flex flex-col">
 							<span className="text-sm leading-none font-semibold">next-safe-action</span>
 							<span className="text-muted-foreground text-xs">playground</span>

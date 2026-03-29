@@ -46,6 +46,53 @@ export type HandleServerErrorFn<
 > = (error: Error, utils: ServerErrorFunctionUtils<MetadataSchema>) => MaybePromise<ServerError>;
 
 /**
+ * Brand applied to action functions created from clients with `throwValidationErrors: true`.
+ * Used by adapters (e.g., TanStack Query) to reject incompatible actions at the type level.
+ */
+declare const THROWS_ERRORS: unique symbol;
+export type ThrowsErrorsBrand = { readonly [THROWS_ERRORS]: true };
+
+/**
+ * Conditionally brand a type based on whether throws is enabled.
+ */
+export type MaybeBrandThrows<T, Throws extends boolean> = Throws extends true ? T & ThrowsErrorsBrand : T;
+
+/**
+ * Constraint type that rejects actions branded with `ThrowsErrorsBrand`.
+ * Used by adapters (e.g., TanStack Query) to ensure only non-throwing actions are accepted.
+ * An optional `never` property means: absent is OK, but present-with-a-value fails.
+ */
+export type NonThrowingActionConstraint = { readonly [THROWS_ERRORS]?: never };
+
+/**
+ * Detect if action-level `throwServerError` is set to `true`.
+ */
+type ActionUtilsThrowServer<U> = U extends { throwServerError: true } ? true : false;
+
+/**
+ * Detect if action-level `throwValidationErrors` is set to `true` (or the object form with `overrideErrorMessage`).
+ * Returns `true` if enabled, `false` if explicitly disabled, `undefined` if not specified.
+ */
+type ActionUtilsThrowValidation<U> = U extends
+	{ throwValidationErrors: true | { overrideErrorMessage: (...args: any[]) => any } }
+	? true
+	: U extends { throwValidationErrors: false }
+		? false
+		: undefined;
+
+/**
+ * Determine whether an action effectively throws errors, combining client-level and action-level settings.
+ * Action-level settings take precedence over client-level defaults.
+ */
+export type EffectiveThrows<ClientThrows extends boolean, U> = ActionUtilsThrowServer<U> extends true
+	? true
+	: ActionUtilsThrowValidation<U> extends true
+		? true
+		: ActionUtilsThrowValidation<U> extends false
+			? false
+			: ClientThrows;
+
+/**
  * Type of the arguments passed to the `SafeActionClient` constructor.
  */
 export type SafeActionClientArgs<
@@ -56,10 +103,13 @@ export type SafeActionClientArgs<
 	HasMetadata extends boolean = MetadataSchema extends undefined ? true : false,
 	Ctx extends object = {},
 	InputSchemaFn extends ((clientInput?: unknown) => Promise<StandardSchemaV1>) | undefined = undefined, // input schema function
-	InputSchema extends StandardSchemaV1 | undefined = InputSchemaFn extends Function ? Awaited<ReturnType<InputSchemaFn>> : undefined, // input schema
+	InputSchema extends StandardSchemaV1 | undefined = InputSchemaFn extends Function
+		? Awaited<ReturnType<InputSchemaFn>>
+		: undefined, // input schema
 	OutputSchema extends StandardSchemaV1 | undefined = undefined, // output schema
 	BindArgsSchemas extends readonly StandardSchemaV1[] = [], // bind args schemas
 	ShapedErrors = undefined, // custom validation errors shape
+	ThrowsValidationErrors extends boolean = false, // whether the client throws validation errors
 > = {
 	middlewareFns: MiddlewareFn<ServerError, any, any, any>[];
 	metadataSchema: MetadataSchema;
@@ -72,7 +122,7 @@ export type SafeActionClientArgs<
 	ctxType: Ctx;
 	handleServerError: HandleServerErrorFn<ServerError, MetadataSchema>;
 	defaultValidationErrorsShape: ErrorsFormat;
-	throwValidationErrors: boolean;
+	throwValidationErrors: ThrowsValidationErrors;
 };
 
 /**
@@ -82,11 +132,12 @@ export type CreateClientOpts<
 	ErrorsFormat extends ValidationErrorsFormat | undefined = undefined,
 	ServerError = string,
 	MetadataSchema extends StandardSchemaV1 | undefined = undefined,
+	ThrowsValidationErrors extends boolean = false,
 > = {
 	defineMetadataSchema?: () => MetadataSchema;
 	handleServerError?: HandleServerErrorFn<ServerError, MetadataSchema>;
 	defaultValidationErrorsShape?: ErrorsFormat;
-	throwValidationErrors?: boolean;
+	throwValidationErrors?: ThrowsValidationErrors;
 };
 
 /**
@@ -298,8 +349,20 @@ export type InferSafeActionFnInput<T extends Function> = T extends
  * Infer the result type of a safe action.
  */
 export type InferSafeActionFnResult<T extends Function> = T extends
-	| SafeActionFn<infer ServerError, infer Schema extends StandardSchemaV1 | undefined, any, infer ShapedErrors, infer Data>
-	| SafeStateActionFn<infer ServerError, infer Schema extends StandardSchemaV1 | undefined, any, infer ShapedErrors, infer Data>
+	| SafeActionFn<
+			infer ServerError,
+			infer Schema extends StandardSchemaV1 | undefined,
+			any,
+			infer ShapedErrors,
+			infer Data
+	  >
+	| SafeStateActionFn<
+			infer ServerError,
+			infer Schema extends StandardSchemaV1 | undefined,
+			any,
+			infer ShapedErrors,
+			infer Data
+	  >
 	? SafeActionResult<ServerError, Schema, ShapedErrors, Data>
 	: never;
 
@@ -313,7 +376,7 @@ export type InferMiddlewareFnNextCtx<T> =
  * Infer the context type of a safe action client or middleware function.
  */
 export type InferCtx<T> = T extends
-	| SafeActionClient<any, any, any, any, false, infer Ctx extends object, any, any, any, any, any>
+	| SafeActionClient<any, any, any, any, false, infer Ctx extends object, any, any, any, any, any, any>
 	| MiddlewareFn<any, any, infer Ctx extends object, any>
 	? Ctx
 	: never;
@@ -322,7 +385,7 @@ export type InferCtx<T> = T extends
  * Infer the metadata type of a safe action client or middleware function.
  */
 export type InferMetadata<T> = T extends
-	| SafeActionClient<any, any, any, infer Metadata, false, any, any, any, any, any, any>
+	| SafeActionClient<any, any, any, infer Metadata, false, any, any, any, any, any, any, any>
 	| MiddlewareFn<any, infer Metadata, any, any>
 	? Metadata
 	: never;
@@ -331,7 +394,7 @@ export type InferMetadata<T> = T extends
  * Infer the server error type from a safe action client or a middleware function or a safe action function.
  */
 export type InferServerError<T> = T extends
-	| SafeActionClient<infer ServerError, any, any, any, any, any, any, any, any, any, any>
+	| SafeActionClient<infer ServerError, any, any, any, any, any, any, any, any, any, any, any>
 	| MiddlewareFn<infer ServerError, any, any, any>
 	| SafeActionFn<infer ServerError, any, any, any, any>
 	| SafeStateActionFn<infer ServerError, any, any, any, any>

@@ -160,7 +160,7 @@ test("action with input schema, bind args input schemas, output schema and retur
 	expect(actualResult).toStrictEqual(expectedResult);
 });
 
-// Excess arguments tests — wrapper should not change the intended signature of the action.
+// Excess arguments tests: wrapper should not change the intended signature of the action.
 // Extra arguments beyond what schemas define should be silently ignored.
 
 test("action with no input schema silently ignores excess arguments", async () => {
@@ -227,7 +227,7 @@ test("action with bind args input schemas silently ignores excess arguments", as
 	expect(actualResult).toStrictEqual(expectedResult);
 });
 
-// Fewer arguments tests — missing arguments should result in validation errors, not crashes.
+// Fewer arguments tests: missing arguments should result in validation errors, not crashes.
 
 test("action with input schema called with no arguments returns validation errors", async () => {
 	const action = ac.inputSchema(z.object({ userId: z.string().uuid() })).action(async ({ parsedInput }) => {

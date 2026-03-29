@@ -44,7 +44,7 @@ export function HookFormOptimisticDemo({ items, source }: Props) {
 	return (
 		<ExampleCard
 			title="useHookFormOptimisticAction"
-			description="Optimistic form with currentState/updateFn — items appear instantly before server confirms."
+			description="Optimistic form with currentState/updateFn, items appear instantly before server confirms."
 			source={source}
 		>
 			<form onSubmit={handleSubmitWithAction} className="space-y-4">

@@ -44,10 +44,10 @@ import type { InferSafeActionFnInput } from "next-safe-action";
 import { myAction } from "./actions";
 
 type MyInput = InferSafeActionFnInput<typeof myAction>;
-// MyInput.clientInput — what you pass to execute()
-// MyInput.parsedInput — what the server code receives
-// MyInput.bindArgsClientInputs — bound arg types (input side)
-// MyInput.bindArgsParsedInputs — bound arg types (parsed side)
+// MyInput.clientInput: what you pass to execute()
+// MyInput.parsedInput: what the server code receives
+// MyInput.bindArgsClientInputs: bound arg types (input side)
+// MyInput.bindArgsParsedInputs: bound arg types (parsed side)
 ```
 
 ---
@@ -69,9 +69,9 @@ import type { InferSafeActionFnResult } from "next-safe-action";
 import { myAction } from "./actions";
 
 type MyResult = InferSafeActionFnResult<typeof myAction>;
-// MyResult.data — the successful return type
-// MyResult.serverError — the server error type
-// MyResult.validationErrors — the validation errors type
+// MyResult.data: the successful return type
+// MyResult.serverError: the server error type
+// MyResult.validationErrors: the validation errors type
 ```
 
 ---
@@ -210,6 +210,6 @@ type InferUseStateActionHookReturn<T extends Function>
 
 ## See also
 
-- [Types reference](/docs/api/types) — all exported TypeScript types
-- [Hooks API](/docs/api/hooks-api) — the hooks these types infer from
-- [Action result](/docs/concepts/action-result) — understanding `InferSafeActionFnResult`
+- [Types reference](/docs/api/types): all exported TypeScript types
+- [Hooks API](/docs/api/hooks-api): the hooks these types infer from
+- [Action result](/docs/concepts/action-result): understanding `InferSafeActionFnResult`

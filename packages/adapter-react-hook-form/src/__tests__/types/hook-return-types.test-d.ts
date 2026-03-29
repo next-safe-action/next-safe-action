@@ -1,12 +1,8 @@
+import type { ValidationErrors } from "next-safe-action";
+import type { HookActionStatus } from "next-safe-action/hooks";
 import { expectTypeOf, test } from "vitest";
 import { z } from "zod";
-import type { HookActionStatus } from "next-safe-action/hooks";
-import type {
-	UseHookFormActionHookReturn,
-	UseHookFormOptimisticActionHookReturn,
-	HookProps,
-} from "../../hooks.types";
-import type { ValidationErrors } from "next-safe-action";
+import type { UseHookFormActionHookReturn, UseHookFormOptimisticActionHookReturn, HookProps } from "../../hooks.types";
 
 // ─── UseHookFormActionHookReturn ─────────────────────────────────────
 
@@ -64,25 +60,13 @@ test("UseHookFormActionHookReturn.handleSubmitWithAction accepts optional event"
 // ─── UseHookFormOptimisticActionHookReturn ────────────────────────────
 
 test("UseHookFormOptimisticActionHookReturn.action includes optimisticState", () => {
-	type Return = UseHookFormOptimisticActionHookReturn<
-		string,
-		undefined,
-		undefined,
-		void,
-		{ count: number }
-	>;
+	type Return = UseHookFormOptimisticActionHookReturn<string, undefined, undefined, void, { count: number }>;
 
 	expectTypeOf<Return["action"]["optimisticState"]>().toEqualTypeOf<{ count: number }>();
 });
 
 test("UseHookFormOptimisticActionHookReturn still has form and handlers", () => {
-	type Return = UseHookFormOptimisticActionHookReturn<
-		string,
-		undefined,
-		undefined,
-		void,
-		{ count: number }
-	>;
+	type Return = UseHookFormOptimisticActionHookReturn<string, undefined, undefined, void, { count: number }>;
 
 	expectTypeOf<Return["form"]>().not.toBeAny();
 	expectTypeOf<Return["handleSubmitWithAction"]>().not.toBeAny();
@@ -90,13 +74,7 @@ test("UseHookFormOptimisticActionHookReturn still has form and handlers", () => 
 });
 
 test("UseHookFormOptimisticActionHookReturn.action has shorthand status", () => {
-	type Return = UseHookFormOptimisticActionHookReturn<
-		string,
-		undefined,
-		undefined,
-		void,
-		{ count: number }
-	>;
+	type Return = UseHookFormOptimisticActionHookReturn<string, undefined, undefined, void, { count: number }>;
 
 	expectTypeOf<Return["action"]["isIdle"]>().toEqualTypeOf<boolean>();
 	expectTypeOf<Return["action"]["isExecuting"]>().toEqualTypeOf<boolean>();

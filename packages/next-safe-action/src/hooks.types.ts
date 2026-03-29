@@ -63,7 +63,9 @@ export type HookShorthandStatus = {
  */
 export type UseActionHookReturn<ServerError, Schema extends StandardSchemaV1 | undefined, ShapedErrors, Data> = {
 	execute: (input: InferInputOrDefault<Schema, void>) => void;
-	executeAsync: (input: InferInputOrDefault<Schema, void>) => Promise<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>;
+	executeAsync: (
+		input: InferInputOrDefault<Schema, void>
+	) => Promise<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>;
 	input: InferInputOrDefault<Schema, undefined>;
 	result: Prettify<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>;
 	reset: () => void;
@@ -87,17 +89,24 @@ export type UseOptimisticActionHookReturn<
 /**
  * Type of the return object of the `useStateAction` hook.
  */
-export type UseStateActionHookReturn<ServerError, Schema extends StandardSchemaV1 | undefined, ShapedErrors, Data> = Omit<
-	UseActionHookReturn<ServerError, Schema, ShapedErrors, Data>,
-	"executeAsync" | "reset"
-> &
-	HookShorthandStatus;
+export type UseStateActionHookReturn<
+	ServerError,
+	Schema extends StandardSchemaV1 | undefined,
+	ShapedErrors,
+	Data,
+> = Omit<UseActionHookReturn<ServerError, Schema, ShapedErrors, Data>, "executeAsync" | "reset"> & HookShorthandStatus;
 
 /**
  * Type of the return object of the `useAction` hook.
  */
 export type InferUseActionHookReturn<T extends Function> =
-	T extends SafeActionFn<infer ServerError, infer Schema extends StandardSchemaV1 | undefined, any, infer ShapedErrors, infer Data>
+	T extends SafeActionFn<
+		infer ServerError,
+		infer Schema extends StandardSchemaV1 | undefined,
+		any,
+		infer ShapedErrors,
+		infer Data
+	>
 		? UseActionHookReturn<ServerError, Schema, ShapedErrors, Data>
 		: never;
 
@@ -105,7 +114,13 @@ export type InferUseActionHookReturn<T extends Function> =
  * Type of the return object of the `useOptimisticAction` hook.
  */
 export type InferUseOptimisticActionHookReturn<T extends Function, State = any> =
-	T extends SafeActionFn<infer ServerError, infer Schema extends StandardSchemaV1 | undefined, any, infer ShapedErrors, infer Data>
+	T extends SafeActionFn<
+		infer ServerError,
+		infer Schema extends StandardSchemaV1 | undefined,
+		any,
+		infer ShapedErrors,
+		infer Data
+	>
 		? UseOptimisticActionHookReturn<ServerError, Schema, ShapedErrors, Data, State>
 		: never;
 

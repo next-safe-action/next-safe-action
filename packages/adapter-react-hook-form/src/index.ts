@@ -19,7 +19,7 @@ export function mapToHookFormErrors<Schema extends StandardSchemaV1 | undefined>
 
 	function mapper(ve: Record<string, any>, paths: string[] = []) {
 		for (const key of Object.keys(ve)) {
-			// `_errors` arrays are the leaf values — extract them as FieldError objects.
+			// `_errors` arrays are the leaf values: extract them as FieldError objects.
 			if (key === "_errors" && Array.isArray(ve[key])) {
 				let ref = fieldErrors as Record<string, any>;
 
