@@ -99,7 +99,7 @@ This adapter intentionally provides only `mutationOptions()` for `useMutation()`
 
 Server Actions in React and Next.js are built exclusively for mutations, not data fetching:
 
-- **POST-only transport.** Server Actions always use `POST`. [Next.js docs](https://nextjs.org/docs/app/getting-started/updating-data): _"Behind the scenes, actions use the POST method, and only this HTTP method can invoke them."_ Queries should use `GET` — the correct method for safe, cacheable reads.
+- **POST-only transport.** Server Actions always use `POST`. [Next.js docs](https://nextjs.org/docs/13/app/building-your-application/data-fetching/server-actions-and-mutations): _"Behind the scenes, actions use the POST method, and only this HTTP method can invoke them."_ Queries should use `GET` — the correct method for safe, cacheable reads.
 
 - **Sequential queuing.** Server Actions are queued per client to preserve ordering. [Next.js docs](https://nextjs.org/docs/app/guides/backend-for-frontend): _"Server Actions are queued, which means using them for data fetching introduces sequential execution."_ This creates request waterfalls where concurrent reads should run in parallel.
 
@@ -111,6 +111,7 @@ Server Actions in React and Next.js are built exclusively for mutations, not dat
 
 - **Server-side reads:** [React Server Components](https://nextjs.org/docs/app/getting-started/fetching-data) — data is fetched during rendering on the server with full Next.js caching support.
 - **Client-side reads:** Create a [Route Handler](https://nextjs.org/docs/app/building-your-application/routing/route-handlers) (`GET` endpoint) and use `useQuery` / `queryOptions`. This gives you HTTP caching, deduplication, `staleTime`, background refetching, and all TanStack Query cache features.
+- **Full-stack type-safe API layer:** If you want end-to-end type safety for both queries (`GET`) and mutations (`POST`), first-class TanStack Query integration, and the ability to share your API procedures across multiple clients or applications, [tRPC](https://trpc.io) is the best fit. tRPC provides `queryOptions()` and `mutationOptions()` factories that plug directly into `useQuery` and `useMutation`, giving you the complete TanStack Query experience — caching, deduplication, background refetching, and optimistic updates — for reads and writes alike.
 
 ## How it works
 

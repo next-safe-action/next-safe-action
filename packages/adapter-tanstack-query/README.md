@@ -12,7 +12,7 @@ This adapter intentionally provides only `mutationOptions()` for use with `useMu
 
 ### Technical reasons
 
-- **POST-only transport.** Server Actions always use the HTTP `POST` method. Quoting the [Next.js docs](https://nextjs.org/docs/app/getting-started/updating-data): _"Behind the scenes, actions use the POST method, and only this HTTP method can invoke them."_ Queries should use `GET` — the correct method for safe, idempotent, cacheable reads.
+- **POST-only transport.** Server Actions always use the HTTP `POST` method. Quoting the [Next.js docs](https://nextjs.org/docs/13/app/building-your-application/data-fetching/server-actions-and-mutations): _"Behind the scenes, actions use the POST method, and only this HTTP method can invoke them."_ Queries should use `GET` — the correct method for safe, idempotent, cacheable reads.
 
 - **Sequential queuing.** Server Actions are queued and executed one at a time per client to preserve action ordering. From the [Next.js docs](https://nextjs.org/docs/app/guides/backend-for-frontend): _"Server Actions are queued, which means using them for data fetching introduces sequential execution."_ This creates request waterfalls where concurrent reads should be running in parallel.
 
