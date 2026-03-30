@@ -12,17 +12,12 @@ import type { MaybePromise, Prettify } from "./utils.types";
  *
  * Use server-side action callbacks for guaranteed navigation side effects.
  */
-export type HookBaseOptions<
-	ServerError,
-	Schema extends StandardSchemaV1 | undefined,
-	ShapedErrors,
-	Data,
-> =
+export type HookBaseOptions<ServerError, Schema extends StandardSchemaV1 | undefined, ShapedErrors, Data> =
 	| ({ throwOnNavigation?: false } & HookCallbacks<ServerError, Schema, ShapedErrors, Data>)
 	| ({ throwOnNavigation: true } & Omit<
 			HookCallbacks<ServerError, Schema, ShapedErrors, Data>,
 			"onNavigation" | "onSettled"
-		>);
+	  >);
 
 /**
  * Type of hooks callbacks. These are executed when action is in a specific state.
@@ -110,13 +105,17 @@ export type UseOptimisticActionHookReturn<
 
 /**
  * Type of the return object of the `useStateAction` hook.
+ * Extends `UseActionHookReturn` with `formAction` for `<form action={formAction}>` integration.
  */
 export type UseStateActionHookReturn<
 	ServerError,
 	Schema extends StandardSchemaV1 | undefined,
 	ShapedErrors,
 	Data,
-> = Omit<UseActionHookReturn<ServerError, Schema, ShapedErrors, Data>, "executeAsync" | "reset"> & HookShorthandStatus;
+> = UseActionHookReturn<ServerError, Schema, ShapedErrors, Data> &
+	HookShorthandStatus & {
+		formAction: (input: InferInputOrDefault<Schema, void>) => void;
+	};
 
 /**
  * Type of the return object of the `useAction` hook.
@@ -148,7 +147,6 @@ export type InferUseOptimisticActionHookReturn<T extends Function, State = any> 
 
 /**
  * Type of the return object of the `useStateAction` hook.
- * @deprecated The `useStateAction` hook is deprecated. Use React's `useActionState` hook instead.
  */
 export type InferUseStateActionHookReturn<T extends Function> =
 	T extends SafeStateActionFn<

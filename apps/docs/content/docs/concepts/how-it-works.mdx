@@ -27,8 +27,8 @@ next-safe-action has three entry points, each designed for a specific environmen
 | Entry point | Environment | Purpose |
 |---|---|---|
 | `next-safe-action` | Server only | Define actions with `createSafeActionClient`, middleware, validation |
-| `next-safe-action/hooks` | Client only | `useAction` and `useOptimisticAction` hooks |
-| `next-safe-action/stateful-hooks` | Client only | Deprecated `useStateAction` hook (use React's `useActionState` instead) |
+| `next-safe-action/hooks` | Client only | `useAction`, `useOptimisticAction`, and `useStateAction` hooks |
+| `next-safe-action/stateful-hooks` | Client only | Re-exports `useStateAction` from `next-safe-action/hooks` (backward compatibility) |
 
 Server code (your action function) **never runs on the client**. Next.js ensures this by replacing the server function with a network call when the `"use server"` directive is present.
 

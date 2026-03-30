@@ -9,7 +9,7 @@ next-safe-action works with HTML forms using `FormData` as input. This enables *
 
 There are two approaches to form actions:
 
-<Tabs items={["Stateless (useAction)", "Stateful (useActionState)"]} persist>
+<Tabs items={["Stateless (useAction)", "Stateful (useStateAction)", "Progressive Enhancement (useActionState)"]} persist>
 <Tab value="Stateless (useAction)">
 
 Use `useAction` when you want full control over execution and don't need the form to work without JavaScript:
@@ -85,9 +85,91 @@ export default function LoginForm() {
 </Steps>
 
 </Tab>
-<Tab value="Stateful (useActionState)">
+<Tab value="Stateful (useStateAction)">
 
-Use React's `useActionState` for **progressive enhancement**, where the form works even if JavaScript hasn't loaded yet:
+Use `useStateAction` when you want `<form action={formAction}>` integration with full lifecycle callbacks, status tracking, and navigation error handling:
+
+<Steps>
+<Step>
+
+### Define a state action
+
+Use `.stateAction()` instead of `.action()`:
+
+```ts title="src/app/actions.ts"
+"use server";
+
+import { z } from "zod";
+import { zfd } from "zod-form-data";
+import { actionClient } from "@/lib/safe-action";
+
+const schema = zfd.formData({
+	email: zfd.text(z.string().email()),
+	password: zfd.text(z.string().min(8)),
+});
+
+export const loginAction = actionClient
+	.inputSchema(schema)
+	.stateAction(async ({ parsedInput: { email, password } }, { prevResult }) => {
+		const user = await authenticate(email, password);
+		return { userId: user.id, previousAttempt: prevResult.data?.userId };
+	});
+```
+
+</Step>
+<Step>
+
+### Create the form with useStateAction
+
+```tsx title="src/app/login.tsx"
+"use client";
+
+import { useStateAction } from "next-safe-action/hooks";
+import { loginAction } from "./actions";
+
+export default function LoginForm() {
+	const { formAction, result, isPending, hasSucceeded, hasErrored, reset } = useStateAction(loginAction, {
+		onSuccess: ({ data }) => {
+			console.log("Logged in as user", data.userId);
+		},
+		onError: ({ error }) => {
+			console.error("Login failed:", error.serverError);
+		},
+	});
+
+	return (
+		<form action={formAction}>
+			<input name="email" type="email" placeholder="Email" />
+			{result.validationErrors?.email && <p>{result.validationErrors.email._errors[0]}</p>}
+
+			<input name="password" type="password" placeholder="Password" />
+			{result.validationErrors?.password && <p>{result.validationErrors.password._errors[0]}</p>}
+
+			<button type="submit" disabled={isPending}>
+				{isPending ? "Logging in..." : "Log in"}
+			</button>
+
+			{hasSucceeded && <p>Logged in as user {result.data?.userId}</p>}
+			{hasErrored && result.serverError && <p>Error: {result.serverError}</p>}
+			{!isPending && (hasSucceeded || hasErrored) && (
+				<button type="button" onClick={reset}>Try again</button>
+			)}
+		</form>
+	);
+}
+```
+
+</Step>
+</Steps>
+
+<Callout type="info">
+**How it works**: `useStateAction` wraps the action function before passing it to React's `useActionState`. This wrapper intercepts navigation errors (redirect, notFound, etc.) before React sees them, enabling `onNavigation` callbacks and `hasNavigated` status tracking. Because the wrapper is a client-side function, no-JS progressive enhancement is not possible. For forms that must work without JavaScript, use the "Progressive Enhancement" tab.
+</Callout>
+
+</Tab>
+<Tab value="Progressive Enhancement (useActionState)">
+
+Use React's `useActionState` directly for **progressive enhancement**, where the form works even without JavaScript. This approach has no lifecycle callbacks or navigation tracking, but forms submit natively before React hydrates:
 
 <Steps>
 <Step>
@@ -161,13 +243,23 @@ export default function LoginForm() {
 
 ## When to use each approach
 
-| Feature | Stateless (`useAction`) | Stateful (`useActionState`) |
-|---|---|---|
-| Works without JS | No | Yes |
-| Loading states | `isExecuting` from hook | `isPending` from `useActionState` |
-| Lifecycle callbacks | `onSuccess`, `onError`, etc. | Not available |
-| Action method | `.action()` | `.stateAction()` |
-| Best for | Interactive forms with rich UI | Forms that need progressive enhancement |
+| Feature | `useAction` | `useStateAction` | `useActionState` (React) |
+|---|---|---|---|
+| Works without JS | No | No | Yes |
+| Previous result access | No | Yes (via `stateAction`) | Yes (via `stateAction`) |
+| Form action support | No (`onSubmit` only) | Yes (`formAction`) | Yes (`dispatch`) |
+| Loading states | `isExecuting`, `isPending` | `isExecuting`, `isPending` | `isPending` |
+| Lifecycle callbacks | Full | Full | None |
+| Navigation tracking | `onNavigation`, `hasNavigated` | `onNavigation`, `hasNavigated` | Error boundary only |
+| `throwOnNavigation` | Yes | Yes | N/A (always throws) |
+| `reset()` | Yes | Yes | No |
+| `executeAsync` | Yes | Yes | No |
+| Action method | `.action()` | `.stateAction()` | `.stateAction()` |
+| Best for | Interactive UI, programmatic triggers | Forms with callbacks and state | Forms that must work without JS |
+
+- **Use `useAction`** when you don't need previous result access, your triggers are programmatic (buttons, events), or you're building interactive UI that doesn't use `<form action={...}>`.
+- **Use `useStateAction`** when you need previous result access (`prevResult` in server code), you're building forms with rich callbacks and status tracking, or you want the `<form action={formAction}>` pattern with full DX.
+- **Use `useActionState` directly** when you need no-JS progressive enhancement, or you want the simplest possible form setup and don't need lifecycle callbacks.
 
 ## What's next?
 

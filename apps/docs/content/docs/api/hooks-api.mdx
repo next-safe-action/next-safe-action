@@ -3,7 +3,7 @@ title: Hooks API
 description: API reference for useAction, useOptimisticAction, and useStateAction hooks.
 ---
 
-next-safe-action provides React hooks for executing server actions from client components. All hooks are imported from `next-safe-action/hooks` (or `next-safe-action/stateful-hooks` for `useStateAction`).
+next-safe-action provides React hooks for executing server actions from client components. All hooks are imported from `next-safe-action/hooks`.
 
 ## `useAction`
 
@@ -198,18 +198,14 @@ export function TodoItem({ todo }: { todo: Todo }) {
 
 ---
 
-## `useStateAction` (deprecated)
+## `useStateAction`
 
-<Callout type="warn">
-`useStateAction` is deprecated. Use React's built-in `useActionState` hook instead.
-</Callout>
-
-A stateful hook wrapping React's `useActionState`. For use with actions defined via `.stateAction()`.
+Execute stateful actions (defined with `.stateAction()`) with full lifecycle control and `<form action={formAction}>` support.
 
 ```ts
-import { useStateAction } from "next-safe-action/stateful-hooks";
+import { useStateAction } from "next-safe-action/hooks";
 
-const { execute, result, status, ... } = useStateAction(safeStatefulActionFn, utils?);
+const { execute, executeAsync, formAction, result, status, reset, ... } = useStateAction(safeStatefulActionFn, opts?);
 ```
 
 ### Parameters
@@ -217,33 +213,73 @@ const { execute, result, status, ... } = useStateAction(safeStatefulActionFn, ut
 <TypeTable
 	type={{
 		safeStatefulActionFn: {
-			description: "A stateful action function created with .stateAction().",
+			description: "A stateful action function created with .stateAction(). When using bind arguments, pass the bound action (action.bind(null, ...args)).",
 			type: "SingleInputStateActionFn<ServerError, Schema, ShapedErrors, Data>",
 		},
-		"utils.initResult": {
-			description: "Initial result before the first execution.",
-			type: "SafeActionResult<ServerError, Schema, ShapedErrors, Data>",
-			default: "{}",
-		},
-		"utils.permalink": {
-			description: "Permalink passed to React's useActionState for progressive enhancement.",
-			type: "string",
+		opts: {
+			description: "Optional object with initResult, configuration options, and lifecycle callbacks.",
+			type: "{ initResult?: SafeActionResult } & HookBaseOptions & HookCallbacks",
 			default: "undefined",
 		},
 	}}
 />
 
-The `utils` object also accepts [HookCallbacks](#hookcallbacks) (except `onNavigation`).
+`opts.initResult` sets the initial result before the first execution (defaults to `{}`).
 
 ### Return object
 
-Same as [`useAction`](#return-object) but **without** `executeAsync` and `reset`.
+Same as [`useAction`](#return-object) plus:
+
+<TypeTable
+	type={{
+		formAction: {
+			description: "Dispatcher for <form action={formAction}> pattern. When the form submits, React passes FormData as the input to the stateful action. Callbacks and status tracking work for form submissions too.",
+			type: "(input: InferInput<Schema>) => void",
+		},
+	}}
+/>
+
+### Example
+
+```tsx
+"use client";
+
+import { useStateAction } from "next-safe-action/hooks";
+import { updateProfile } from "./actions";
+
+export function ProfileForm() {
+	const { formAction, result, isPending, hasSucceeded, reset } = useStateAction(updateProfile, {
+		initResult: {},
+		onSuccess: ({ data }) => {
+			console.log("Profile updated:", data);
+		},
+		onError: ({ error }) => {
+			console.error("Failed:", error.serverError);
+		},
+		onNavigation: ({ navigationKind }) => {
+			console.log("Navigation:", navigationKind);
+		},
+	});
+
+	return (
+		<form action={formAction}>
+			<input name="name" placeholder="Name" />
+			{result.validationErrors?.name && <p>{result.validationErrors.name._errors[0]}</p>}
+			<button disabled={isPending}>
+				{isPending ? "Saving..." : "Save Profile"}
+			</button>
+			{hasSucceeded && <p>Saved!</p>}
+			<button type="button" onClick={reset}>Reset</button>
+		</form>
+	);
+}
+```
 
 ---
 
 ## `HookBaseOptions`
 
-Configuration and lifecycle callbacks for all hooks (except deprecated `useStateAction`). The available callbacks depend on the `throwOnNavigation` value:
+Configuration and lifecycle callbacks for `useAction`, `useOptimisticAction`, and `useStateAction`. The available callbacks depend on the `throwOnNavigation` value:
 
 <TypeTable
 	type={{
@@ -290,10 +326,6 @@ Lifecycle callbacks shared by all hooks:
 	}}
 />
 
-<Callout>
-`onNavigation` is not available in `useStateAction`. Framework navigation functions are handled differently in stateful actions.
-</Callout>
-
 ---
 
 ## `HookActionStatus`
@@ -333,4 +365,5 @@ type HookShorthandStatus = {
 - [Hooks guide](/docs/guides/hooks): practical guide with patterns and examples
 - [Optimistic updates](/docs/guides/optimistic-updates): `useOptimisticAction` in depth
 - [Framework navigation/errors](/docs/advanced/framework-errors): `onNavigation` and `hasNavigated` behavior
+- [Form actions](/docs/guides/form-actions): compare `useAction`, `useStateAction`, and React's `useActionState`
 - [Type utilities](/docs/api/type-utilities): `InferUseActionHookReturn` and related types
