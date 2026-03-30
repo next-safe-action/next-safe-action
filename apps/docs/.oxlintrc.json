@@ -3,6 +3,7 @@
 	"plugins": ["oxc", "eslint", "unicorn", "typescript", "react", "react-perf", "nextjs"],
 	"rules": {
 		"typescript/consistent-type-imports": "error",
-		"react/react-in-jsx-scope": "off"
+		"react/react-in-jsx-scope": "off",
+		"nextjs/no-img-element": "off"
 	}
 }

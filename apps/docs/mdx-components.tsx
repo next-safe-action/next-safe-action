@@ -18,6 +18,7 @@ export function useMDXComponents(components: Record<string, any>): Record<string
 		TypeTable,
 		Card,
 		Cards,
+		img: (props: React.ComponentProps<"img">) => <img {...props} />,
 		...components,
 	};
 }

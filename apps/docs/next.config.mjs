@@ -7,9 +7,6 @@ const config = {
 	experimental: {
 		turbopackFileSystemCacheForDev: true,
 	},
-	images: {
-		remotePatterns: [{ hostname: "avatars.githubusercontent.com" }],
-	},
 	async redirects() {
 		return [
 			{

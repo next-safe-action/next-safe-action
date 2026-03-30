@@ -1,7 +1,6 @@
 "use client";
 
 import { motion } from "motion/react";
-import Image from "next/image";
 import type { Sponsor, SponsorsData } from "@/lib/github";
 
 const containerVariants = {
@@ -68,12 +67,11 @@ function SponsorLink({ sponsor, size, muted = false }: { sponsor: Sponsor; size:
 					muted ? "opacity-60 grayscale-[0.25] hover:opacity-100 hover:grayscale-0" : "",
 				].join(" ")}
 			>
-				<Image
+				<img
 					src={sponsor.avatarUrl}
 					alt={label}
 					width={size}
 					height={size}
-					sizes={`${size}px`}
 					className={[
 						"rounded-full border transition-all duration-300 group-hover:-translate-y-0.5",
 						muted

@@ -1,7 +1,6 @@
 "use client";
 
 import { motion } from "motion/react";
-import Image from "next/image";
 import type { ReactNode } from "react";
 
 interface Testimonial {
@@ -166,7 +165,7 @@ function TweetCard({ testimonial }: { testimonial: Testimonial }) {
 		>
 			<div className="flex items-start justify-between gap-2">
 				<div className="flex items-center gap-3">
-					<Image
+					<img
 						src={`/img/x/${testimonial.authorHandle}.jpg`}
 						alt={testimonial.authorName}
 						width={40}
