@@ -120,15 +120,12 @@ export const useStateAction = <ServerError, Schema extends StandardSchemaV1 | un
 
 	const initResult = opts?.initResult;
 
-	// ─── Side-channel refs ───────────────────────────────────────────────
+	// ─── Refs ────────────────────────────────────────────────────────────
 
-	const navigationErrorRef = React.useRef<Error | null>(null);
-	const thrownErrorRef = React.useRef<Error | null>(null);
 	const asyncResolverRef = React.useRef<{
 		resolve: (value: unknown) => void;
 		reject: (reason: unknown) => void;
 	} | null>(null);
-	const clientInputRef = React.useRef<InferInputOrDefault<Schema, void> | undefined>(undefined);
 	const prevResultOverrideRef = React.useRef<SafeActionResult<ServerError, Schema, ShapedErrors, Data> | null>(null);
 
 	// ─── State ────────────────────────────────────────────────────────────
@@ -141,6 +138,9 @@ export const useStateAction = <ServerError, Schema extends StandardSchemaV1 | un
 	const [isTransitioning, startTransition] = React.useTransition();
 
 	// ─── Wrapper function ─────────────────────────────────────────────────
+	// All state updates inside the wrapper are batched into the transition by React,
+	// so they commit atomically with the result. This prevents the double-fire issue
+	// that would occur if state were synced via a separate effect.
 
 	const wrappedAction = React.useCallback(
 		async (
@@ -149,9 +149,9 @@ export const useStateAction = <ServerError, Schema extends StandardSchemaV1 | un
 		): Promise<SafeActionResult<ServerError, Schema, ShapedErrors, Data>> => {
 			setIsIdle(false);
 			setIsReset(false);
-			clientInputRef.current = input;
-			navigationErrorRef.current = null;
-			thrownErrorRef.current = null;
+			setClientInput(input as InferInputOrDefault<Schema, void>);
+			setNavigationError(null);
+			setThrownError(null);
 
 			const effectivePrevResult = prevResultOverrideRef.current ?? prevResult;
 			prevResultOverrideRef.current = null;
@@ -162,12 +162,12 @@ export const useStateAction = <ServerError, Schema extends StandardSchemaV1 | un
 				return result;
 			} catch (e) {
 				if (FrameworkErrorHandler.isNavigationError(e)) {
-					navigationErrorRef.current = e;
+					setNavigationError(e);
 					asyncResolverRef.current?.reject(e);
 					return {};
 				}
 
-				thrownErrorRef.current = e as Error;
+				setThrownError(e as Error);
 				asyncResolverRef.current?.reject(e);
 				throw e;
 			} finally {
@@ -181,16 +181,6 @@ export const useStateAction = <ServerError, Schema extends StandardSchemaV1 | un
 
 	const [rawResult, dispatcher, isExecuting] = React.useActionState(wrappedAction, initResult ?? {});
 
-	// ─── Sync refs to state ───────────────────────────────────────────────
-
-	React.useEffect(() => {
-		if (isIdle) return;
-
-		setNavigationError(navigationErrorRef.current);
-		setThrownError(thrownErrorRef.current);
-		setClientInput(clientInputRef.current);
-	}, [rawResult, isIdle]);
-
 	// ─── execute ──────────────────────────────────────────────────────────
 
 	const execute = React.useCallback(
@@ -200,8 +190,6 @@ export const useStateAction = <ServerError, Schema extends StandardSchemaV1 | un
 			setNavigationError(null);
 			setThrownError(null);
 			setClientInput(input);
-			navigationErrorRef.current = null;
-			thrownErrorRef.current = null;
 
 			startTransition(() => {
 				dispatcher(input as InferInputOrDefault<Schema, undefined>);
@@ -233,8 +221,6 @@ export const useStateAction = <ServerError, Schema extends StandardSchemaV1 | un
 		setNavigationError(null);
 		setThrownError(null);
 		setClientInput(undefined);
-		navigationErrorRef.current = null;
-		thrownErrorRef.current = null;
 		prevResultOverrideRef.current = initResult ?? {};
 	}, [initResult]);
 
