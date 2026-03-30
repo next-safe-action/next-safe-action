@@ -128,6 +128,51 @@ describe("getActionStatus", () => {
 	});
 });
 
+// ─── formAction path: isIdle && !isExecuting ────────────────────────────────
+// useStateAction computes isIdle as (isIdle && !isExecuting) to handle the
+// formAction submission path where isIdle hasn't been committed yet but
+// isExecuting (from useActionState's isPending) is already true.
+
+describe("getActionStatus with formAction path (isIdle overridden by isExecuting)", () => {
+	test("returns executing when isIdle is true but isExecuting is true (formAction first render)", () => {
+		const status = getActionStatus({
+			isIdle: false, // computed as: true && !true = false
+			isExecuting: true,
+			hasNavigated: false,
+			hasThrownError: false,
+			result: {},
+		});
+
+		expect(status).toBe("executing");
+	});
+
+	test("returns hasSucceeded after formAction completion (isIdle committed as false)", () => {
+		const result: TestResult = { data: { ok: true } };
+
+		const status = getActionStatus({
+			isIdle: false,
+			isExecuting: false,
+			hasNavigated: false,
+			hasThrownError: false,
+			result,
+		});
+
+		expect(status).toBe("hasSucceeded");
+	});
+
+	test("returns hasNavigated when navigation error occurred during formAction", () => {
+		const status = getActionStatus({
+			isIdle: false,
+			isExecuting: false,
+			hasNavigated: true,
+			hasThrownError: false,
+			result: {},
+		});
+
+		expect(status).toBe("hasNavigated");
+	});
+});
+
 // ─── getActionShorthandStatusObject ──────────────────────────────────────────
 
 describe("getActionShorthandStatusObject", () => {

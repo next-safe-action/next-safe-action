@@ -3,7 +3,7 @@ title: Executing actions
 description: Choose the right execution method for your use case.
 ---
 
-There are three ways to execute a safe action from a Client Component. Each approach serves different needs:
+There are four ways to execute a safe action from a Client Component. Each approach serves different needs:
 
 <picture>
 	<source srcSet="/img/diagrams/execution-method-decision-dark.svg" media="(prefers-color-scheme: dark)" />
@@ -109,8 +109,9 @@ export default function Page() {
 |---|---|
 | Simple call, no loading UI | Direct call |
 | Loading states, callbacks, reactive result | `useAction` hook |
+| Forms with callbacks, status, and `prevResult` | `useStateAction` hook |
 | Optimistic UI updates | `useOptimisticAction` hook |
-| Progressive enhancement / no-JS forms | Form action |
+| Progressive enhancement / no-JS forms | `useActionState` (React) |
 | Server Component calling an action | Direct call |
 
 ## What's next?

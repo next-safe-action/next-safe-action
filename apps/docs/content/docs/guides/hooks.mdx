@@ -139,39 +139,75 @@ When `throwOnNavigation` is `true`, `onNavigation` and `onSettled` are not avail
 2. One of: `onSuccess`, `onError`, or `onNavigation`
 3. `onSettled`: always last
 
-<Accordions>
-<Accordion title="Deprecated: useStateAction">
+## `useStateAction`
 
-The `useStateAction` hook was deprecated in v8. Use React's built-in `useActionState` instead:
+Use `useStateAction` for stateful actions (defined with `.stateAction()`) that need full lifecycle control. It provides everything `useAction` offers, plus `formAction` for `<form action={formAction}>` integration and automatic `prevResult` management.
+
+### Basic usage
 
 ```tsx
-import { useActionState } from "react";
-import { myAction } from "./actions";
+"use client";
 
-function MyForm() {
-	const [result, dispatch] = useActionState(myAction, {});
+import { useStateAction } from "next-safe-action/stateful-hooks";
+import { myStatefulAction } from "./actions";
+
+export default function MyForm() {
+	const { formAction, result, status, isPending, hasSucceeded, reset } = useStateAction(myStatefulAction, {
+		onSuccess: ({ data }) => {
+			console.log("Success:", data);
+		},
+		onError: ({ error }) => {
+			console.error("Error:", error.serverError);
+		},
+	});
 
 	return (
-		<form action={dispatch}>
-			<input name="email" />
-			<button type="submit">Submit</button>
+		<form action={formAction}>
+			<input name="email" type="email" placeholder="Email" />
+			{result.validationErrors?.email && <p>{result.validationErrors.email._errors[0]}</p>}
+			<button type="submit" disabled={isPending}>
+				{isPending ? "Submitting..." : "Submit"}
+			</button>
+			{hasSucceeded && <p>Success!</p>}
 		</form>
 	);
 }
 ```
 
-If you're migrating from v7, see the [v7 to v8 migration guide](/docs/migrations/v7-to-v8).
+### Return object
 
-</Accordion>
-</Accordions>
+Same as [`useAction`](#return-object) plus:
+
+| Property | Type | Description |
+|---|---|---|
+| `formAction` | `(input) => void` | Dispatcher for `<form action={formAction}>` pattern |
+
+### `useAction` vs `useStateAction`
+
+| | `useAction` | `useStateAction` |
+|---|---|---|
+| Action method | `.action()` | `.stateAction()` |
+| Previous result | Not available | Server code receives `prevResult` |
+| Form action | Not supported | `formAction` for `<form action={...}>` |
+| Triggers | `execute(input)` (programmatic) | `execute(input)`, `formAction`, or `executeAsync(input)` |
+| Best for | Interactive UI, buttons, events | Forms with state, multi-step wizards |
+
+Use `useAction` when you don't need previous result access and triggers are programmatic. Use `useStateAction` when you need `prevResult` in server code, want `<form action={formAction}>`, or are building multi-step forms.
+
+<Callout type="info">
+`useStateAction` does not support no-JS progressive enhancement. The hook wraps the action to enable error tracking and callbacks, which requires JavaScript. For forms that must work without JavaScript, use React's `useActionState` directly. See the [form actions guide](/docs/guides/form-actions) for a comparison.
+</Callout>
 
 ## What's next?
 
 <Cards>
+	<Card href="/docs/guides/form-actions" title="Form actions">
+		Compare useAction, useStateAction, and useActionState for forms.
+	</Card>
 	<Card href="/docs/guides/optimistic-updates" title="Optimistic updates">
 		Use useOptimisticAction to update the UI instantly while the server processes.
 	</Card>
 	<Card href="/docs/api/hooks-api" title="Hooks API reference">
-		Full type signatures for useAction and useOptimisticAction.
+		Full type signatures for all hooks.
 	</Card>
 </Cards>

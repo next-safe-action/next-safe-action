@@ -62,19 +62,18 @@ test("UseOptimisticActionHookReturn includes optimisticState", () => {
 	expectTypeOf<Return["status"]>().toEqualTypeOf<HookActionStatus>();
 });
 
-test("UseStateActionHookReturn omits executeAsync and reset", () => {
+test("UseStateActionHookReturn has execute, executeAsync, reset, and formAction", () => {
 	type Return = UseStateActionHookReturn<string, undefined, undefined, void>;
 
-	// Has execute but not executeAsync or reset
+	// Has all core properties from UseActionHookReturn
 	expectTypeOf<Return["execute"]>().not.toBeAny();
+	expectTypeOf<Return["executeAsync"]>().not.toBeAny();
+	expectTypeOf<Return["reset"]>().toEqualTypeOf<() => void>();
 	expectTypeOf<Return["status"]>().toEqualTypeOf<HookActionStatus>();
 
-	// These should not exist on UseStateActionHookReturn
-	type HasExecuteAsync = "executeAsync" extends keyof Return ? true : false;
-	expectTypeOf<HasExecuteAsync>().toEqualTypeOf<false>();
-
-	type HasReset = "reset" extends keyof Return ? true : false;
-	expectTypeOf<HasReset>().toEqualTypeOf<false>();
+	// Has formAction (unique to UseStateActionHookReturn)
+	type HasFormAction = "formAction" extends keyof Return ? true : false;
+	expectTypeOf<HasFormAction>().toEqualTypeOf<true>();
 });
 
 test("InferUseActionHookReturn extracts return type from SafeActionFn", () => {
@@ -102,4 +101,28 @@ test("InferUseStateActionHookReturn extracts from SafeStateActionFn", () => {
 
 	expectTypeOf<Return["result"]["data"]>().toEqualTypeOf<{ id: string } | undefined>();
 	expectTypeOf<Return>().not.toBeAny();
+});
+
+test("UseStateActionHookReturn has all UseActionHookReturn properties plus formAction", () => {
+	const schema = z.object({ name: z.string() });
+	type Return = UseStateActionHookReturn<string, typeof schema, ValidationErrors<typeof schema>, { id: string }>;
+
+	// Has all the same properties as UseActionHookReturn
+	expectTypeOf<Return["execute"]>().toEqualTypeOf<(input: { name: string }) => void>();
+	expectTypeOf<Return["executeAsync"]>().not.toBeAny();
+	expectTypeOf<Return["reset"]>().toEqualTypeOf<() => void>();
+	expectTypeOf<Return["input"]>().not.toBeAny();
+	expectTypeOf<Return["result"]>().not.toBeAny();
+	expectTypeOf<Return["status"]>().toEqualTypeOf<HookActionStatus>();
+
+	// Has shorthand status booleans
+	expectTypeOf<Return["isIdle"]>().toEqualTypeOf<boolean>();
+	expectTypeOf<Return["isPending"]>().toEqualTypeOf<boolean>();
+	expectTypeOf<Return["hasNavigated"]>().toEqualTypeOf<boolean>();
+
+	// Has formAction (unique to UseStateActionHookReturn)
+	expectTypeOf<Return["formAction"]>().not.toBeAny();
+
+	// result.data matches action return type
+	expectTypeOf<Return["result"]["data"]>().toEqualTypeOf<{ id: string } | undefined>();
 });
