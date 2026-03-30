@@ -1,5 +1,11 @@
 # next-safe-action
 
+## 8.3.0
+
+### Minor Changes
+
+- [#423](https://github.com/next-safe-action/next-safe-action/pull/423) [`cdbaca5`](https://github.com/next-safe-action/next-safe-action/commit/cdbaca52f0aaeaef685cdc6d6694ff1d6a9d5912) Thanks [@TheEdoRan](https://github.com/TheEdoRan)! - Remove deprecation notice from `useStateAction` hook, and fix the code.
+
 ## 8.2.0
 
 ### Minor Changes
