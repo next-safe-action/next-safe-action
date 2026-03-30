@@ -69,6 +69,7 @@ export const useActionCallbacks = <ServerError, Schema extends StandardSchemaV1 
 	input,
 	status,
 	cb,
+	throwOnNavigation,
 	navigationError,
 	thrownError,
 }: {
@@ -76,6 +77,7 @@ export const useActionCallbacks = <ServerError, Schema extends StandardSchemaV1 
 	input: InferInputOrDefault<Schema, undefined>;
 	status: HookActionStatus;
 	cb?: HookCallbacks<ServerError, Schema, ShapedErrors, Data>;
+	throwOnNavigation: boolean;
 	navigationError: Error | null;
 	thrownError: Error | null;
 }) => {
@@ -116,9 +118,10 @@ export const useActionCallbacks = <ServerError, Schema extends StandardSchemaV1 
 			}
 
 			// Navigation flow.
-			// If the user redirected to a different page, the `hasNavigated` status never gets set.
-			// In all the other cases, the `hasNavigated` status is set.
-			if (!navigationError) return;
+			// Skip navigation callbacks when throwOnNavigation is true: the render-phase throw
+			// is the primary guard, but this explicit check prevents race conditions and protects
+			// against edge cases in concurrent mode or JavaScript usage without TypeScript.
+			if (throwOnNavigation || !navigationError) return;
 			const navigationKind = FrameworkErrorHandler.getNavigationKind(navigationError);
 
 			if (navigationKind === "redirect" || status === "hasNavigated") {
@@ -136,5 +139,5 @@ export const useActionCallbacks = <ServerError, Schema extends StandardSchemaV1 
 		};
 
 		executeCallbacks().catch(console.error);
-	}, [input, status, result, navigationError, thrownError, onExecute, onSuccess, onSettled, onError, onNavigation]);
+	}, [input, status, result, throwOnNavigation, navigationError, thrownError, onExecute, onSuccess, onSettled, onError, onNavigation]);
 };

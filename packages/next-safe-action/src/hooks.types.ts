@@ -3,6 +3,28 @@ import type { InferInputOrDefault, StandardSchemaV1 } from "./standard-schema";
 import type { MaybePromise, Prettify } from "./utils.types";
 
 /**
+ * Hook options: configuration + lifecycle callbacks.
+ *
+ * When `throwOnNavigation` is `true`, `onNavigation` and `onSettled` callbacks are not available
+ * because the render-phase throw prevents React from committing effects. This is a fundamental
+ * constraint of React's rendering model: when a component throws during render, the commit phase
+ * (where effects run) is never reached.
+ *
+ * Use server-side action callbacks for guaranteed navigation side effects.
+ */
+export type HookBaseOptions<
+	ServerError,
+	Schema extends StandardSchemaV1 | undefined,
+	ShapedErrors,
+	Data,
+> =
+	| ({ throwOnNavigation?: false } & HookCallbacks<ServerError, Schema, ShapedErrors, Data>)
+	| ({ throwOnNavigation: true } & Omit<
+			HookCallbacks<ServerError, Schema, ShapedErrors, Data>,
+			"onNavigation" | "onSettled"
+		>);
+
+/**
  * Type of hooks callbacks. These are executed when action is in a specific state.
  */
 export type HookCallbacks<ServerError, Schema extends StandardSchemaV1 | undefined, ShapedErrors, Data> = {

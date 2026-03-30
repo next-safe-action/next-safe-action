@@ -23,9 +23,9 @@ const { execute, result, status, ... } = useAction(safeActionFn, callbacks?);
 			description: "The server action function created with .action(). When using bind arguments, pass the bound action (action.bind(null, ...args)).",
 			type: "SingleInputActionFn<ServerError, Schema, ShapedErrors, Data>",
 		},
-		callbacks: {
-			description: "Optional object with lifecycle callbacks.",
-			type: "HookCallbacks<ServerError, Schema, ShapedErrors, Data>",
+		opts: {
+			description: "Optional object with configuration options and lifecycle callbacks.",
+			type: "HookBaseOptions & HookCallbacks<ServerError, Schema, ShapedErrors, Data>",
 			default: "undefined",
 		},
 	}}
@@ -153,7 +153,7 @@ const { execute, optimisticState, ... } = useOptimisticAction(safeActionFn, util
 	}}
 />
 
-The `utils` object also accepts all [HookCallbacks](#hookcallbacks) (`onExecute`, `onSuccess`, `onError`, `onNavigation`, `onSettled`).
+The `utils` object also accepts all [HookBaseOptions](#hookbaseoptions) properties including `throwOnNavigation` and lifecycle callbacks. When `throwOnNavigation` is `true`, `onNavigation` and `onSettled` are not available.
 
 ### Return object
 
@@ -241,6 +241,26 @@ Same as [`useAction`](#return-object) but **without** `executeAsync` and `reset`
 
 ---
 
+## `HookBaseOptions`
+
+Configuration and lifecycle callbacks for all hooks (except deprecated `useStateAction`). The available callbacks depend on the `throwOnNavigation` value:
+
+<TypeTable
+	type={{
+		throwOnNavigation: {
+			description: "Whether to throw navigation errors (notFound, forbidden, unauthorized, redirect) during React's render phase, propagating them to the nearest error boundary. When true, Next.js shows the appropriate error page, but onNavigation and onSettled callbacks are not available (TypeScript enforced). When false (default), the error is caught and the hook status is set to \"hasNavigated\", with full callback support.",
+			type: "boolean",
+			default: "false",
+		},
+	}}
+/>
+
+<Callout type="info">
+When `throwOnNavigation` is `true`, TypeScript prevents you from passing `onNavigation` or `onSettled` callbacks. This is because the render-phase throw prevents React from committing effects, so these callbacks can never execute. See [why callbacks can't fire](/docs/advanced/framework-errors#why-callbacks-cant-fire-with-throwonnavigation-true) for details.
+</Callout>
+
+---
+
 ## `HookCallbacks`
 
 Lifecycle callbacks shared by all hooks:
@@ -260,11 +280,11 @@ Lifecycle callbacks shared by all hooks:
 			type: "(args: { error, input }) => MaybePromise<unknown>",
 		},
 		onNavigation: {
-			description: "Called when a framework navigation function is triggered inside the action (redirect, notFound, forbidden, unauthorized).",
+			description: "Called when a framework navigation function is triggered inside the action (redirect, notFound, forbidden, unauthorized). Only available when throwOnNavigation is false (default).",
 			type: "(args: { input, navigationKind }) => MaybePromise<unknown>",
 		},
 		onSettled: {
-			description: "Called after every action execution, regardless of outcome. Receives the result and optional navigationKind.",
+			description: "Called after every action execution, regardless of outcome. Receives the result and optional navigationKind. Only available when throwOnNavigation is false (default).",
 			type: "(args: { result, input, navigationKind? }) => MaybePromise<unknown>",
 		},
 	}}
@@ -312,5 +332,5 @@ type HookShorthandStatus = {
 
 - [Hooks guide](/docs/guides/hooks): practical guide with patterns and examples
 - [Optimistic updates](/docs/guides/optimistic-updates): `useOptimisticAction` in depth
-- [Framework errors](/docs/advanced/framework-errors): `onNavigation` and `hasNavigated` behavior
+- [Framework navigation/errors](/docs/advanced/framework-errors): `onNavigation` and `hasNavigated` behavior
 - [Type utilities](/docs/api/type-utilities): `InferUseActionHookReturn` and related types

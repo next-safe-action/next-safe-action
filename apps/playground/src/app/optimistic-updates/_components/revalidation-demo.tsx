@@ -1,9 +1,6 @@
 "use client";
 
 import { useAction } from "next-safe-action/hooks";
-import { useRef, useState } from "react";
-import { CallbackTimeline } from "@/components/callback-timeline";
-import type { TimelineEvent } from "@/components/callback-timeline";
 import { ExampleCard } from "@/components/example-card";
 import { ResultDisplay } from "@/components/result-display";
 import { Button } from "@/components/ui/button";
@@ -15,39 +12,25 @@ type Props = {
 };
 
 export function RevalidationDemo({ source }: Props) {
-	const [events, setEvents] = useState<TimelineEvent[]>([]);
-	const idRef = useRef(0);
-
-	const pushEvent = (callback: string, data?: unknown) => {
-		const event: TimelineEvent = {
-			id: String(++idRef.current),
-			callback,
-			timestamp: Date.now(),
-			data,
-		};
-
-		setEvents((prev) => [...prev, event]);
-	};
-
 	const { execute, result, status, reset, isTransitioning, isPending } = useAction(testRevalidation, {
 		onExecute() {
-			pushEvent("onExecute");
+			console.log("onExecute");
 		},
 		onSuccess() {
-			pushEvent("onSuccess");
+			console.log("onSuccess");
 		},
 		onError() {
-			pushEvent("onError");
+			console.log("onError");
 		},
 		onSettled() {
-			pushEvent("onSettled");
+			console.log("onSettled");
 		},
 	});
 
 	return (
 		<ExampleCard
 			title="Revalidation + Callbacks"
-			description="revalidatePath/revalidateTag with callback timeline showing transition states."
+			description="revalidatePath/revalidateTag with transition states."
 			source={source}
 		>
 			<div className="flex flex-wrap gap-2">
@@ -55,9 +38,6 @@ export function RevalidationDemo({ source }: Props) {
 				<Button onClick={() => execute({ kind: "revalidateTag" })}>Revalidate tag</Button>
 				<Button variant="outline" onClick={reset}>
 					Reset
-				</Button>
-				<Button variant="outline" onClick={() => setEvents([])}>
-					Clear log
 				</Button>
 			</div>
 
@@ -71,11 +51,6 @@ export function RevalidationDemo({ source }: Props) {
 			</div>
 
 			<ResultDisplay result={result} status={status} />
-
-			<div className="mt-4">
-				<h4 className="mb-2 text-sm font-medium">Callback Timeline</h4>
-				<CallbackTimeline events={events} />
-			</div>
 		</ExampleCard>
 	);
 }

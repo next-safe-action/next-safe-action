@@ -81,9 +81,9 @@ if (result?.data) {
 `executeAsync` throws the server error if the action fails with a server error, so wrap it in a try/catch if needed. `execute` never throws, errors are always captured in `result`.
 </Callout>
 
-## Callbacks
+## Options and callbacks
 
-Pass callbacks as the second argument to `useAction` for lifecycle events:
+Pass options and callbacks as the second argument to `useAction`:
 
 ```tsx
 const { execute } = useAction(myAction, {
@@ -115,6 +115,23 @@ const { execute } = useAction(myAction, {
 	},
 });
 ```
+
+### `throwOnNavigation`
+
+By default, navigation errors (`notFound()`, `forbidden()`, `unauthorized()`, `redirect()`) are caught by the hook and set the status to `"hasNavigated"`, with `onNavigation` and `onSettled` callbacks firing normally.
+
+Set `throwOnNavigation: true` to propagate navigation errors to the nearest error boundary instead. In Next.js, this shows the appropriate error page (404, 403, 401):
+
+```tsx
+const { execute } = useAction(myAction, {
+	throwOnNavigation: true,
+	// onNavigation and onSettled are NOT available here (TypeScript enforced)
+});
+```
+
+<Callout type="info">
+When `throwOnNavigation` is `true`, `onNavigation` and `onSettled` are not available because React's rendering model prevents effects from running when a component throws during render. For guaranteed navigation side effects, use [server-side action callbacks](/docs/advanced/framework-errors#handling-in-action-callbacks).
+</Callout>
 
 ### Callback execution order
 
