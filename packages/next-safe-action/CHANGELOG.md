@@ -1,5 +1,11 @@
 # next-safe-action
 
+## 8.2.0
+
+### Minor Changes
+
+- [#421](https://github.com/next-safe-action/next-safe-action/pull/421) [`b94220e`](https://github.com/next-safe-action/next-safe-action/commit/b94220e53ab5d3a63f55e5a37f98cad8970dfd3d) Thanks [@TheEdoRan](https://github.com/TheEdoRan)! - Add `throwOnNavigation` flag to internal hooks, which defaults to false. When set to true, next/navigation functions such as `forbidden()` and `notFound()` will actually fire the navigation to an error page. `onNavigation` and `onSettled` callbacks can't be used in hooks when this flag is set to true, due to how Next.js and React handle navigations.
+
 ## 8.1.10
 
 ### Patch Changes
