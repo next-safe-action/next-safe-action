@@ -3,7 +3,7 @@ title: Hooks API
 description: API reference for useAction, useOptimisticAction, and useStateAction hooks.
 ---
 
-next-safe-action provides React hooks for executing server actions from client components. All hooks are imported from `next-safe-action/hooks` (or `next-safe-action/stateful-hooks` for `useStateAction`).
+next-safe-action provides React hooks for executing server actions from client components. All hooks are imported from `next-safe-action/hooks`.
 
 ## `useAction`
 
@@ -203,7 +203,7 @@ export function TodoItem({ todo }: { todo: Todo }) {
 Execute stateful actions (defined with `.stateAction()`) with full lifecycle control and `<form action={formAction}>` support.
 
 ```ts
-import { useStateAction } from "next-safe-action/stateful-hooks";
+import { useStateAction } from "next-safe-action/hooks";
 
 const { execute, executeAsync, formAction, result, status, reset, ... } = useStateAction(safeStatefulActionFn, opts?);
 ```
@@ -244,7 +244,7 @@ Same as [`useAction`](#return-object) plus:
 ```tsx
 "use client";
 
-import { useStateAction } from "next-safe-action/stateful-hooks";
+import { useStateAction } from "next-safe-action/hooks";
 import { updateProfile } from "./actions";
 
 export function ProfileForm() {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useStateAction } from "next-safe-action/stateful-hooks";
+import { useStateAction } from "next-safe-action/hooks";
 import { ExampleCard } from "@/components/example-card";
 import { ResultDisplay } from "@/components/result-display";
 import { Badge } from "@/components/ui/badge";
