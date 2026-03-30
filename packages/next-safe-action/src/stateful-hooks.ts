@@ -59,6 +59,7 @@ export const useStateAction = <ServerError, Schema extends StandardSchemaV1 | un
 			onError: utils?.onError,
 			onSettled: utils?.onSettled,
 		},
+		throwOnNavigation: false,
 		navigationError: null,
 		thrownError: null,
 	});

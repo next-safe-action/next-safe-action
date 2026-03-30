@@ -117,9 +117,9 @@ export const myAction = actionClient
 These flags control whether the **final** error is returned in the result object or thrown. They don't replace `handleServerError` (which still processes server errors before the throw/return decision) or `returnValidationErrors()` (which is a function for manually producing validation errors in your server code).
 </Callout>
 
-## Framework errors
+## Framework navigation/errors
 
-Framework errors are **navigation events** triggered by Next.js functions like `redirect()`, `notFound()`, `forbidden()`, and `unauthorized()`. These are special because they're not really "errors", but control flow mechanisms that Next.js uses to trigger navigation.
+Framework navigation/errors are **navigation events** triggered by Next.js functions like `redirect()`, `notFound()`, `forbidden()`, and `unauthorized()`. These are special because they're not really "errors", but control flow mechanisms that Next.js uses to trigger navigation.
 
 next-safe-action detects and handles these automatically:
 
@@ -178,7 +178,7 @@ See [Framework Errors](/docs/advanced/framework-errors) for advanced configurati
 	<Card href="/docs/advanced/custom-validation-errors" title="Custom validation errors">
 		Customize error shapes, flatten errors, and manually return validation errors.
 	</Card>
-	<Card href="/docs/advanced/framework-errors" title="Framework errors">
+	<Card href="/docs/advanced/framework-errors" title="Framework navigation/errors">
 		Advanced configuration for redirect, notFound, forbidden, and unauthorized.
 	</Card>
 </Cards>

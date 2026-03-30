@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { getActionShorthandStatusObject, getActionStatus, useActionCallbacks } from "./hooks-utils";
-import type { HookActionStatus, HookCallbacks, SingleInputActionFn, HookShorthandStatus } from "./hooks.types";
+import type { HookActionStatus, HookBaseOptions, HookCallbacks, SingleInputActionFn, HookShorthandStatus } from "./hooks.types";
 import type { SafeActionResult } from "./index.types";
 import { FrameworkErrorHandler } from "./next/errors";
 import type { InferInputOrDefault, StandardSchemaV1 } from "./standard-schema";
@@ -16,7 +16,7 @@ import type { InferInputOrDefault, StandardSchemaV1 } from "./standard-schema";
  */
 export function useActionBase<ServerError, Schema extends StandardSchemaV1 | undefined, ShapedErrors, Data>(
 	safeActionFn: SingleInputActionFn<ServerError, Schema, ShapedErrors, Data>,
-	cb: HookCallbacks<ServerError, Schema, ShapedErrors, Data> | undefined,
+	opts: HookBaseOptions<ServerError, Schema, ShapedErrors, Data> | undefined,
 	onTransitionStart?: (input: InferInputOrDefault<Schema, undefined>) => void
 ): {
 	isTransitioning: boolean;
@@ -82,7 +82,11 @@ export function useActionBase<ServerError, Schema extends StandardSchemaV1 | und
 							}
 						}
 
-						throw e;
+						// Only re-throw non-navigation errors for React error boundary handling.
+						// Navigation errors are handled via render-phase throw (throwOnNavigation).
+						if (!FrameworkErrorHandler.isNavigationError(e)) {
+							throw e;
+						}
 					})
 					.finally(() => {
 						if (thisRequestId !== requestIdRef.current) return;
@@ -126,9 +130,14 @@ export function useActionBase<ServerError, Schema extends StandardSchemaV1 | und
 								}
 							}
 
-							// Always reject so the caller's await settles (fixes executeAsync + navigation hang).
+							// Always reject so the caller's await settles.
 							reject(e);
-							throw e;
+
+							// Only re-throw non-navigation errors for React error boundary handling.
+							// Navigation errors are handled via render-phase throw (throwOnNavigation).
+							if (!FrameworkErrorHandler.isNavigationError(e)) {
+								throw e;
+							}
 						})
 						.finally(() => {
 							if (thisRequestId !== requestIdRef.current) return;
@@ -152,10 +161,20 @@ export function useActionBase<ServerError, Schema extends StandardSchemaV1 | und
 		result: result ?? {},
 		input: clientInput as InferInputOrDefault<Schema, undefined>,
 		status,
+		throwOnNavigation: opts?.throwOnNavigation === true,
 		navigationError,
 		thrownError,
-		cb,
+		// Cast: HookBaseOptions is a discriminated union that always includes callback properties at runtime.
+		// When throwOnNavigation is true, onNavigation/onSettled are omitted from the type but absent at runtime too.
+		cb: opts as HookCallbacks<ServerError, Schema, ShapedErrors, Data> | undefined,
 	});
+
+	// When throwOnNavigation is explicitly enabled, throw navigation errors during React's render
+	// phase so they reach the nearest error boundary. In Next.js, this is HTTPAccessFallbackBoundary,
+	// which shows 404/403/401 pages.
+	if (opts?.throwOnNavigation === true && navigationError !== null) {
+		throw navigationError;
+	}
 
 	return {
 		isTransitioning,

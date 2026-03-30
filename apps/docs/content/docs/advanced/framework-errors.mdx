@@ -1,5 +1,5 @@
 ---
-title: Framework errors
+title: Framework navigation/errors
 description: Handle redirect, notFound, unauthorized, and forbidden in your actions.
 ---
 
@@ -49,13 +49,13 @@ Each navigation function maps to a `navigationKind`:
 
 ## Handling in hooks
 
-When using `useAction`, framework errors set the status to `"hasNavigated"` and fire the `onNavigation` callback:
+By default, `useAction` catches navigation errors and sets the status to `"hasNavigated"`, firing the `onNavigation` callback. The component stays mounted:
 
 ```tsx
 const { execute, hasNavigated } = useAction(loginAction, {
 	onNavigation: ({ navigationKind }) => {
 		if (navigationKind === "redirect") {
-			// The user was redirected, action completed successfully
+			// The user was redirected
 		} else if (navigationKind === "notFound") {
 			// The resource wasn't found
 		}
@@ -67,13 +67,62 @@ const { execute, hasNavigated } = useAction(loginAction, {
 });
 ```
 
+### `throwOnNavigation: true`
+
+Set `throwOnNavigation` to `true` to propagate navigation errors to the nearest error boundary. In Next.js, this shows the appropriate error page:
+
+- `notFound()` shows the not-found page
+- `forbidden()` shows the forbidden page
+- `unauthorized()` shows the unauthorized page
+- `redirect()` performs the redirect (via HTTP headers)
+
+```tsx
+// Navigation errors propagate to Next.js error boundaries
+const { execute } = useAction(loginAction, {
+	throwOnNavigation: true,
+});
+```
+
 <Callout type="warn">
-**Important**: When `redirect()` is called in an action, `onSuccess` does **not** fire, `onNavigation` fires instead. If your action redirects after success, put cleanup logic in `onNavigation` or `onSettled`, not `onSuccess`.
+When `throwOnNavigation` is `true`, `onNavigation` and `onSettled` callbacks are **not available**. TypeScript will prevent you from passing them. This is because they cannot execute: see [why callbacks can't fire](#why-callbacks-cant-fire-with-throwonnavigation-true) below.
 </Callout>
+
+<Callout type="warn">
+When `redirect()` is called in an action, `onSuccess` does **not** fire regardless of `throwOnNavigation`. If your action redirects after success, put cleanup logic in `onNavigation` or `onSettled` (with default `throwOnNavigation`), or use server-side action callbacks.
+</Callout>
+
+### Why callbacks can't fire with `throwOnNavigation: true`
+
+When `throwOnNavigation` is `true`, the navigation error is thrown during React's **render phase** to reach the error boundary. This is a fundamental constraint of React's rendering model, not a library limitation:
+
+1. **React's render must be pure.** The render phase is where React calls your component function. It must be synchronous and side-effect free.
+2. **Effects only run after commit.** `useEffect` and `useLayoutEffect` callbacks are scheduled during render but only execute during the **commit phase**, after React has successfully rendered the component.
+3. **A render-phase throw prevents commit.** When a component throws during render, React never reaches the commit phase for that component. All scheduled effects are discarded.
+4. **The error boundary catches the throw.** React propagates the error to the nearest error boundary, which unmounts the throwing component and renders its fallback.
+
+Since `onNavigation` and `onSettled` are fired via `useEffect`, they can never execute when the render throws. There is no React API that allows committed side effects from a component whose render fails.
+
+**For side effects that must run on navigation** (analytics, logging, cleanup), use server-side action callbacks instead. These run on the server before the error reaches the client, and are guaranteed to complete:
+
+```ts
+export const myAction = actionClient
+	.inputSchema(schema)
+	.action(
+		async ({ parsedInput }) => {
+			notFound();
+		},
+		{
+			onNavigation: async ({ navigationKind }) => {
+				// Guaranteed to run on the server
+				await analytics.track("navigation", { navigationKind });
+			},
+		}
+	);
+```
 
 ## Handling in action callbacks
 
-Framework errors also work with server-side action callbacks:
+Framework navigation/errors also work with server-side action callbacks:
 
 ```ts
 export const myAction = actionClient

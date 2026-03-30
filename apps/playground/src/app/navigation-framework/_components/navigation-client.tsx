@@ -52,7 +52,7 @@ export function NavigationClient({ source }: Props) {
 		<div className="space-y-6">
 			<ExampleCard
 				title="Navigation Actions"
-				description="Buttons for each navigation function plus a success path."
+				description="Navigation errors are caught by default (throwOnNavigation: false). Callbacks fire normally."
 				source={source}
 			>
 				<div className="flex flex-wrap gap-2">
