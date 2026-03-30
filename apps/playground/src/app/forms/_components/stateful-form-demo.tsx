@@ -20,6 +20,9 @@ export function StatefulFormDemo({ source }: Props) {
 		onSuccess: ({ data }) => {
 			console.log("onSuccess:", data);
 		},
+		onSettled: ({ result }) => {
+			console.log("onSettled:", result);
+		},
 		onError: ({ error }) => {
 			console.error("onError:", error);
 		},
