@@ -15,8 +15,8 @@ jobs:
   preview:
     if: |
       github.event.issue.pull_request &&
-      startsWith(github.event.comment.body, '!release') &&
-      github.event.comment.author_association == 'OWNER'
+      startsWith(github.event.comment.body, '!prnew') &&
+      github.event.comment.author_association == 'MEMBER'
     runs-on: ubuntu-latest
     permissions:
       contents: read
