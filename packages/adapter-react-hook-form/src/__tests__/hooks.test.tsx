@@ -78,6 +78,22 @@ describe("useHookFormActionErrorMapper", () => {
 			name: { type: "validate", message: "Too short | Invalid chars" },
 		});
 	});
+
+	test("returns a stable reference when errorMapProps is passed as an inline object with the same content", () => {
+		const validationErrors = {
+			name: { _errors: ["Required"] },
+		};
+
+		// Passing errorMapProps as an inline object literal simulates the user's code pattern.
+		// Before the fix, this would produce a new hookFormValidationErrors reference every render.
+		const { result, rerender } = renderHook(() => useHookFormActionErrorMapper(validationErrors, { joinBy: "\n" }));
+
+		const first = result.current.hookFormValidationErrors;
+		rerender();
+		const second = result.current.hookFormValidationErrors;
+
+		expect(first).toBe(second);
+	});
 });
 
 // ─── useHookFormAction ───────────────────────────────────────────────────────
