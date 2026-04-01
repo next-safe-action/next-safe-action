@@ -1,5 +1,11 @@
 # @next-safe-action/adapter-react-hook-form
 
+## 2.0.5
+
+### Patch Changes
+
+- [#428](https://github.com/next-safe-action/next-safe-action/pull/428) [`bf5eb58`](https://github.com/next-safe-action/next-safe-action/commit/bf5eb58c60ddfca8d00fa4645e50beee7551d1f7) Thanks [@TheEdoRan](https://github.com/TheEdoRan)! - stabilize `useMemo` deps in `useHookFormActionErrorMapper`
+
 ## 2.0.4
 
 ### Patch Changes
