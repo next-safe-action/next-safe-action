@@ -25,9 +25,11 @@ export function useHookFormActionErrorMapper<Schema extends StandardSchemaV1 | u
 	validationErrors: ValidationErrors<Schema> | undefined,
 	props?: ErrorMapperProps
 ) {
+	const joinBy = props?.joinBy;
+
 	const hookFormValidationErrors = React.useMemo(
-		() => mapToHookFormErrors<Schema>(validationErrors, props),
-		[validationErrors, props]
+		() => mapToHookFormErrors<Schema>(validationErrors, joinBy !== undefined ? { joinBy } : undefined),
+		[validationErrors, joinBy]
 	);
 
 	return {
