@@ -5,7 +5,7 @@ import type { InferOutputOrDefault, StandardSchemaV1 } from "./standard-schema";
 import { DEFAULT_SERVER_ERROR_MESSAGE } from "./utils";
 import { flattenValidationErrors, formatValidationErrors } from "./validation-errors";
 
-export { createMiddleware } from "./middleware";
+export { createMiddleware, createValidatedMiddleware } from "./middleware";
 export { DEFAULT_SERVER_ERROR_MESSAGE } from "./utils";
 
 /**
@@ -53,11 +53,13 @@ export const createSafeActionClient = <
 
 	return new SafeActionClient({
 		middlewareFns: [async ({ next }) => next({ ctx: {} })],
+		validatedMiddlewareFns: [],
 		handleServerError,
 		inputSchemaFn: undefined,
 		bindArgsSchemas: [],
 		outputSchema: undefined,
 		ctxType: {},
+		preValidationCtxType: {},
 		metadataSchema: (createOpts?.defineMetadataSchema?.() ?? undefined) as MetadataSchema,
 		metadata: undefined as InferOutputOrDefault<MetadataSchema, undefined>,
 		defaultValidationErrorsShape: (createOpts?.defaultValidationErrorsShape ?? "formatted") as ErrorsFormat,

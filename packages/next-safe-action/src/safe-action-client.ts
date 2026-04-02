@@ -5,6 +5,7 @@ import type {
 	InputSchemaFactoryFn,
 	MaybeBrandThrows,
 	MiddlewareFn,
+	ValidatedMiddlewareFn,
 	SafeActionClientArgs,
 	SafeActionFn,
 	SafeStateActionFn,
@@ -12,7 +13,7 @@ import type {
 	ServerCodeFn,
 	StatefulServerCodeFn,
 } from "./index.types";
-import type { InferOutputOrDefault, StandardSchemaV1 } from "./standard-schema";
+import type { InferInputOrDefault, InferInputArray, InferOutputOrDefault, InferOutputArray, StandardSchemaV1 } from "./standard-schema";
 import { isStandardSchema } from "./standard-schema";
 import type {
 	FlattenedValidationErrors,
@@ -35,6 +36,8 @@ export class SafeActionClient<
 	const BindArgsSchemas extends readonly StandardSchemaV1[] = [],
 	ShapedErrors = undefined,
 	ThrowsValidationErrors extends boolean = false,
+	HasValidatedMiddleware extends boolean = false,
+	PreValidationCtx extends object = Ctx,
 > {
 	readonly #args: SafeActionClientArgs<
 		ServerError,
@@ -48,7 +51,9 @@ export class SafeActionClient<
 		OutputSchema,
 		BindArgsSchemas,
 		ShapedErrors,
-		ThrowsValidationErrors
+		ThrowsValidationErrors,
+		HasValidatedMiddleware,
+		PreValidationCtx
 	>;
 
 	constructor(
@@ -64,14 +69,17 @@ export class SafeActionClient<
 			OutputSchema,
 			BindArgsSchemas,
 			ShapedErrors,
-			ThrowsValidationErrors
+			ThrowsValidationErrors,
+			HasValidatedMiddleware,
+			PreValidationCtx
 		>
 	) {
 		this.#args = args;
 	}
 
 	/**
-	 * Use a middleware function.
+	 * Use a middleware function. Middleware added via `use()` always runs **before** input validation,
+	 * regardless of where it appears in the chain.
 	 * @param middlewareFn Middleware function
 	 *
 	 * {@link https://next-safe-action.dev/docs/define-actions/instance-methods#use See docs for more information}
@@ -81,6 +89,64 @@ export class SafeActionClient<
 			...this.#args,
 			middlewareFns: [...this.#args.middlewareFns, middlewareFn],
 			ctxType: {} as Ctx & NextCtx,
+			preValidationCtxType: {} as PreValidationCtx & NextCtx,
+		});
+	}
+
+	/**
+	 * Use a validated middleware function. Middleware added via `useValidated()` runs **after** input
+	 * validation and receives typed `parsedInput` and `bindArgsParsedInputs`.
+	 *
+	 * Requires `inputSchema()` or `bindArgsSchemas()` to be called before. After calling `useValidated()`,
+	 * `inputSchema()` and `bindArgsSchemas()` can no longer be called.
+	 *
+	 * @param middlewareFn Validated middleware function
+	 *
+	 * {@link https://next-safe-action.dev/docs/define-actions/instance-methods#usevalidated See docs for more information}
+	 */
+	useValidated<NextCtx extends object>(
+		this: [InputSchema, BindArgsSchemas] extends [undefined, readonly []]
+			? never
+			: SafeActionClient<
+					ServerError,
+					ErrorsFormat,
+					MetadataSchema,
+					Metadata,
+					HasMetadata,
+					Ctx,
+					InputSchemaFn,
+					InputSchema,
+					OutputSchema,
+					BindArgsSchemas,
+					ShapedErrors,
+					ThrowsValidationErrors,
+					HasValidatedMiddleware,
+					PreValidationCtx
+				>,
+		middlewareFn: ValidatedMiddlewareFn<
+			ServerError,
+			Metadata,
+			Ctx,
+			Ctx & NextCtx,
+			InferOutputOrDefault<InputSchema, undefined>,
+			InferInputOrDefault<InputSchema, undefined>,
+			InferOutputArray<BindArgsSchemas>,
+			InferInputArray<BindArgsSchemas>
+		>
+	) {
+		return new SafeActionClient({
+			...this.#args,
+			validatedMiddlewareFns: [...this.#args.validatedMiddlewareFns, middlewareFn],
+			ctxType: {} as Ctx & NextCtx,
+			preValidationCtxType: {} as PreValidationCtx,
+			hasValidatedMiddleware: true as const,
+			handleValidationErrorsShape: this.#args.handleValidationErrorsShape as unknown as HandleValidationErrorsShapeFn<
+				InputSchema,
+				BindArgsSchemas,
+				Metadata,
+				Ctx & NextCtx,
+				ShapedErrors
+			>,
 		});
 	}
 
@@ -100,6 +166,7 @@ export class SafeActionClient<
 
 	/**
 	 * Define the input validation schema for the action.
+	 * Cannot be called after `useValidated()`.
 	 * @param inputSchema Input validation schema
 	 * @param utils Optional utils object
 	 *
@@ -115,6 +182,24 @@ export class SafeActionClient<
 			? FlattenedValidationErrors<ValidationErrors<AIS>>
 			: ValidationErrors<AIS>,
 	>(
+		this: HasValidatedMiddleware extends false
+			? SafeActionClient<
+					ServerError,
+					ErrorsFormat,
+					MetadataSchema,
+					Metadata,
+					HasMetadata,
+					Ctx,
+					InputSchemaFn,
+					InputSchema,
+					OutputSchema,
+					BindArgsSchemas,
+					ShapedErrors,
+					ThrowsValidationErrors,
+					HasValidatedMiddleware,
+					PreValidationCtx
+				>
+			: never,
 		inputSchema: OIS,
 		utils?: {
 			handleValidationErrorsShape?: HandleValidationErrorsShapeFn<AIS, BindArgsSchemas, Metadata, Ctx, OShapedErrors>;
@@ -162,11 +247,32 @@ export class SafeActionClient<
 
 	/**
 	 * Define the bind args input validation schema for the action.
+	 * Cannot be called after `useValidated()`.
 	 * @param bindArgsSchemas Bind args input validation schemas
 	 *
 	 * {@link https://next-safe-action.dev/docs/define-actions/instance-methods#bindargsschemas See docs for more information}
 	 */
-	bindArgsSchemas<const OBindArgsSchemas extends readonly StandardSchemaV1[]>(bindArgsSchemas: OBindArgsSchemas) {
+	bindArgsSchemas<const OBindArgsSchemas extends readonly StandardSchemaV1[]>(
+		this: HasValidatedMiddleware extends false
+			? SafeActionClient<
+					ServerError,
+					ErrorsFormat,
+					MetadataSchema,
+					Metadata,
+					HasMetadata,
+					Ctx,
+					InputSchemaFn,
+					InputSchema,
+					OutputSchema,
+					BindArgsSchemas,
+					ShapedErrors,
+					ThrowsValidationErrors,
+					HasValidatedMiddleware,
+					PreValidationCtx
+				>
+			: never,
+		bindArgsSchemas: OBindArgsSchemas
+	) {
 		return new SafeActionClient({
 			...this.#args,
 			bindArgsSchemas,
@@ -209,8 +315,9 @@ export class SafeActionClient<
 			InputSchema,
 			BindArgsSchemas,
 			ShapedErrors,
-			Data
-		> = ActionCallbacks<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data>,
+			Data,
+			PreValidationCtx
+		> = ActionCallbacks<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data, PreValidationCtx>,
 	>(
 		this: HasMetadata extends true
 			? SafeActionClient<
@@ -225,7 +332,9 @@ export class SafeActionClient<
 					OutputSchema,
 					BindArgsSchemas,
 					ShapedErrors,
-					ThrowsValidationErrors
+					ThrowsValidationErrors,
+					HasValidatedMiddleware,
+					PreValidationCtx
 				>
 			: never,
 		serverCodeFn: ServerCodeFn<Metadata, Ctx, InputSchema, BindArgsSchemas, Data>,
@@ -257,8 +366,9 @@ export class SafeActionClient<
 			InputSchema,
 			BindArgsSchemas,
 			ShapedErrors,
-			Data
-		> = ActionCallbacks<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data>,
+			Data,
+			PreValidationCtx
+		> = ActionCallbacks<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data, PreValidationCtx>,
 	>(
 		this: HasMetadata extends true
 			? SafeActionClient<
@@ -273,7 +383,9 @@ export class SafeActionClient<
 					OutputSchema,
 					BindArgsSchemas,
 					ShapedErrors,
-					ThrowsValidationErrors
+					ThrowsValidationErrors,
+					HasValidatedMiddleware,
+					PreValidationCtx
 				>
 			: never,
 		serverCodeFn: StatefulServerCodeFn<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data>,
