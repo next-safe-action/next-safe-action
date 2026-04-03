@@ -83,8 +83,68 @@ createMiddleware<{
 The constraint defines the **minimum** required shape. The actual context/metadata can have additional properties, the middleware just needs these to be present.
 </Callout>
 
+## Standalone validated middleware
+
+The `createValidatedMiddleware()` helper works like `createMiddleware()`, but for middleware that runs **after** input validation via `useValidated()`. It lets you declare type constraints for `parsedInput`, `clientInput`, and bind args in addition to `ctx` and `metadata`.
+
+### Why standalone validated middleware?
+
+Just as `createMiddleware()` lets you share pre-validation middleware across clients, `createValidatedMiddleware()` lets you share post-validation middleware. This is especially useful for authorization patterns that depend on input shape.
+
+### Usage
+
+```ts title="src/lib/middleware/check-ownership.ts"
+import { createValidatedMiddleware } from "next-safe-action";
+
+export const checkOwnership = createValidatedMiddleware<{
+	ctx: { user: { id: string } };
+	parsedInput: { resourceId: string };
+}>().define(async ({ parsedInput, ctx, next }) => {
+	const resource = await db.resource.findUnique({
+		where: { id: parsedInput.resourceId },
+	});
+	if (resource?.ownerId !== ctx.user.id) {
+		throw new Error("Not authorized");
+	}
+	return next({ ctx: { resource } });
+});
+```
+
+Then use it with any client that has the required context and schema:
+
+```ts title="src/app/actions.ts"
+import { checkOwnership } from "@/lib/middleware/check-ownership";
+
+export const updateResource = authClient
+	.inputSchema(z.object({ resourceId: z.string(), title: z.string() }))
+	.useValidated(checkOwnership)
+	.action(async ({ ctx }) => {
+		// ctx.resource is typed and available
+	});
+```
+
+### Available constraints
+
+The generic parameter accepts all properties from `createMiddleware()` plus:
+
+| Property | Type | Description |
+|---|---|---|
+| `ctx` | `object` | Required shape of the context |
+| `metadata` | `Schema` | Required shape of metadata |
+| `serverError` | `string \| Error` | Required server error type |
+| `parsedInput` | `unknown` | Required shape of validated input |
+| `clientInput` | `unknown` | Required shape of raw client input |
+| `bindArgsParsedInputs` | `readonly unknown[]` | Required shape of validated bind args |
+| `bindArgsClientInputs` | `readonly unknown[]` | Required shape of raw bind args |
+
+<Callout>
+The constraint defines the **minimum** required shape. The actual input can have additional properties: the middleware just needs these to be present.
+</Callout>
+
 ## See also
 
 - [Middleware guide](/docs/guides/middleware): foundational middleware concepts and patterns
 - [`createMiddleware()` API](/docs/api/create-middleware): full API reference
+- [`createValidatedMiddleware()` API](/docs/api/create-middleware#createvalidatedmiddleware): full API reference for validated standalone middleware
+- [Validated middleware guide](/docs/guides/middleware#validated-middleware): when and how to use `useValidated()`
 - [Metadata](/docs/advanced/metadata): use metadata constraints in standalone middleware

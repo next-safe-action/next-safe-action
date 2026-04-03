@@ -70,6 +70,79 @@ const authClient = actionClient.use(async ({ next }) => {
 
 ---
 
+## `.useValidated()`
+
+Add a validated middleware function that runs **after** input validation. Only available after `inputSchema()` or `bindArgsSchemas()` has been called. Cannot be followed by `inputSchema()` or `bindArgsSchemas()`.
+
+```ts
+client.useValidated(middlewareFn)
+```
+
+**Parameters:**
+
+<TypeTable
+	type={{
+		middlewareFn: {
+			description: "A validated middleware function that receives parsed inputs and must call next() to continue the chain.",
+			type: "ValidatedMiddlewareFn<ServerError, Metadata, Ctx, Ctx & NextCtx, ParsedInput, ClientInput, BindArgsParsedInputs, BindArgsClientInputs>",
+		},
+	}}
+/>
+
+The validated middleware function receives:
+
+<TypeTable
+	type={{
+		parsedInput: {
+			description: "Validated input data (output type of the input schema, including transforms).",
+			type: "InferOutput<InputSchema>",
+		},
+		clientInput: {
+			description: "Raw input from the client, before validation (input type of the schema).",
+			type: "InferInput<InputSchema>",
+		},
+		bindArgsParsedInputs: {
+			description: "Tuple of validated bind argument values.",
+			type: "InferOutputArray<BindArgsSchemas>",
+		},
+		bindArgsClientInputs: {
+			description: "Tuple of raw bind argument values before validation.",
+			type: "InferInputArray<BindArgsSchemas>",
+		},
+		ctx: {
+			description: "Context object from previous middleware (both use() and earlier useValidated()).",
+			type: "Ctx",
+		},
+		metadata: {
+			description: "Action metadata set via .metadata().",
+			type: "Metadata",
+		},
+		next: {
+			description: "Call to proceed to the next validated middleware or server code. Pass { ctx } to extend context.",
+			type: "(opts?: { ctx?: NextCtx }) => Promise<MiddlewareResult>",
+		},
+	}}
+/>
+
+**Returns:** A new `SafeActionClient` with `NextCtx` merged into the context type. After calling `useValidated()`, `inputSchema()` and `bindArgsSchemas()` are no longer callable (TypeScript error).
+
+```ts
+const protectedAction = authClient
+	.inputSchema(z.object({ postId: z.string() }))
+	.useValidated(async ({ parsedInput, ctx, next }) => {
+		const post = await db.post.findUnique({ where: { id: parsedInput.postId } });
+		if (post?.authorId !== ctx.user.id) throw new Error("Forbidden");
+		return next({ ctx: { post } });
+	});
+// protectedAction now has ctx: { user: User, post: Post }
+```
+
+<Callout>
+`useValidated()` middleware is completely skipped if input validation fails. It only runs when all schemas pass.
+</Callout>
+
+---
+
 ## `.metadata()`
 
 Set metadata for the action. Only available when a metadata schema has been defined via `defineMetadataSchema` in [`createSafeActionClient`](/docs/api/create-safe-action-client).
@@ -152,6 +225,10 @@ const action = actionClient
 `.schema()` is a deprecated alias for `.inputSchema()`. Use `.inputSchema()` instead.
 </Callout>
 
+<Callout>
+`.inputSchema()` cannot be called after `.useValidated()`. TypeScript will report an error if you try.
+</Callout>
+
 ---
 
 ## `.outputSchema()`
@@ -219,6 +296,10 @@ const action = actionClient
 // In a component:
 const boundAction = action.bind(null, projectId);
 ```
+
+<Callout>
+`.bindArgsSchemas()` cannot be called after `.useValidated()`. TypeScript will report an error if you try.
+</Callout>
 
 ---
 
@@ -339,6 +420,10 @@ The optional second argument to `.action()` and `.stateAction()`:
 	}}
 />
 
+<Callout>
+In `onError`, `onSettled`, and `onNavigation` callbacks, context added by `useValidated()` middleware is optional in the `ctx` type. Context from `use()` middleware is always present, but `useValidated()` context may not exist if validation failed before validated middleware could run.
+</Callout>
+
 ```ts
 export const myAction = actionClient
 	.inputSchema(schema)
@@ -365,17 +450,19 @@ Typical order:
 
 ```ts
 actionClient
-	.use(middleware)        // 1. Add middleware (repeatable)
-	.metadata(data)         // 2. Set metadata (if schema defined)
-	.inputSchema(schema)    // 3. Define input validation
-	.outputSchema(schema)   // 4. Define output validation (optional)
-	.bindArgsSchemas([...]) // 5. Define bind args (optional)
-	.action(fn, utils)      // 6. Define server code (terminal)
+	.use(middleware)          // 1. Add pre-validation middleware (repeatable)
+	.metadata(data)           // 2. Set metadata (if schema defined)
+	.inputSchema(schema)      // 3. Define input validation
+	.bindArgsSchemas([...])   // 4. Define bind args (optional, must be before useValidated)
+	.useValidated(middleware)  // 5. Add post-validation middleware (repeatable, requires schema)
+	.outputSchema(schema)     // 6. Define output validation (optional)
+	.action(fn, utils)        // 7. Define server code (terminal)
 ```
 
 ## See also
 
 - [Action client](/docs/concepts/action-client): conceptual overview and immutability pattern
-- [Middleware guide](/docs/guides/middleware): practical patterns for `.use()`
+- [Middleware guide](/docs/guides/middleware): practical patterns for `.use()` and `.useValidated()`
 - [`createSafeActionClient()`](/docs/api/create-safe-action-client): creating the client instance
+- [`createMiddleware()` / `createValidatedMiddleware()`](/docs/api/create-middleware): standalone middleware factories
 - [Types reference](/docs/api/types): all exported TypeScript types
