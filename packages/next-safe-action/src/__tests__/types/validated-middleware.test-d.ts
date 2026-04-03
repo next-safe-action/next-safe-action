@@ -1,5 +1,12 @@
 import { expectTypeOf, test } from "vitest";
 import { z } from "zod";
+import type {
+	InferCtx,
+	InferMetadata,
+	InferServerError,
+	InferValidatedMiddlewareFnNextCtx,
+	ValidatedMiddlewareFn,
+} from "../..";
 import { createSafeActionClient, createValidatedMiddleware } from "../..";
 
 test("useValidated compiles after inputSchema", () => {
@@ -179,4 +186,170 @@ test("useValidated with both inputSchema and bindArgsSchemas", () => {
 			return next();
 		})
 		.action(async () => ({}));
+});
+
+// ─── Metadata typing in useValidated() ───────────────────────────────
+
+test("metadata is typed in useValidated when metadata schema is defined", () => {
+	const ac = createSafeActionClient({
+		defineMetadataSchema: () => z.object({ actionName: z.string(), version: z.number() }),
+	});
+
+	ac.metadata({ actionName: "test", version: 1 })
+		.inputSchema(z.string())
+		.useValidated(async ({ metadata, next }) => {
+			expectTypeOf(metadata).toEqualTypeOf<{ actionName: string; version: number }>();
+			expectTypeOf(metadata).not.toBeAny();
+			return next();
+		})
+		.action(async () => ({}));
+});
+
+test("metadata is undefined in useValidated when no metadata schema", () => {
+	const ac = createSafeActionClient();
+
+	ac.inputSchema(z.string())
+		.useValidated(async ({ metadata, next }) => {
+			expectTypeOf(metadata).toEqualTypeOf<undefined>();
+			return next();
+		})
+		.action(async () => ({}));
+});
+
+// ─── stateAction + useValidated() types ──────────────────────────────
+
+test("stateAction types flow correctly after useValidated", () => {
+	const ac = createSafeActionClient();
+
+	ac.inputSchema(z.object({ name: z.string() }))
+		.useValidated(async ({ parsedInput, next }) => {
+			expectTypeOf(parsedInput).toEqualTypeOf<{ name: string }>();
+			return next({ ctx: { validated: true } });
+		})
+		.stateAction(async ({ parsedInput, ctx }) => {
+			expectTypeOf(parsedInput).toEqualTypeOf<{ name: string }>();
+			expectTypeOf(ctx).toEqualTypeOf<{ validated: boolean }>();
+			return { result: parsedInput.name };
+		});
+});
+
+test("stateAction with useValidated receives prevResult", () => {
+	const ac = createSafeActionClient();
+
+	ac.inputSchema(z.string())
+		.useValidated(async ({ next }) => next())
+		.stateAction(async ({ parsedInput }, { prevResult }) => {
+			expectTypeOf(parsedInput).toEqualTypeOf<string>();
+			// prevResult has serverError as string (default) and validationErrors shape.
+			expectTypeOf(prevResult.serverError).not.toBeAny();
+			return { value: parsedInput };
+		});
+});
+
+// ─── InferValidatedMiddlewareFnNextCtx ───────────────────────────────
+
+test("InferValidatedMiddlewareFnNextCtx extracts next context from validated middleware", () => {
+	const mw = createValidatedMiddleware<{
+		parsedInput: { name: string };
+	}>().define(async ({ next }) => {
+		return next({ ctx: { greeting: "hello", count: 42 } });
+	});
+
+	type NextCtx = InferValidatedMiddlewareFnNextCtx<typeof mw>;
+	expectTypeOf<NextCtx>().toEqualTypeOf<{ greeting: string; count: number }>();
+});
+
+test("InferValidatedMiddlewareFnNextCtx returns never for non-middleware", () => {
+	type Result = InferValidatedMiddlewareFnNextCtx<string>;
+	expectTypeOf<Result>().toEqualTypeOf<never>();
+});
+
+// ─── InferCtx with middleware chain ──────────────────────────────────
+
+test("InferCtx extracts context from validated middleware", () => {
+	const mw = createValidatedMiddleware<{
+		parsedInput: string;
+		ctx: { db: object; userId: string };
+	}>().define(async ({ next }) => next());
+
+	type Ctx = InferCtx<typeof mw>;
+	expectTypeOf<Ctx>().toEqualTypeOf<{ db: object; userId: string }>();
+});
+
+// ─── InferMetadata with middleware ───────────────────────────────────
+
+test("InferMetadata extracts metadata from validated middleware", () => {
+	const mw = createValidatedMiddleware<{
+		parsedInput: string;
+		metadata: { actionName: string };
+	}>().define(async ({ next }) => next());
+
+	type Meta = InferMetadata<typeof mw>;
+	expectTypeOf<Meta>().toEqualTypeOf<{ actionName: string }>();
+});
+
+// ─── InferServerError with middleware ────────────────────────────────
+
+test("InferServerError extracts server error from validated middleware", () => {
+	type CustomError = { code: string; message: string };
+
+	type Mw = ValidatedMiddlewareFn<CustomError, undefined, {}, { extra: boolean }, string, string, readonly [], readonly []>;
+
+	type SE = InferServerError<Mw>;
+	expectTypeOf<SE>().toEqualTypeOf<CustomError>();
+});
+
+// ─── Standalone validated middleware constraint errors ────────────────
+
+test("createValidatedMiddleware with incompatible parsedInput errors at use site", () => {
+	const mwExpectsObject = createValidatedMiddleware<{
+		parsedInput: { name: string; age: number };
+	}>().define(async ({ next }) => next());
+
+	const ac = createSafeActionClient();
+
+	// Using with a schema that doesn't match the constraint.
+	ac.inputSchema(z.string())
+		// @ts-expect-error - parsedInput type mismatch: string vs { name: string; age: number }
+		.useValidated(mwExpectsObject)
+		.action(async () => ({}));
+});
+
+// ─── parsedInput undefined with only bindArgsSchemas ─────────────────
+
+test("parsedInput is undefined in useValidated with only bindArgsSchemas", () => {
+	const ac = createSafeActionClient();
+
+	ac.bindArgsSchemas([z.number()])
+		.useValidated(async ({ parsedInput, bindArgsParsedInputs, next }) => {
+			expectTypeOf(parsedInput).toEqualTypeOf<undefined>();
+			expectTypeOf(bindArgsParsedInputs).toEqualTypeOf<readonly [number]>();
+			return next();
+		})
+		.action(async () => ({}));
+});
+
+// ─── ValidatedMiddlewareFn type parameters ───────────────────────────
+
+test("ValidatedMiddlewareFn type parameters are correctly constrained", () => {
+	type TestVMw = ValidatedMiddlewareFn<
+		string,
+		{ actionName: string },
+		{ userId: string },
+		{ authorized: boolean },
+		{ name: string },
+		{ name: string },
+		readonly [number],
+		readonly [number]
+	>;
+
+	const mw: TestVMw = async ({ ctx, metadata, parsedInput, bindArgsParsedInputs, next }) => {
+		expectTypeOf(ctx).toEqualTypeOf<{ userId: string }>();
+		expectTypeOf(metadata).toEqualTypeOf<{ actionName: string }>();
+		expectTypeOf(parsedInput).toEqualTypeOf<{ name: string }>();
+		expectTypeOf(bindArgsParsedInputs).toEqualTypeOf<readonly [number]>();
+		return next({ ctx: { authorized: true } });
+	};
+
+	expectTypeOf(mw).not.toBeAny();
 });
