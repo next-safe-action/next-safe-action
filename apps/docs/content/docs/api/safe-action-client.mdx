@@ -359,10 +359,7 @@ export const myAction = actionClient
 
 ## Method chaining order
 
-Methods can be called in any order, with these constraints:
-
-1. `.metadata()` must be called before `.action()` / `.stateAction()` when a metadata schema is defined
-2. `.action()` or `.stateAction()` must be the last method, as it terminates the chain
+Methods can be called in any order, with just one constraint: the final one must be `.action()` / `.stateAction()`.
 
 Typical order:
 
