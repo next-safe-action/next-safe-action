@@ -185,6 +185,10 @@ const actionClient = createSafeActionClient()
 
 Regular `use()` middleware runs **before** input validation and only has access to the raw, unvalidated `clientInput`. Sometimes you need middleware that runs **after** validation, with access to the typed, validated `parsedInput`. That's what `useValidated()` is for.
 
+<Callout>
+**Start with `use()`.** Most middleware (authentication, logging, rate limiting, error handling, context enrichment) does not need validated input and should use `use()`. Reach for `useValidated()` only when your middleware logic specifically depends on `parsedInput`, for example to check resource ownership or perform input-dependent authorization.
+</Callout>
+
 ### When to use `useValidated()` vs `use()`
 
 | Need | Method |

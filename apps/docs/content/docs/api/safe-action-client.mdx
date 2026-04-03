@@ -74,6 +74,10 @@ const authClient = actionClient.use(async ({ next }) => {
 
 Add a validated middleware function that runs **after** input validation. Only available after `inputSchema()` or `bindArgsSchemas()` has been called. Cannot be followed by `inputSchema()` or `bindArgsSchemas()`.
 
+<Callout>
+For most middleware, prefer [`.use()`](#use) instead. `.useValidated()` is designed for the specific cases where your middleware logic depends on the validated `parsedInput`, such as resource ownership checks or input-dependent authorization.
+</Callout>
+
 ```ts
 client.useValidated(middlewareFn)
 ```
@@ -464,5 +468,5 @@ actionClient
 - [Action client](/docs/concepts/action-client): conceptual overview and immutability pattern
 - [Middleware guide](/docs/guides/middleware): practical patterns for `.use()` and `.useValidated()`
 - [`createSafeActionClient()`](/docs/api/create-safe-action-client): creating the client instance
-- [`createMiddleware()` / `createValidatedMiddleware()`](/docs/api/create-middleware): standalone middleware factories
+- [`createMiddleware()`](/docs/api/create-middleware) / [`createValidatedMiddleware()`](/docs/api/create-validated-middleware): standalone middleware factories
 - [Types reference](/docs/api/types): all exported TypeScript types

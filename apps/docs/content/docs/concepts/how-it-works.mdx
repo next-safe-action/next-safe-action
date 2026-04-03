@@ -68,7 +68,7 @@ Key concepts:
 Learn more in the [Middleware guide](/docs/guides/middleware).
 
 <Callout>
-If you need middleware that runs **after** input validation with access to typed `parsedInput`, see [validated middleware](/docs/guides/middleware#validated-middleware) (the `useValidated()` method).
+Most middleware should use `use()`, which covers authentication, logging, rate limiting, and context enrichment. If you specifically need middleware that runs **after** input validation with access to typed `parsedInput`, see [validated middleware](/docs/guides/middleware#validated-middleware) (the `useValidated()` method).
 </Callout>
 
 ## How actions are defined

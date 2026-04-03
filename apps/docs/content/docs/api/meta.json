@@ -4,6 +4,7 @@
 		"create-safe-action-client",
 		"safe-action-client",
 		"create-middleware",
+		"create-validated-middleware",
 		"validation-utilities",
 		"error-classes",
 		"hooks-api",
