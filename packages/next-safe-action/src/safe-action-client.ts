@@ -119,10 +119,22 @@ export class SafeActionClient<
 
 	/**
 	 * Use a validated middleware function. Middleware added via `useValidated()` runs **after** input
-	 * validation and receives typed `parsedInput` and `bindArgsParsedInputs`.
+	 * validation and receives typed `parsedInput` and `bindArgsParsedInputs`. Follows the onion model:
+	 * code before `next()` runs pre-action, code after `next()` runs post-action with access to the result.
 	 *
 	 * Requires `inputSchema()` or `bindArgsSchemas()` to be called before. After calling `useValidated()`,
-	 * `inputSchema()` and `bindArgsSchemas()` can no longer be called.
+	 * `inputSchema()`, `bindArgsSchemas()`, and `use()` can no longer be called.
+	 *
+	 * @example
+	 * ```ts
+	 * authClient
+	 *   .inputSchema(z.object({ postId: z.string() }))
+	 *   .useValidated(async ({ parsedInput, ctx, next }) => {
+	 *     const post = await db.post.findUnique({ where: { id: parsedInput.postId } });
+	 *     if (post?.authorId !== ctx.user.id) throw new Error("Forbidden");
+	 *     return next({ ctx: { post } });
+	 *   })
+	 * ```
 	 *
 	 * @param middlewareFn Validated middleware function
 	 *
