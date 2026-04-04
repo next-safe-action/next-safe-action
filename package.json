@@ -36,7 +36,7 @@
 		"@manypkg/cli": "^0.25.1",
 		"oxfmt": "catalog:",
 		"oxlint": "catalog:",
-		"turbo": "^2.8.21",
+		"turbo": "^2.9.3",
 		"typescript": "catalog:"
 	},
 	"devDependencies": {
