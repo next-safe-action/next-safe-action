@@ -1,5 +1,11 @@
 # next-safe-action
 
+## 8.4.0
+
+### Minor Changes
+
+- [#430](https://github.com/next-safe-action/next-safe-action/pull/430) [`9136b70`](https://github.com/next-safe-action/next-safe-action/commit/9136b70e5220063aeed315e66b93489ec6655e66) Thanks [@TheEdoRan](https://github.com/TheEdoRan)! - Add `useValidated()` post-validation middleware with type-safe context.
+
 ## 8.3.0
 
 ### Minor Changes
