@@ -397,6 +397,7 @@ export function actionBuilder<
 					let prevResult: PrevResult = {};
 					const frameworkErrorHandler = new FrameworkErrorHandler();
 					const serverErrorHandled = { value: false };
+					let chainCompleted = false;
 
 					// Extract prevResult for stateful actions.
 					if (withState) {
@@ -458,6 +459,11 @@ export function actionBuilder<
 									ctx: currentCtx,
 									metadata: args.metadata,
 									next: async (nextOpts) => {
+										if (chainCompleted) {
+											throw new Error(
+												"next() called after the middleware chain has already completed. Do not store and call next() asynchronously after the action has returned."
+											);
+										}
 										if (nextCalled) {
 											throw new Error(
 												"next() called multiple times in middleware. Each middleware must call next() at most once."
@@ -527,6 +533,11 @@ export function actionBuilder<
 									ctx: currentCtx,
 									metadata: args.metadata,
 									next: async (nextOpts) => {
+										if (chainCompleted) {
+											throw new Error(
+												"next() called after the middleware chain has already completed. Do not store and call next() asynchronously after the action has returned."
+											);
+										}
 										if (nextCalled) {
 											throw new Error(
 												"next() called multiple times in middleware. Each middleware must call next() at most once."
@@ -578,6 +589,7 @@ export function actionBuilder<
 
 					// Execute middleware chain + action function.
 					await executeMiddlewareStack();
+					chainCompleted = true;
 
 					return buildResultAndRunCallbacks<Data>(
 						middlewareResult,

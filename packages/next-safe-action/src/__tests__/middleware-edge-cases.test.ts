@@ -372,3 +372,96 @@ test("nested middleware post-processing runs in correct onion order", async () =
 	// Onion model: outer-before -> inner-before -> action -> inner-after -> outer-after
 	expect(sideEffects).toStrictEqual(["outer-before", "inner-before", "action", "inner-after", "outer-after"]);
 });
+
+// ─── Chain completion guard ──────────────────────────────────────────
+
+test("use() middleware calling stored next() after chain completed throws", async () => {
+	let storedNext: (() => Promise<unknown>) | null = null;
+
+	const action = ac
+		// @ts-expect-error - intentionally not returning a result to test guard behavior
+		.use(async ({ next }) => {
+			storedNext = next;
+			// Intentionally not calling next(), so the chain short-circuits.
+		})
+		.action(async () => {
+			return { ok: true };
+		});
+
+	await action();
+
+	// The chain has completed. Calling the stored next() should throw.
+	expect(storedNext).not.toBeNull();
+	await expect(storedNext!()).rejects.toThrow(
+		"next() called after the middleware chain has already completed."
+	);
+});
+
+test("useValidated() middleware calling stored next() after chain completed throws", async () => {
+	let storedNext: (() => Promise<unknown>) | null = null;
+
+	const action = ac
+		.inputSchema(z.object({ name: z.string() }))
+		// @ts-expect-error - intentionally not returning a result to test guard behavior
+		.useValidated(async ({ next }) => {
+			storedNext = next;
+			// Intentionally not calling next(), so the chain short-circuits.
+		})
+		.action(async () => {
+			return { ok: true };
+		});
+
+	await action({ name: "test" });
+
+	// The chain has completed. Calling the stored next() should throw.
+	expect(storedNext).not.toBeNull();
+	await expect(storedNext!()).rejects.toThrow(
+		"next() called after the middleware chain has already completed."
+	);
+});
+
+test("use() middleware calling next() normally still works (chain completion guard does not interfere)", async () => {
+	const order: string[] = [];
+
+	const action = ac
+		.use(async ({ next }) => {
+			order.push("before");
+			const res = await next();
+			order.push("after");
+			return res;
+		})
+		.action(async () => {
+			order.push("action");
+			return { ok: true };
+		});
+
+	const result = await action();
+
+	expect(result).toStrictEqual({ data: { ok: true } });
+	expect(order).toStrictEqual(["before", "action", "after"]);
+});
+
+test("stored next() from use() that was called once cannot be called again after chain completion", async () => {
+	let storedNext: (() => Promise<unknown>) | null = null;
+
+	const action = ac
+		.use(async ({ next }) => {
+			storedNext = next;
+			const res = await next();
+			return res;
+		})
+		.action(async () => {
+			return { ok: true };
+		});
+
+	const result = await action();
+	expect(result).toStrictEqual({ data: { ok: true } });
+
+	// next() was already called once during normal execution.
+	// Calling it again after chain completion hits the chain completion guard first,
+	// since chainCompleted is checked before nextCalled.
+	expect(storedNext).not.toBeNull();
+	await expect(storedNext!()).rejects.toThrow(
+		"next() called after the middleware chain has already completed."
+	);
+});
