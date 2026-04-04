@@ -3,12 +3,14 @@ import { readAndHighlightFile } from "@/lib/shiki";
 import { MiddlewareClient } from "./_components/middleware-client";
 
 export default async function MiddlewarePage() {
-	const [loggingAction, authChainAction, errorHandlingAction, rateLimitAction] = await Promise.all([
-		readAndHighlightFile("middleware/_actions/logging-action.ts"),
-		readAndHighlightFile("middleware/_actions/auth-chain-action.ts"),
-		readAndHighlightFile("middleware/_actions/error-handling-action.ts"),
-		readAndHighlightFile("middleware/_actions/rate-limit-action.ts"),
-	]);
+	const [loggingAction, authChainAction, errorHandlingAction, rateLimitAction, validatedMiddlewareAction] =
+		await Promise.all([
+			readAndHighlightFile("middleware/_actions/logging-action.ts"),
+			readAndHighlightFile("middleware/_actions/auth-chain-action.ts"),
+			readAndHighlightFile("middleware/_actions/error-handling-action.ts"),
+			readAndHighlightFile("middleware/_actions/rate-limit-action.ts"),
+			readAndHighlightFile("middleware/_actions/validated-middleware-action.ts"),
+		]);
 
 	return (
 		<div>
@@ -19,6 +21,7 @@ export default async function MiddlewarePage() {
 					authChainAction,
 					errorHandlingAction,
 					rateLimitAction,
+					validatedMiddlewareAction,
 				}}
 			/>
 		</div>

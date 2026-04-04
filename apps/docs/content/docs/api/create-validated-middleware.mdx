@@ -1,0 +1,136 @@
+---
+title: createValidatedMiddleware()
+description: API reference for the createValidatedMiddleware() function.
+---
+
+`createValidatedMiddleware` creates a standalone validated middleware function for use with `.useValidated()`. It works the same way as `createMiddleware()`, but the middleware function also receives typed `parsedInput`, `clientInput`, `bindArgsParsedInputs`, and `bindArgsClientInputs`.
+
+```ts
+import { createValidatedMiddleware } from "next-safe-action";
+
+const myMiddleware = createValidatedMiddleware<Constraints>().define(middlewareFn);
+```
+
+<Callout>
+Most middleware should use [`createMiddleware()`](/docs/api/create-middleware) with `.use()` instead. Only use `createValidatedMiddleware()` when the middleware specifically needs access to the validated `parsedInput`, for example to check resource ownership or log transformed input. See [when to use `useValidated()` vs `use()`](/docs/guides/middleware#when-to-use-usevalidated-vs-use) for guidance.
+</Callout>
+
+## Signature
+
+```ts
+function createValidatedMiddleware<
+	BaseData extends {
+		serverError?: any;
+		ctx?: object;
+		metadata?: any;
+		parsedInput?: unknown;
+		clientInput?: unknown;
+		bindArgsParsedInputs?: readonly unknown[];
+		bindArgsClientInputs?: readonly unknown[];
+	}
+>(): {
+	define: <NextCtx extends object>(middlewareFn: ValidatedMiddlewareFn) => ValidatedMiddlewareFn;
+};
+```
+
+## Generic parameter
+
+`createValidatedMiddleware` accepts a single generic parameter `BaseData` with all the properties from `createMiddleware`, plus input-related constraints:
+
+<TypeTable
+	type={{
+		"BaseData.serverError": {
+			description: "Required server error type.",
+			type: "any",
+			default: "any",
+		},
+		"BaseData.ctx": {
+			description: "Required minimum shape of the context object.",
+			type: "object",
+			default: "object (empty)",
+		},
+		"BaseData.metadata": {
+			description: "Required minimum shape of metadata.",
+			type: "any",
+			default: "any",
+		},
+		"BaseData.parsedInput": {
+			description: "Required minimum shape of the validated parsed input.",
+			type: "unknown",
+			default: "unknown",
+		},
+		"BaseData.clientInput": {
+			description: "Required minimum shape of the raw client input.",
+			type: "unknown",
+			default: "unknown",
+		},
+		"BaseData.bindArgsParsedInputs": {
+			description: "Required minimum tuple type for validated bind arg inputs.",
+			type: "readonly unknown[]",
+			default: "readonly unknown[]",
+		},
+		"BaseData.bindArgsClientInputs": {
+			description: "Required minimum tuple type for raw bind arg inputs.",
+			type: "readonly unknown[]",
+			default: "readonly unknown[]",
+		},
+	}}
+/>
+
+## `.define()` method
+
+The `define` method accepts a validated middleware function. The function receives all the properties from inline `useValidated()` middleware: `parsedInput`, `clientInput`, `bindArgsParsedInputs`, `bindArgsClientInputs`, `ctx`, `metadata`, and `next`.
+
+## Examples
+
+### With parsedInput constraint
+
+```ts title="src/lib/middleware/log-user.ts"
+import { createValidatedMiddleware } from "next-safe-action";
+
+export const logUserMiddleware = createValidatedMiddleware<{
+	parsedInput: { userId: string };
+}>().define(async ({ parsedInput, next }) => {
+	console.log("Acting on user:", parsedInput.userId);
+	return next();
+});
+```
+
+### With context and parsedInput constraints
+
+```ts title="src/lib/middleware/ownership-check.ts"
+import { createValidatedMiddleware } from "next-safe-action";
+
+export const ownershipCheck = createValidatedMiddleware<{
+	ctx: { user: { id: string } };
+	parsedInput: { resourceId: string };
+}>().define(async ({ parsedInput, ctx, next }) => {
+	const resource = await db.resource.findUnique({
+		where: { id: parsedInput.resourceId },
+	});
+	if (resource?.ownerId !== ctx.user.id) {
+		throw new Error("Forbidden");
+	}
+	return next({ ctx: { resource } });
+});
+```
+
+### Usage with clients
+
+```ts title="src/lib/safe-action.ts"
+import { ownershipCheck } from "./middleware/ownership-check";
+
+const ownerAction = authClient
+	.inputSchema(z.object({ resourceId: z.string() }))
+	.useValidated(ownershipCheck);
+
+// ✅ Works: ownershipCheck requires ctx.user (from auth) and parsedInput.resourceId
+// ❌ Type error if used without auth middleware or without resourceId in schema
+```
+
+## See also
+
+- [Validated middleware guide](/docs/guides/middleware#validated-middleware): practical patterns for `useValidated()`
+- [Standalone middleware](/docs/advanced/standalone-middleware): guide with reuse patterns
+- [`.useValidated()` method](/docs/api/safe-action-client#usevalidated): how standalone validated middleware is consumed
+- [`createMiddleware()`](/docs/api/create-middleware): standalone pre-validation middleware factory

@@ -120,13 +120,18 @@ The client provides these methods, each returning a new instance:
 
 | Method | Purpose |
 |---|---|
-| `.use(middleware)` | Add a middleware function |
+| `.use(middleware)` | Add a pre-validation middleware function |
 | `.metadata(data)` | Set action metadata (requires `defineMetadataSchema` in client options) |
 | `.inputSchema(schema)` | Define input validation schema |
+| `.useValidated(middleware)` | Add a post-validation middleware function (requires `inputSchema` or `bindArgsSchemas`) |
 | `.outputSchema(schema)` | Define output validation schema |
 | `.bindArgsSchemas(schemas)` | Define schemas for bound arguments |
 | `.action(serverCode)` | Define the action (returns a callable function) |
 | `.stateAction(serverCode)` | Define a stateful action (for React's `useActionState`) |
+
+<Callout>
+`.useValidated()` is only available after `.inputSchema()` or `.bindArgsSchemas()`. It adds middleware that runs after input validation with access to typed `parsedInput`. See the [middleware guide](/docs/guides/middleware#validated-middleware) for details.
+</Callout>
 
 See the [API reference](/docs/api/safe-action-client) for detailed signatures and parameters.
 

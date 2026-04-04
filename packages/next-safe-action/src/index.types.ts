@@ -110,8 +110,11 @@ export type SafeActionClientArgs<
 	BindArgsSchemas extends readonly StandardSchemaV1[] = [], // bind args schemas
 	ShapedErrors = undefined, // custom validation errors shape
 	ThrowsValidationErrors extends boolean = false, // whether the client throws validation errors
+	HasValidatedMiddleware extends boolean = false, // whether useValidated() has been called
+	PreValidationCtx extends object = Ctx, // context from use() middleware only (before validation)
 > = {
 	middlewareFns: MiddlewareFn<ServerError, any, any, any>[];
+	validatedMiddlewareFns: ValidatedMiddlewareFn<ServerError, any, any, any, any, any, any, any>[];
 	metadataSchema: MetadataSchema;
 	metadata: Metadata;
 	metadataProvided?: HasMetadata;
@@ -120,9 +123,11 @@ export type SafeActionClientArgs<
 	bindArgsSchemas: BindArgsSchemas;
 	handleValidationErrorsShape: HandleValidationErrorsShapeFn<InputSchema, BindArgsSchemas, Metadata, Ctx, ShapedErrors>;
 	ctxType: Ctx;
+	preValidationCtxType: PreValidationCtx;
 	handleServerError: HandleServerErrorFn<ServerError, MetadataSchema>;
 	defaultValidationErrorsShape: ErrorsFormat;
 	throwValidationErrors: ThrowsValidationErrors;
+	hasValidatedMiddleware?: HasValidatedMiddleware;
 };
 
 /**
@@ -220,6 +225,33 @@ export type MiddlewareFn<ServerError, Metadata, Ctx extends object, NextCtx exte
 };
 
 /**
+ * Type of the validated middleware function passed to a safe action client via `useValidated()`.
+ * Executed after input validation, receives typed parsed inputs.
+ */
+export type ValidatedMiddlewareFn<
+	ServerError,
+	Metadata,
+	Ctx extends object,
+	NextCtx extends object,
+	ParsedInput = unknown,
+	ClientInput = unknown,
+	BindArgsParsedInputs extends readonly unknown[] = readonly unknown[],
+	BindArgsClientInputs extends readonly unknown[] = readonly unknown[],
+> = {
+	(opts: {
+		parsedInput: ParsedInput;
+		clientInput: ClientInput;
+		bindArgsParsedInputs: BindArgsParsedInputs;
+		bindArgsClientInputs: BindArgsClientInputs;
+		ctx: Prettify<Ctx>;
+		metadata: Metadata;
+		next: {
+			<NC extends object = {}>(opts?: { ctx?: NC }): Promise<MiddlewareResult<ServerError, NC>>;
+		};
+	}): Promise<MiddlewareResult<ServerError, NextCtx>>;
+};
+
+/**
  * Type of the function that executes server code when defining a new safe action.
  */
 export type ServerCodeFn<
@@ -276,6 +308,7 @@ export type ActionCallbacks<
 	BindArgsSchemas extends readonly StandardSchemaV1[],
 	ShapedErrors,
 	Data,
+	PreValidationCtx extends object = Ctx,
 > = {
 	throwServerError?: boolean;
 	throwValidationErrors?: boolean | { overrideErrorMessage: (validationErrors: ShapedErrors) => Promise<string> };
@@ -290,7 +323,7 @@ export type ActionCallbacks<
 	}) => Promise<unknown>;
 	onNavigation?: (args: {
 		metadata: Metadata;
-		ctx?: Prettify<Ctx>;
+		ctx?: Prettify<PreValidationCtx & Partial<Ctx>>;
 		clientInput: InferInputOrDefault<Schema, undefined>;
 		bindArgsClientInputs: InferInputArray<BindArgsSchemas>;
 		navigationKind: NavigationKind;
@@ -298,14 +331,14 @@ export type ActionCallbacks<
 	onError?: (args: {
 		error: Prettify<Omit<SafeActionResult<ServerError, Schema, ShapedErrors, Data>, "data">>;
 		metadata: Metadata;
-		ctx?: Prettify<Ctx>;
+		ctx?: Prettify<PreValidationCtx & Partial<Ctx>>;
 		clientInput: InferInputOrDefault<Schema, undefined>;
 		bindArgsClientInputs: InferInputArray<BindArgsSchemas>;
 	}) => Promise<unknown>;
 	onSettled?: (args: {
 		result: Prettify<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>;
 		metadata: Metadata;
-		ctx?: Prettify<Ctx>;
+		ctx?: Prettify<PreValidationCtx & Partial<Ctx>>;
 		clientInput: InferInputOrDefault<Schema, undefined>;
 		bindArgsClientInputs: InferInputArray<BindArgsSchemas>;
 		navigationKind?: NavigationKind;
@@ -373,11 +406,20 @@ export type InferMiddlewareFnNextCtx<T> =
 	T extends MiddlewareFn<any, any, any, infer NextCtx extends object> ? NextCtx : never;
 
 /**
+ * Infer the next context type returned by a validated middleware function using the `next` function.
+ */
+export type InferValidatedMiddlewareFnNextCtx<T> =
+	T extends ValidatedMiddlewareFn<any, any, any, infer NextCtx extends object, any, any, any, any>
+		? NextCtx
+		: never;
+
+/**
  * Infer the context type of a safe action client or middleware function.
  */
 export type InferCtx<T> = T extends
-	| SafeActionClient<any, any, any, any, false, infer Ctx extends object, any, any, any, any, any, any>
+	| SafeActionClient<any, any, any, any, false, infer Ctx extends object, any, any, any, any, any, any, any, any>
 	| MiddlewareFn<any, any, infer Ctx extends object, any>
+	| ValidatedMiddlewareFn<any, any, infer Ctx extends object, any, any, any, any, any>
 	? Ctx
 	: never;
 
@@ -385,8 +427,9 @@ export type InferCtx<T> = T extends
  * Infer the metadata type of a safe action client or middleware function.
  */
 export type InferMetadata<T> = T extends
-	| SafeActionClient<any, any, any, infer Metadata, false, any, any, any, any, any, any, any>
+	| SafeActionClient<any, any, any, infer Metadata, false, any, any, any, any, any, any, any, any, any>
 	| MiddlewareFn<any, infer Metadata, any, any>
+	| ValidatedMiddlewareFn<any, infer Metadata, any, any, any, any, any, any>
 	? Metadata
 	: never;
 
@@ -394,8 +437,9 @@ export type InferMetadata<T> = T extends
  * Infer the server error type from a safe action client or a middleware function or a safe action function.
  */
 export type InferServerError<T> = T extends
-	| SafeActionClient<infer ServerError, any, any, any, any, any, any, any, any, any, any, any>
+	| SafeActionClient<infer ServerError, any, any, any, any, any, any, any, any, any, any, any, any, any>
 	| MiddlewareFn<infer ServerError, any, any, any>
+	| ValidatedMiddlewareFn<infer ServerError, any, any, any, any, any, any, any>
 	| SafeActionFn<infer ServerError, any, any, any, any>
 	| SafeStateActionFn<infer ServerError, any, any, any, any>
 	? ServerError

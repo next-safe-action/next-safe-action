@@ -116,7 +116,7 @@ export const sensitiveAction = authClient
 	});
 ```
 
-## Middleware function arguments
+## use() middleware arguments
 
 Each middleware function receives a single object with these properties:
 
@@ -181,13 +181,144 @@ const actionClient = createSafeActionClient()
 // In your action: ctx = { requestId: string, user: User | null }
 ```
 
+## Validated middleware
+
+Regular `use()` middleware runs **before** input validation and only has access to the raw, unvalidated `clientInput`. Sometimes you need middleware that runs **after** validation, with access to the typed, validated `parsedInput`. That's what `useValidated()` is for.
+
+<Callout>
+**Start with `use()`.** Most middleware (authentication, logging, rate limiting, error handling, context enrichment) does not need validated input and should use `use()`. Reach for `useValidated()` only when your middleware logic specifically depends on `parsedInput`, for example to check resource ownership or perform input-dependent authorization.
+</Callout>
+
+### When to use `useValidated()` vs `use()`
+
+| Need | Method |
+|---|---|
+| Authentication, logging, rate limiting (no input needed) | `.use()` |
+| Access to raw `clientInput` before validation | `.use()` |
+| Authorization based on validated input (e.g., check user owns resource) | `.useValidated()` |
+| Logging or auditing validated/transformed input | `.useValidated()` |
+| Enriching context with data derived from parsed input | `.useValidated()` |
+
+### Basic usage
+
+`useValidated()` can only be called **after** `inputSchema()` or `bindArgsSchemas()`:
+
+```ts title="src/app/actions.ts"
+export const updatePost = authClient
+	.inputSchema(z.object({ postId: z.string().uuid() }))
+	.useValidated(async ({ parsedInput, ctx, next }) => {
+		// parsedInput is typed: { postId: string }
+		const post = await db.post.findUnique({ where: { id: parsedInput.postId } });
+		if (post?.authorId !== ctx.user.id) {
+			throw new Error("Not your post");
+		}
+		return next({ ctx: { post } });
+	})
+	.action(async ({ ctx }) => {
+		// ctx.post is typed and available
+		return { title: ctx.post.title };
+	});
+```
+
+### Execution order
+
+All `use()` middleware runs before input validation, and all `useValidated()` middleware runs after. The chain declaration order matches the execution order:
+
+```ts title="Execution pipeline"
+const action = authClient
+	.use(rateLimit)              // 1. Pre-validation middleware
+	.inputSchema(schema)          // 2. Input validation
+	.useValidated(checkOwnership) // 3. Post-validation middleware
+	.action(serverCode);          // 4. Server code
+
+// Execution order:
+// 1. authClient's use() middleware
+// 2. rateLimit (use() -- pre-validation)
+// 3. Input validation
+// 4. checkOwnership (useValidated() -- post-validation)
+// 5. Server code
+```
+
+Both stacks follow the onion model: each middleware can run code before and after calling `next()`, with unwinding in reverse order.
+
+### Validated middleware arguments
+
+Each `useValidated()` middleware function receives a single object with these properties:
+
+| Property | Type | Description |
+|---|---|---|
+| `parsedInput` | `ParsedInput` | The validated and transformed input (schema output type) |
+| `clientInput` | `ClientInput` | The raw input from the client (schema input type) |
+| `bindArgsParsedInputs` | `tuple` | Validated bind argument values |
+| `bindArgsClientInputs` | `tuple` | Raw bind argument values |
+| `ctx` | `Ctx` | Accumulated context from previous middleware |
+| `metadata` | `MD` | Action metadata (if `defineMetadataSchema` is configured) |
+| `next` | `(opts?) => Promise<MiddlewareResult>` | Call the next middleware or server code |
+
+### Schema transforms are visible
+
+If your schema includes transforms, `useValidated()` middleware sees the **transformed** output, while `clientInput` retains the original:
+
+```ts title="src/app/actions.ts"
+authClient
+	.inputSchema(z.string().transform((s) => s.toUpperCase()))
+	.useValidated(async ({ clientInput, parsedInput, next }) => {
+		console.log(clientInput); // "hello" (original)
+		console.log(parsedInput); // "HELLO" (transformed)
+		return next();
+	})
+	.action(async ({ parsedInput }) => {
+		// parsedInput is also "HELLO"
+	});
+```
+
+### Chaining restrictions
+
+TypeScript enforces three rules at compile time:
+
+1. **`useValidated()` requires a prior schema**: you must call `inputSchema()` or `bindArgsSchemas()` before `useValidated()`. Otherwise TypeScript will error.
+2. **No schemas after `useValidated()`**: once you call `useValidated()`, you cannot call `inputSchema()` or `bindArgsSchemas()`. This prevents the schema from changing after validated middleware has been typed against it.
+3. **No `use()` after `useValidated()`**: once you call `useValidated()`, you cannot call `use()`. All pre-validation middleware must be added before any `useValidated()` call. This ensures the context type always matches what is available at runtime.
+
+```ts
+// ✅ Correct
+client.use(mw).inputSchema(schema).useValidated(fn).action(serverCode);
+
+// ❌ Type error: no schema before useValidated()
+client.useValidated(fn).action(serverCode);
+
+// ❌ Type error: inputSchema() after useValidated()
+client.inputSchema(schema).useValidated(fn).inputSchema(otherSchema).action(serverCode);
+
+// ❌ Type error: use() after useValidated()
+client.inputSchema(schema).useValidated(fn).use(mw).action(serverCode);
+```
+
+### Context in error callbacks
+
+In `onError` and `onSettled` callbacks, context from `use()` middleware is always available, but context added by `useValidated()` middleware is optional. This is because if validation fails, `useValidated()` middleware never runs and its context additions don't exist:
+
+```ts title="src/app/actions.ts"
+authClient
+	.inputSchema(schema)
+	.useValidated(async ({ next }) => {
+		return next({ ctx: { validated: true } });
+	})
+	.action(serverCode, {
+		onError: async ({ ctx }) => {
+			ctx.user; // User — always available (from use())
+			ctx.validated; // boolean | undefined — may not exist
+		},
+	});
+```
+
 ## What's next?
 
 <Cards>
 	<Card href="/docs/advanced/standalone-middleware" title="Standalone middleware">
-		Create reusable middleware with createMiddleware() for sharing across clients.
+		Create reusable middleware with createMiddleware() and createValidatedMiddleware().
 	</Card>
 	<Card href="/docs/api/safe-action-client" title="API reference">
-		Full .use() method signature and middleware type definitions.
+		Full .use() and .useValidated() method signatures and type definitions.
 	</Card>
 </Cards>

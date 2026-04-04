@@ -69,6 +69,26 @@ When an action is called, the input goes through this flow:
 The raw `clientInput` is also available in middleware and server code if you need access to the original, unvalidated data.
 </Callout>
 
+### After validation: validated middleware
+
+If you need to run middleware that has access to the validated, typed `parsedInput` (for example, authorization checks that depend on the input), use `useValidated()` instead of `use()`. Validated middleware runs immediately after successful input validation and before your server code:
+
+```ts title="src/app/actions.ts"
+authClient
+	.inputSchema(z.object({ postId: z.string() }))
+	.useValidated(async ({ parsedInput, ctx, next }) => {
+		// parsedInput.postId is typed as string
+		const post = await db.post.findUnique({ where: { id: parsedInput.postId } });
+		if (!post || post.authorId !== ctx.user.id) throw new Error("Forbidden");
+		return next({ ctx: { post } });
+	})
+	.action(async ({ ctx }) => {
+		// ctx.post is typed and available
+	});
+```
+
+If validation fails, validated middleware is completely skipped. See the [middleware guide](/docs/guides/middleware#validated-middleware) for more.
+
 ## Validation error shapes
 
 When validation fails, the error object structure depends on the configured shape. There are two built-in shapes:

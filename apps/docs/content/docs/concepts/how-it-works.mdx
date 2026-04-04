@@ -9,14 +9,15 @@ When you call a safe action, it goes through a well-defined pipeline on the serv
 
 <picture>
 	<source srcSet="/img/diagrams/action-lifecycle-dark.svg" media="(prefers-color-scheme: dark)" />
-	<img src="/img/diagrams/action-lifecycle-light.svg" alt="Action lifecycle diagram showing: Client Call → Middleware → Validate Input → Server Code → Validate Output" />
+	<img src="/img/diagrams/action-lifecycle-light.svg" alt="Action lifecycle diagram showing: Client Call → Middleware → Validate Input → Validated Middleware → Server Code → Validate Output" />
 </picture>
 
 1. **Client Call**: the action function is called from a Client Component (directly, via `useAction`, or via a form)
-2. **Middleware**: the middleware stack runs in order, each layer can short-circuit or extend the context
+2. **Middleware**: the `use()` middleware stack runs in order, each layer can short-circuit or extend the context
 3. **Validate Input**: the raw client input is parsed and validated against the input schema via [Standard Schema](https://github.com/standard-schema/standard-schema)
-4. **Server Code**: your async function runs with the validated `parsedInput` and accumulated `ctx`
-5. **Validate Output**: if an `outputSchema` is defined, the return value is validated before being sent to the client
+4. **Validated Middleware**: if validation succeeded, the `useValidated()` middleware stack runs with typed `parsedInput` and accumulated `ctx`. Skipped entirely if validation fails.
+5. **Server Code**: your async function runs with the validated `parsedInput` and accumulated `ctx`
+6. **Validate Output**: if an `outputSchema` is defined, the return value is validated before being sent to the client
 
 If any step fails, the pipeline stops and returns an appropriate error in the [action result](/docs/concepts/action-result).
 
@@ -66,6 +67,10 @@ Key concepts:
 
 Learn more in the [Middleware guide](/docs/guides/middleware).
 
+<Callout>
+Most middleware should use `use()`, which covers authentication, logging, rate limiting, and context enrichment. If you specifically need middleware that runs **after** input validation with access to typed `parsedInput`, see [validated middleware](/docs/guides/middleware#validated-middleware) (the `useValidated()` method).
+</Callout>
+
 ## How actions are defined
 
 Every action starts from a **safe action client**, a builder object that accumulates configuration:
@@ -75,8 +80,9 @@ const myAction = actionClient          // 1. Start from client
 	.use(authMiddleware)                  // 2. Add middleware (optional)
 	.metadata({ role: "admin" })          // 3. Set metadata (optional)
 	.inputSchema(z.object({ id: z.string() }))  // 4. Define input
-	.outputSchema(z.object({ ok: z.boolean() })) // 5. Define output (optional)
-	.action(async ({ parsedInput, ctx }) => {     // 6. Server code
+	.useValidated(logParsedInput)         // 5. Validated middleware (optional)
+	.outputSchema(z.object({ ok: z.boolean() })) // 6. Define output (optional)
+	.action(async ({ parsedInput, ctx }) => {     // 7. Server code
 		return { ok: true };
 	});
 ```

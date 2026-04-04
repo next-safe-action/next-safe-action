@@ -1,18 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 220" width="620" height="220">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 280" width="620" height="280">
 	<!-- Outer: Logging middleware -->
-	<rect x="0" y="0" width="620" height="220" rx="12" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+	<rect x="0" y="0" width="620" height="280" rx="12" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
 	<text x="20" y="24" font-family="system-ui,sans-serif" font-size="12" font-weight="600" fill="#92400e">Logging Middleware</text>
 	<text x="600" y="24" text-anchor="end" font-family="system-ui,sans-serif" font-size="10" fill="#b45309">console.log → next() → console.log</text>
 	<!-- Middle: Auth middleware -->
-	<rect x="20" y="38" width="580" height="144" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.5"/>
+	<rect x="20" y="38" width="580" height="200" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.5"/>
 	<text x="40" y="60" font-family="system-ui,sans-serif" font-size="12" font-weight="600" fill="#1e40af">Auth Middleware</text>
 	<text x="580" y="60" text-anchor="end" font-family="system-ui,sans-serif" font-size="10" fill="#2563eb">getSession() → next({ ctx: { user } })</text>
+	<!-- Validated: post-validation middleware -->
+	<rect x="44" y="76" width="532" height="142" rx="8" fill="#f0fdf4" stroke="#22c55e" stroke-width="1.5"/>
+	<text x="64" y="98" font-family="system-ui,sans-serif" font-size="12" font-weight="600" fill="#166534">Validated Middleware</text>
+	<text x="556" y="98" text-anchor="end" font-family="system-ui,sans-serif" font-size="10" fill="#15803d">parsedInput typed, ctx from use() available</text>
 	<!-- Inner: Server code -->
-	<rect x="44" y="76" width="532" height="88" rx="8" fill="#faf5ff" stroke="#a855f7" stroke-width="1.5"/>
-	<text x="64" y="98" font-family="system-ui,sans-serif" font-size="12" font-weight="600" fill="#6b21a8">Server Code</text>
-	<text x="64" y="118" font-family="system-ui,sans-serif" font-size="11" fill="#7c3aed">ctx.user is available here</text>
-	<text x="64" y="138" font-family="system-ui,sans-serif" font-size="11" fill="#7c3aed">parsedInput is validated and typed</text>
-	<text x="64" y="154" font-family="system-ui,sans-serif" font-size="11" fill="#7c3aed">return { ... } → becomes result.data</text>
+	<rect x="68" y="114" width="484" height="82" rx="8" fill="#faf5ff" stroke="#a855f7" stroke-width="1.5"/>
+	<text x="88" y="136" font-family="system-ui,sans-serif" font-size="12" font-weight="600" fill="#6b21a8">Server Code</text>
+	<text x="88" y="156" font-family="system-ui,sans-serif" font-size="11" fill="#7c3aed">ctx from all middleware available</text>
+	<text x="88" y="172" font-family="system-ui,sans-serif" font-size="11" fill="#7c3aed">parsedInput is validated and typed</text>
+	<text x="88" y="188" font-family="system-ui,sans-serif" font-size="11" fill="#7c3aed">return { ... } → becomes result.data</text>
 	<!-- Arrow labels -->
-	<text x="310" y="210" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#6b7280">Execution flows inward, results flow outward</text>
+	<text x="310" y="270" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#6b7280">Execution flows inward, results flow outward</text>
 </svg>

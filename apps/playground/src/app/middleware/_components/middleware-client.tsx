@@ -11,12 +11,15 @@ import { authChainAction } from "../_actions/auth-chain-action";
 import { errorHandlingAction } from "../_actions/error-handling-action";
 import { loggingAction } from "../_actions/logging-action";
 import { rateLimitAction } from "../_actions/rate-limit-action";
+import { validatedMiddlewareAction } from "../_actions/validated-middleware-action";
+
 type Props = {
 	sources: {
 		loggingAction: SourceCode;
 		authChainAction: SourceCode;
 		errorHandlingAction: SourceCode;
 		rateLimitAction: SourceCode;
+		validatedMiddlewareAction: SourceCode;
 	};
 };
 
@@ -26,6 +29,7 @@ export function MiddlewareClient({ sources }: Props) {
 	const [errorResult, setErrorResult] = useState<any>(undefined);
 	const [rateLimitResult, setRateLimitResult] = useState<any>(undefined);
 	const [rateLimitCount, setRateLimitCount] = useState(0);
+	const [validatedResult, setValidatedResult] = useState<any>(undefined);
 
 	return (
 		<div className="space-y-6">
@@ -145,6 +149,66 @@ export function MiddlewareClient({ sources }: Props) {
 					Click more than 5 times in 10 seconds to see the rate limit error.
 				</p>
 				<ResultDisplay result={rateLimitResult} />
+			</ExampleCard>
+
+			<ExampleCard
+				title="Validated Middleware (useValidated)"
+				description="Post-validation middleware that receives typed parsedInput. Here it checks resource ownership: post-1 and post-3 are owned by the user, post-2 is not."
+				source={sources.validatedMiddlewareAction}
+			>
+				<div className="space-y-4">
+					<div className="flex flex-wrap gap-2">
+						<Button
+							onClick={async () => {
+								const res = await validatedMiddlewareAction({ postId: "post-1" });
+								setValidatedResult(res);
+							}}
+						>
+							post-1 (owned)
+						</Button>
+						<Button
+							variant="destructive"
+							onClick={async () => {
+								const res = await validatedMiddlewareAction({ postId: "post-2" });
+								setValidatedResult(res);
+							}}
+						>
+							post-2 (not owned)
+						</Button>
+						<Button
+							onClick={async () => {
+								const res = await validatedMiddlewareAction({ postId: "post-3" });
+								setValidatedResult(res);
+							}}
+						>
+							post-3 (owned)
+						</Button>
+						<Button
+							variant="outline"
+							onClick={async () => {
+								const res = await validatedMiddlewareAction({ postId: "nonexistent" });
+								setValidatedResult(res);
+							}}
+						>
+							nonexistent
+						</Button>
+						<Button
+							variant="outline"
+							onClick={async () => {
+								const res = await validatedMiddlewareAction({ postId: "" });
+								setValidatedResult(res);
+							}}
+						>
+							empty (validation error)
+						</Button>
+					</div>
+					<p className="text-muted-foreground text-sm">
+						useValidated() runs after input validation and receives typed parsedInput. Empty input fails validation
+						(useValidated is skipped entirely), non-owned posts are rejected by the middleware, and owned posts
+						succeed.
+					</p>
+				</div>
+				<ResultDisplay result={validatedResult} />
 			</ExampleCard>
 		</div>
 	);

@@ -45,6 +45,8 @@ export function actionBuilder<
 	const BindArgsSchemas extends readonly StandardSchemaV1[] = [],
 	ShapedErrors = undefined,
 	ThrowsValidationErrors extends boolean = false,
+	HasValidatedMiddleware extends boolean = false,
+	PreValidationCtx extends object = Ctx,
 >(
 	args: SafeActionClientArgs<
 		ServerError,
@@ -58,7 +60,9 @@ export function actionBuilder<
 		OutputSchema,
 		BindArgsSchemas,
 		ShapedErrors,
-		ThrowsValidationErrors
+		ThrowsValidationErrors,
+		HasValidatedMiddleware,
+		PreValidationCtx
 	>
 ) {
 	const bindArgsSchemas = args.bindArgsSchemas ?? [];
@@ -140,12 +144,14 @@ export function actionBuilder<
 		return { parsedMainInput, parsedBindArgsInputs };
 	}
 
-	// ─── Execute server code with output validation ──────────────────────
+	// ─── Run server code with output validation (no input validation) ────
 
-	async function executeServerCode(
+	async function runServerCode(
 		serverCodeFn:
 			| ServerCodeFn<Metadata, Ctx, InputSchema, BindArgsSchemas, any>
 			| StatefulServerCodeFn<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, any>,
+		parsedMainInput: unknown,
+		parsedBindArgsInputs: unknown[],
 		mainClientInput: InferInputOrDefault<InputSchema, undefined>,
 		bindArgsClientInputs: InferInputArray<BindArgsSchemas>,
 		currentCtx: object,
@@ -154,13 +160,6 @@ export function actionBuilder<
 		withState: boolean,
 		prevResult: SafeActionResult<ServerError, InputSchema, ShapedErrors, any>
 	) {
-		const validated = await validateInputs(mainClientInput, bindArgsClientInputs, currentCtx, middlewareResult);
-
-		// Validation errors were set, skip server code execution.
-		if (!validated) return;
-
-		const { parsedMainInput, parsedBindArgsInputs } = validated;
-
 		// Build server code function arguments.
 		const serverCodeArgs: unknown[] = [
 			{
@@ -257,7 +256,7 @@ export function actionBuilder<
 		mainClientInput: InferInputOrDefault<InputSchema, undefined>,
 		bindArgsClientInputs: InferInputArray<BindArgsSchemas>,
 		currentCtx: object,
-		utils?: ActionCallbacks<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data>
+		utils?: ActionCallbacks<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data, PreValidationCtx>
 	): Promise<SafeActionResult<ServerError, InputSchema, ShapedErrors, Data>> {
 		const callbackPromises: (Promise<unknown> | undefined)[] = [];
 
@@ -269,7 +268,7 @@ export function actionBuilder<
 			callbackPromises.push(
 				utils?.onNavigation?.({
 					metadata: args.metadata,
-					ctx: currentCtx as Ctx,
+					ctx: currentCtx as unknown as PreValidationCtx & Partial<Ctx>,
 					clientInput: mainClientInput,
 					bindArgsClientInputs,
 					navigationKind,
@@ -279,7 +278,7 @@ export function actionBuilder<
 			callbackPromises.push(
 				utils?.onSettled?.({
 					metadata: args.metadata,
-					ctx: currentCtx as Ctx,
+					ctx: currentCtx as unknown as PreValidationCtx & Partial<Ctx>,
 					clientInput: mainClientInput,
 					bindArgsClientInputs,
 					result: {},
@@ -345,7 +344,7 @@ export function actionBuilder<
 			callbackPromises.push(
 				utils?.onError?.({
 					metadata: args.metadata,
-					ctx: currentCtx as Ctx,
+					ctx: currentCtx as unknown as PreValidationCtx & Partial<Ctx>,
 					clientInput: mainClientInput,
 					bindArgsClientInputs,
 					error: actionResult,
@@ -357,7 +356,7 @@ export function actionBuilder<
 		callbackPromises.push(
 			utils?.onSettled?.({
 				metadata: args.metadata,
-				ctx: currentCtx as Ctx,
+				ctx: currentCtx as unknown as PreValidationCtx & Partial<Ctx>,
 				clientInput: mainClientInput,
 				bindArgsClientInputs,
 				result: actionResult,
@@ -374,13 +373,13 @@ export function actionBuilder<
 	function buildAction({ withState }: { withState: false }): {
 		action: <Data extends InferOutputOrDefault<OutputSchema, any>>(
 			serverCodeFn: ServerCodeFn<Metadata, Ctx, InputSchema, BindArgsSchemas, Data>,
-			utils?: ActionCallbacks<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data>
+			utils?: ActionCallbacks<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data, PreValidationCtx>
 		) => SafeActionFn<ServerError, InputSchema, BindArgsSchemas, ShapedErrors, Data>;
 	};
 	function buildAction({ withState }: { withState: true }): {
 		action: <Data extends InferOutputOrDefault<OutputSchema, any>>(
 			serverCodeFn: StatefulServerCodeFn<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data>,
-			utils?: ActionCallbacks<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data>
+			utils?: ActionCallbacks<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data, PreValidationCtx>
 		) => SafeStateActionFn<ServerError, InputSchema, BindArgsSchemas, ShapedErrors, Data>;
 	};
 	function buildAction({ withState }: { withState: boolean }) {
@@ -389,7 +388,7 @@ export function actionBuilder<
 				serverCodeFn:
 					| ServerCodeFn<Metadata, Ctx, InputSchema, BindArgsSchemas, Data>
 					| StatefulServerCodeFn<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data>,
-				utils?: ActionCallbacks<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data>
+				utils?: ActionCallbacks<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data, PreValidationCtx>
 			) => {
 				return async (...clientInputs: unknown[]) => {
 					let currentCtx: object = {};
@@ -398,6 +397,7 @@ export function actionBuilder<
 					let prevResult: PrevResult = {};
 					const frameworkErrorHandler = new FrameworkErrorHandler();
 					const serverErrorHandled = { value: false };
+					let chainCompleted = false;
 
 					// Extract prevResult for stateful actions.
 					if (withState) {
@@ -435,23 +435,35 @@ export function actionBuilder<
 						);
 					}
 
-					// Execute the middleware stack recursively.
-					const executeMiddlewareStack = async (idx = 0) => {
+					// ─── Validated middleware stack (post-validation) ─────────
+
+					const executeValidatedMiddlewareStack = async (
+						idx: number,
+						parsedMainInput: unknown,
+						parsedBindArgsInputs: unknown[]
+					) => {
 						if (frameworkErrorHandler.error) return;
 
-						const middlewareFn = args.middlewareFns[idx];
+						const validatedMiddlewareFn = args.validatedMiddlewareFns[idx];
 						middlewareResult.ctx = currentCtx;
 
 						try {
-							if (middlewareFn) {
+							if (validatedMiddlewareFn) {
 								let nextCalled = false;
 
-								await middlewareFn({
-									clientInput: mainClientInput as unknown, // pass raw client input
-									bindArgsClientInputs: bindArgsClientInputs as unknown[],
+								await validatedMiddlewareFn({
+									parsedInput: parsedMainInput,
+									clientInput: mainClientInput,
+									bindArgsParsedInputs: parsedBindArgsInputs as readonly unknown[],
+									bindArgsClientInputs: bindArgsClientInputs as readonly unknown[],
 									ctx: currentCtx,
 									metadata: args.metadata,
 									next: async (nextOpts) => {
+										if (chainCompleted) {
+											throw new Error(
+												"next() called after the middleware chain has already completed. Do not store and call next() asynchronously after the action has returned."
+											);
+										}
 										if (nextCalled) {
 											throw new Error(
 												"next() called multiple times in middleware. Each middleware must call next() at most once."
@@ -460,7 +472,11 @@ export function actionBuilder<
 										nextCalled = true;
 
 										currentCtx = deepmerge(currentCtx, nextOpts?.ctx ?? {});
-										await executeMiddlewareStack(idx + 1);
+										await executeValidatedMiddlewareStack(
+											idx + 1,
+											parsedMainInput,
+											parsedBindArgsInputs
+										);
 										return middlewareResult;
 									},
 								}).catch((e) => {
@@ -473,9 +489,11 @@ export function actionBuilder<
 									}
 								});
 							} else {
-								// Terminal case: validate inputs and execute server code.
-								await executeServerCode(
+								// Terminal case: execute server code (input already validated).
+								await runServerCode(
 									serverCodeFn,
+									parsedMainInput,
+									parsedBindArgsInputs,
 									mainClientInput,
 									bindArgsClientInputs,
 									currentCtx,
@@ -497,8 +515,81 @@ export function actionBuilder<
 						}
 					};
 
+					// ─── Pre-validation middleware stack ──────────────────────
+
+					const executeMiddlewareStack = async (idx = 0) => {
+						if (frameworkErrorHandler.error) return;
+
+						const middlewareFn = args.middlewareFns[idx];
+						middlewareResult.ctx = currentCtx;
+
+						try {
+							if (middlewareFn) {
+								let nextCalled = false;
+
+								await middlewareFn({
+									clientInput: mainClientInput as unknown, // pass raw client input
+									bindArgsClientInputs: bindArgsClientInputs as unknown[],
+									ctx: currentCtx,
+									metadata: args.metadata,
+									next: async (nextOpts) => {
+										if (chainCompleted) {
+											throw new Error(
+												"next() called after the middleware chain has already completed. Do not store and call next() asynchronously after the action has returned."
+											);
+										}
+										if (nextCalled) {
+											throw new Error(
+												"next() called multiple times in middleware. Each middleware must call next() at most once."
+											);
+										}
+										nextCalled = true;
+
+										currentCtx = deepmerge(currentCtx, nextOpts?.ctx ?? {});
+										await executeMiddlewareStack(idx + 1);
+										return middlewareResult;
+									},
+								}).catch((e) => {
+									frameworkErrorHandler.handleError(e);
+									if (frameworkErrorHandler.error) {
+										middlewareResult.success = false;
+										middlewareResult.navigationKind = FrameworkErrorHandler.getNavigationKind(
+											frameworkErrorHandler.error
+										);
+									}
+								});
+							} else {
+								// Terminal case: validate inputs, then run validated middleware + server code.
+								const validated = await validateInputs(
+									mainClientInput,
+									bindArgsClientInputs,
+									currentCtx,
+									middlewareResult
+								);
+
+								// Validation errors were set, skip server code execution.
+								if (!validated) return;
+
+								const { parsedMainInput, parsedBindArgsInputs } = validated;
+
+								// Run the validated middleware stack (terminates at server code).
+								await executeValidatedMiddlewareStack(0, parsedMainInput, parsedBindArgsInputs);
+							}
+						} catch (e: unknown) {
+							await handleExecutionError(
+								e,
+								mainClientInput,
+								bindArgsClientInputs,
+								currentCtx,
+								middlewareResult,
+								serverErrorHandled
+							);
+						}
+					};
+
 					// Execute middleware chain + action function.
 					await executeMiddlewareStack();
+					chainCompleted = true;
 
 					return buildResultAndRunCallbacks<Data>(
 						middlewareResult,
