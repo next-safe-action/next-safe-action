@@ -48,13 +48,10 @@ test("bindArgsSchemas errors after useValidated", () => {
 	ac.inputSchema(z.string()).useValidated(async ({ next }) => next()).bindArgsSchemas([z.number()]);
 });
 
-test("use works after useValidated", () => {
+test("use errors after useValidated", () => {
 	const ac = createSafeActionClient();
-	// This should compile without error - use() is unrestricted
-	ac.inputSchema(z.string())
-		.useValidated(async ({ next }) => next())
-		.use(async ({ next }) => next({ ctx: { extra: true } }))
-		.action(async () => ({}));
+	// @ts-expect-error - use() cannot be called after useValidated()
+	ac.inputSchema(z.string()).useValidated(async ({ next }) => next()).use(async ({ next }) => next({ ctx: { extra: true } }));
 });
 
 test("parsedInput type matches InferOutput", () => {

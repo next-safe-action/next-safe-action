@@ -142,7 +142,7 @@ test("use() middleware runs before useValidated middleware", async () => {
 	expect(order).toStrictEqual(["use", "validated", "action"]);
 });
 
-test("use() after useValidated still runs before validation", async () => {
+test("multiple use() middlewares all run before useValidated", async () => {
 	const order: string[] = [];
 
 	const acWithTracking = createSafeActionClient({
@@ -155,13 +155,13 @@ test("use() after useValidated still runs before validation", async () => {
 	});
 
 	const action = acWithTracking
+		.use(async ({ next }) => {
+			order.push("use-extra");
+			return next();
+		})
 		.inputSchema(z.object({ name: z.string() }))
 		.useValidated(async ({ next }) => {
 			order.push("validated");
-			return next();
-		})
-		.use(async ({ next }) => {
-			order.push("use-after");
 			return next();
 		})
 		.action(async () => {
@@ -171,7 +171,7 @@ test("use() after useValidated still runs before validation", async () => {
 
 	await action({ name: "test" });
 
-	expect(order).toStrictEqual(["use-base", "use-after", "validated", "action"]);
+	expect(order).toStrictEqual(["use-base", "use-extra", "validated", "action"]);
 });
 
 test("useValidated middleware NOT called when main input validation fails", async () => {

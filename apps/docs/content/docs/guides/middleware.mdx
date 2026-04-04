@@ -220,33 +220,26 @@ export const updatePost = authClient
 	});
 ```
 
-### Execution order guarantee
+### Execution order
 
-**All `use()` middleware always runs before all `useValidated()` middleware**, regardless of declaration order. Even if you call `.use()` after `.useValidated()`, the runtime separates them:
+All `use()` middleware runs before input validation, and all `useValidated()` middleware runs after. The chain declaration order matches the execution order:
 
-<picture>
-	<source srcSet="/img/diagrams/execution-order-dark.svg" media="(prefers-color-scheme: dark)" />
-	<img src="/img/diagrams/execution-order-light.svg" alt="Execution order diagram showing use() always runs before useValidated() regardless of declaration order" />
-</picture>
-
-```ts title="Interleaved declaration"
+```ts title="Execution pipeline"
 const action = authClient
-	.inputSchema(schema)
-	.useValidated(checkOwnership) // declared 2nd
-	.use(rateLimit) // declared 3rd
-	.action(serverCode);
+	.use(rateLimit)              // 1. Pre-validation middleware
+	.inputSchema(schema)          // 2. Input validation
+	.useValidated(checkOwnership) // 3. Post-validation middleware
+	.action(serverCode);          // 4. Server code
 
-// Actual execution order:
+// Execution order:
 // 1. authClient's use() middleware
-// 2. rateLimit (use() — always pre-validation)
+// 2. rateLimit (use() -- pre-validation)
 // 3. Input validation
-// 4. checkOwnership (useValidated() — always post-validation)
+// 4. checkOwnership (useValidated() -- post-validation)
 // 5. Server code
 ```
 
-<Callout>
-If you call `use()` after `useValidated()`, the `use()` middleware still runs **before** validation. This is by design: `use()` never has access to `parsedInput`.
-</Callout>
+Both stacks follow the onion model: each middleware can run code before and after calling `next()`, with unwinding in reverse order.
 
 ### Validated middleware arguments
 
@@ -281,20 +274,24 @@ authClient
 
 ### Chaining restrictions
 
-TypeScript enforces two rules at compile time:
+TypeScript enforces three rules at compile time:
 
 1. **`useValidated()` requires a prior schema**: you must call `inputSchema()` or `bindArgsSchemas()` before `useValidated()`. Otherwise TypeScript will error.
 2. **No schemas after `useValidated()`**: once you call `useValidated()`, you cannot call `inputSchema()` or `bindArgsSchemas()`. This prevents the schema from changing after validated middleware has been typed against it.
+3. **No `use()` after `useValidated()`**: once you call `useValidated()`, you cannot call `use()`. All pre-validation middleware must be added before any `useValidated()` call. This ensures the context type always matches what is available at runtime.
 
 ```ts
 // ✅ Correct
-client.inputSchema(schema).useValidated(fn).action(serverCode);
+client.use(mw).inputSchema(schema).useValidated(fn).action(serverCode);
 
 // ❌ Type error: no schema before useValidated()
 client.useValidated(fn).action(serverCode);
 
 // ❌ Type error: inputSchema() after useValidated()
 client.inputSchema(schema).useValidated(fn).inputSchema(otherSchema).action(serverCode);
+
+// ❌ Type error: use() after useValidated()
+client.inputSchema(schema).useValidated(fn).use(mw).action(serverCode);
 ```
 
 ### Context in error callbacks

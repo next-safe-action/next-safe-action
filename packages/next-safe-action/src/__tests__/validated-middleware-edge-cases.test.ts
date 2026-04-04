@@ -619,7 +619,7 @@ test("useValidated receives transformed bind args while client inputs stay raw",
 
 // ─── Interleaved execution order ─────────────────────────────────────
 
-test("complex interleaved use() + useValidated() execution order", async () => {
+test("use() + useValidated() execution order with onion model", async () => {
 	const order: string[] = [];
 
 	const action = ac
@@ -629,17 +629,17 @@ test("complex interleaved use() + useValidated() execution order", async () => {
 			order.push("use-1:after");
 			return res;
 		})
+		.use(async ({ next }) => {
+			order.push("use-2:before");
+			const res = await next();
+			order.push("use-2:after");
+			return res;
+		})
 		.inputSchema(z.object({ name: z.string() }))
 		.useValidated(async ({ next }) => {
 			order.push("validated-1:before");
 			const res = await next();
 			order.push("validated-1:after");
-			return res;
-		})
-		.use(async ({ next }) => {
-			order.push("use-2:before");
-			const res = await next();
-			order.push("use-2:after");
 			return res;
 		})
 		.useValidated(async ({ next }) => {

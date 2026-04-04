@@ -13,7 +13,7 @@ const actionClient = createSafeActionClient();
 
 ## `.use()`
 
-Add a middleware function to the action execution chain.
+Add a middleware function to the action execution chain. Cannot be called after `useValidated()`.
 
 ```ts
 client.use(middlewareFn)
@@ -72,7 +72,7 @@ const authClient = actionClient.use(async ({ next }) => {
 
 ## `.useValidated()`
 
-Add a validated middleware function that runs **after** input validation. Only available after `inputSchema()` or `bindArgsSchemas()` has been called. Cannot be followed by `inputSchema()` or `bindArgsSchemas()`.
+Add a validated middleware function that runs **after** input validation. Only available after `inputSchema()` or `bindArgsSchemas()` has been called. Cannot be followed by `inputSchema()`, `bindArgsSchemas()`, or `use()`.
 
 <Callout>
 For most middleware, prefer [`.use()`](#use) instead. `.useValidated()` is designed for the specific cases where your middleware logic depends on the validated `parsedInput`, such as resource ownership checks or input-dependent authorization.
@@ -128,7 +128,7 @@ The validated middleware function receives:
 	}}
 />
 
-**Returns:** A new `SafeActionClient` with `NextCtx` merged into the context type. After calling `useValidated()`, `inputSchema()` and `bindArgsSchemas()` are no longer callable (TypeScript error).
+**Returns:** A new `SafeActionClient` with `NextCtx` merged into the context type. After calling `useValidated()`, `inputSchema()`, `bindArgsSchemas()`, and `use()` are no longer callable (TypeScript error).
 
 ```ts
 const protectedAction = authClient
@@ -448,7 +448,7 @@ export const myAction = actionClient
 
 ## Method chaining order
 
-Methods can be called in any order, with just one constraint: the final one must be `.action()` / `.stateAction()`.
+Methods can be called in any order with a few constraints: `use()` must come before `useValidated()`, schemas must come before `useValidated()`, and the final call must be `.action()` / `.stateAction()`.
 
 Typical order:
 

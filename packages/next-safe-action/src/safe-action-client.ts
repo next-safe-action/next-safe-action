@@ -78,13 +78,37 @@ export class SafeActionClient<
 	}
 
 	/**
-	 * Use a middleware function. Middleware added via `use()` always runs **before** input validation,
-	 * regardless of where it appears in the chain.
+	 * Use a middleware function. Middleware added via `use()` always runs **before** input validation.
+	 * Cannot be called after `useValidated()`.
 	 * @param middlewareFn Middleware function
 	 *
 	 * {@link https://next-safe-action.dev/docs/define-actions/instance-methods#use See docs for more information}
 	 */
-	use<NextCtx extends object>(middlewareFn: MiddlewareFn<ServerError, Metadata, Ctx, Ctx & NextCtx>) {
+	use<NextCtx extends object>(
+		this: HasValidatedMiddleware extends false
+			? SafeActionClient<
+					ServerError,
+					ErrorsFormat,
+					MetadataSchema,
+					Metadata,
+					HasMetadata,
+					Ctx,
+					InputSchemaFn,
+					InputSchema,
+					OutputSchema,
+					BindArgsSchemas,
+					ShapedErrors,
+					ThrowsValidationErrors,
+					HasValidatedMiddleware,
+					PreValidationCtx
+				>
+			: never,
+		middlewareFn: MiddlewareFn<ServerError, Metadata, Ctx, Ctx & NextCtx>
+	) {
+		if (this.#args.hasValidatedMiddleware) {
+			throw new Error("use() cannot be called after useValidated(). Move all use() calls before useValidated().");
+		}
+
 		return new SafeActionClient({
 			...this.#args,
 			middlewareFns: [...this.#args.middlewareFns, middlewareFn],
