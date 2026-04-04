@@ -31,3 +31,5 @@ yarn-error.log*
 
 # Playwright
 .playwright-mcp
+
+/docs/superpowers
