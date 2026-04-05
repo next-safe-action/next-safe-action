@@ -14,12 +14,12 @@ test("authorize callback ctx inherits prior middleware context when used inline"
 
 	client.use(
 		betterAuth(auth, {
-			authorize: ({ ctx, sessionData, next }) => {
+			authorize: ({ ctx, authData, next }) => {
 				expectTypeOf(ctx).toEqualTypeOf<{ userId: string }>();
-				if (!sessionData) {
+				if (!authData) {
 					throw new Error("Unauthorized");
 				}
-				return next({ ctx: { auth: sessionData } });
+				return next({ ctx: { auth: authData } });
 			},
 		})
 	);

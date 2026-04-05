@@ -135,11 +135,11 @@ import { auth } from "./auth";
 
 export const adminClient = actionClient.use(
 	betterAuth(auth, {
-		authorize: ({ sessionData, next }) => {
-			if (!sessionData || sessionData.user.role !== "admin") {
+		authorize: ({ authData, next }) => {
+			if (!authData || authData.user.role !== "admin") {
 				unauthorized();
 			}
-			return next({ ctx: { auth: sessionData } });
+			return next({ ctx: { auth: authData } });
 		},
 	})
 );
@@ -154,11 +154,11 @@ import { auth } from "./auth";
 
 export const authClient = actionClient.use(
 	betterAuth(auth, {
-		authorize: ({ sessionData, next }) => {
-			if (!sessionData) {
+		authorize: ({ authData, next }) => {
+			if (!authData) {
 				redirect("/login");
 			}
-			return next({ ctx: { auth: sessionData } });
+			return next({ ctx: { auth: authData } });
 		},
 	})
 );
@@ -172,7 +172,7 @@ export const authClient = actionClient.use(
 			description: "The Better Auth server instance you passed to betterAuth().",
 			type: "Auth<Options>",
 		},
-		sessionData: {
+		authData: {
 			description: "The pre-fetched session data, or null if no valid session exists.",
 			type: "{ user: User; session: Session } | null",
 		},

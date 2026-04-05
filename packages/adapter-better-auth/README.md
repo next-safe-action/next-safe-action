@@ -106,11 +106,11 @@ import { auth } from "./auth";
 // Role-based access
 export const adminClient = actionClient.use(
 	betterAuth(auth, {
-		authorize: ({ sessionData, next }) => {
-			if (!sessionData || sessionData.user.role !== "admin") {
+		authorize: ({ authData, next }) => {
+			if (!authData || authData.user.role !== "admin") {
 				unauthorized();
 			}
-			return next({ ctx: { auth: sessionData } });
+			return next({ ctx: { auth: authData } });
 		},
 	})
 );
@@ -119,7 +119,7 @@ export const adminClient = actionClient.use(
 ### `authorize` callback parameters
 
 - `auth`: the Better Auth server instance
-- `sessionData`: the pre-fetched session data (`{ user, session } | null`)
+- `authData`: the pre-fetched session data (`{ user, session } | null`)
 - `ctx`: the current action context from preceding middleware
 - `next`: call this to continue the middleware chain, pass `{ ctx }` to inject context
 

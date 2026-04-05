@@ -25,8 +25,8 @@ import { betterAuth } from "..";
 const mockUser = { id: "user-1", name: "Test User", email: "test@example.com", emailVerified: true, image: null };
 const mockSession = { id: "session-1", userId: "user-1", token: "tok-abc", expiresAt: new Date() };
 
-function createMockAuth(sessionData: { user: typeof mockUser; session: typeof mockSession } | null) {
-	return { api: { getSession: vi.fn().mockResolvedValue(sessionData) } } as unknown as Auth;
+function createMockAuth(authData: { user: typeof mockUser; session: typeof mockSession } | null) {
+	return { api: { getSession: vi.fn().mockResolvedValue(authData) } } as unknown as Auth;
 }
 
 function createMockNext() {
@@ -80,22 +80,22 @@ describe("default flow (no authorize callback)", () => {
 // ─── Custom authorize callback ───────────────────────────────────────
 
 describe("custom authorize callback", () => {
-	test("delegates to authorize with sessionData, ctx, and next", async () => {
-		const sessionData = { user: mockUser, session: mockSession };
-		const auth = createMockAuth(sessionData);
+	test("delegates to authorize with authData, ctx, and next", async () => {
+		const authData = { user: mockUser, session: mockSession };
+		const auth = createMockAuth(authData);
 		const next = createMockNext();
 		const ctx = { existingKey: "value" };
-		const authorize = vi.fn().mockImplementation(({ next: n, sessionData: sd }) => n({ ctx: { auth: sd } }));
+		const authorize = vi.fn().mockImplementation(({ next: n, authData: sd }) => n({ ctx: { auth: sd } }));
 
 		const middleware = betterAuth(auth, { authorize });
 
 		await middleware({ ...baseMiddlewareArgs, ctx, next });
 
 		expect(authorize).toHaveBeenCalledOnce();
-		expect(authorize).toHaveBeenCalledWith({ sessionData, ctx, next });
+		expect(authorize).toHaveBeenCalledWith({ authData, ctx, next });
 	});
 
-	test("receives null sessionData when no session exists", async () => {
+	test("receives null authData when no session exists", async () => {
 		const auth = createMockAuth(null);
 		const next = createMockNext();
 		const authorize = vi.fn().mockImplementation(({ next: n }) => n({ ctx: { custom: true } }));
@@ -104,7 +104,7 @@ describe("custom authorize callback", () => {
 
 		await middleware({ ...baseMiddlewareArgs, ctx: {}, next });
 
-		expect(authorize).toHaveBeenCalledWith(expect.objectContaining({ sessionData: null }));
+		expect(authorize).toHaveBeenCalledWith(expect.objectContaining({ authData: null }));
 	});
 
 	test("authorize can return custom context via next", async () => {
@@ -112,7 +112,7 @@ describe("custom authorize callback", () => {
 		const next = createMockNext();
 		const authorize = vi
 			.fn()
-			.mockImplementation(({ next: n, sessionData: sd }) => n({ ctx: { auth: sd, role: "admin" } }));
+			.mockImplementation(({ next: n, authData: sd }) => n({ ctx: { auth: sd, role: "admin" } }));
 
 		const middleware = betterAuth(auth, { authorize });
 
@@ -139,22 +139,22 @@ describe("custom authorize callback", () => {
 
 describe("context extension with prior middleware", () => {
 	test("authorize receives ctx from prior middleware and forwards it via next", async () => {
-		const sessionData = { user: mockUser, session: mockSession };
-		const auth = createMockAuth(sessionData);
+		const authData = { user: mockUser, session: mockSession };
+		const auth = createMockAuth(authData);
 		const next = createMockNext();
 		const priorCtx = { userId: "user-1", orgId: "org-42" };
 
 		const authorize = vi
 			.fn()
-			.mockImplementation(({ ctx, sessionData: sd, next: n }) => n({ ctx: { ...ctx, auth: sd } }));
+			.mockImplementation(({ ctx, authData: sd, next: n }) => n({ ctx: { ...ctx, auth: sd } }));
 
 		const middleware = betterAuth(auth, { authorize });
 
 		await middleware({ ...baseMiddlewareArgs, ctx: priorCtx, next });
 
-		expect(authorize).toHaveBeenCalledWith({ sessionData, ctx: priorCtx, next });
+		expect(authorize).toHaveBeenCalledWith({ authData, ctx: priorCtx, next });
 		expect(next).toHaveBeenCalledWith({
-			ctx: { userId: "user-1", orgId: "org-42", auth: sessionData },
+			ctx: { userId: "user-1", orgId: "org-42", auth: authData },
 		});
 	});
 
@@ -173,12 +173,12 @@ describe("context extension with prior middleware", () => {
 	});
 
 	test("authorize can selectively extend prior ctx without spreading it", async () => {
-		const sessionData = { user: mockUser, session: mockSession };
-		const auth = createMockAuth(sessionData);
+		const authData = { user: mockUser, session: mockSession };
+		const auth = createMockAuth(authData);
 		const next = createMockNext();
 		const priorCtx = { userId: "user-1" };
 
-		const authorize = vi.fn().mockImplementation(({ next: n, sessionData: sd }) =>
+		const authorize = vi.fn().mockImplementation(({ next: n, authData: sd }) =>
 			// Only passes new context; prior ctx is preserved by the action builder's deepmerge
 			n({ ctx: { auth: sd } })
 		);
@@ -187,8 +187,8 @@ describe("context extension with prior middleware", () => {
 
 		await middleware({ ...baseMiddlewareArgs, ctx: priorCtx, next });
 
-		expect(authorize).toHaveBeenCalledWith({ sessionData, ctx: priorCtx, next });
-		expect(next).toHaveBeenCalledWith({ ctx: { auth: sessionData } });
+		expect(authorize).toHaveBeenCalledWith({ authData, ctx: priorCtx, next });
+		expect(next).toHaveBeenCalledWith({ ctx: { auth: authData } });
 	});
 });
 

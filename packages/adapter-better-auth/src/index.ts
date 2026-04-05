@@ -23,11 +23,11 @@ import type { BetterAuthContext, BetterAuthOpts } from "./index.types";
  *
  * // Custom: check role
  * actionClient.use(betterAuth(auth, {
- *   authorize: ({ sessionData, next }) => {
- *     if (!sessionData || sessionData.user.role !== "admin") {
+ *   authorize: ({ authData, next }) => {
+ *     if (!authData || authData.user.role !== "admin") {
  *       unauthorized();
  *     }
- *     return next({ ctx: { auth: sessionData } });
+ *     return next({ ctx: { auth: authData } });
  *   },
  * }));
  * ```
@@ -44,17 +44,17 @@ export function betterAuth<O extends BetterAuthOptions>(
 	opts?: BetterAuthOpts<O, any, any>
 ) {
 	return createMiddleware().define(async ({ ctx, next }) => {
-		const sessionData = await auth.api.getSession({ headers: await headers() });
+		const authData = await auth.api.getSession({ headers: await headers() });
 
 		if (opts?.authorize) {
-			return opts.authorize({ sessionData, ctx, next });
+			return opts.authorize({ authData, ctx, next });
 		}
 
-		if (!sessionData) {
+		if (!authData) {
 			unauthorized();
 		}
 
-		return next({ ctx: { auth: { user: sessionData.user, session: sessionData.session } } });
+		return next({ ctx: { auth: { user: authData.user, session: authData.session } } });
 	});
 }
 
