@@ -1,4 +1,4 @@
 {
 	"title": "Integrations",
-	"pages": ["react-hook-form", "tanstack-query", "standard-schema"]
+	"pages": ["react-hook-form", "tanstack-query", "better-auth", "standard-schema"]
 }
