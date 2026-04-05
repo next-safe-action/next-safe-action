@@ -1,5 +1,11 @@
 # @next-safe-action/adapter-better-auth
 
+## 0.1.1
+
+### Patch Changes
+
+- [#434](https://github.com/next-safe-action/next-safe-action/pull/434) [`9a2101e`](https://github.com/next-safe-action/next-safe-action/commit/9a2101e795ac713b1d5c097027b62d31f91ced81) Thanks [@TheEdoRan](https://github.com/TheEdoRan)! - Fix adapter implementation by using the factory function. Add tests.
+
 ## 0.1.0
 
 ### Minor Changes
