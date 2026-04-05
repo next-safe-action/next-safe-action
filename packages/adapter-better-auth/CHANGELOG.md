@@ -1,5 +1,11 @@
 # @next-safe-action/adapter-better-auth
 
+## 0.1.2
+
+### Patch Changes
+
+- [`c0aa758`](https://github.com/next-safe-action/next-safe-action/commit/c0aa7582119337fda63b619a71af5db11eb987bc) Thanks [@TheEdoRan](https://github.com/TheEdoRan)! - Rename `betterAuthMiddleware()` to `betterAuth()`.
+
 ## 0.1.1
 
 ### Patch Changes
