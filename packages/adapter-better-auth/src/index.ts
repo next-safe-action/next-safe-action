@@ -1,4 +1,5 @@
 import type { Auth, BetterAuthOptions } from "better-auth";
+import { createMiddleware } from "next-safe-action";
 import type { MiddlewareFn } from "next-safe-action";
 import { headers } from "next/headers";
 import { unauthorized } from "next/navigation";
@@ -34,19 +35,19 @@ import type { BetterAuthContext, BetterAuthMiddlewareOpts } from "./index.types"
 export function betterAuthMiddleware<O extends BetterAuthOptions>(
 	auth: Auth<O>
 ): MiddlewareFn<any, any, object, BetterAuthContext<O>>;
-export function betterAuthMiddleware<O extends BetterAuthOptions, NC extends object>(
+export function betterAuthMiddleware<O extends BetterAuthOptions, NC extends object, Ctx extends object>(
 	auth: Auth<O>,
-	opts: BetterAuthMiddlewareOpts<O, NC>
-): MiddlewareFn<any, any, object, NC>;
+	opts: BetterAuthMiddlewareOpts<O, NC, Ctx>
+): MiddlewareFn<any, any, Ctx, NC>;
 export function betterAuthMiddleware<O extends BetterAuthOptions>(
 	auth: Auth<O>,
-	opts?: BetterAuthMiddlewareOpts<O, any>
+	opts?: BetterAuthMiddlewareOpts<O, any, any>
 ) {
-	return async ({ ctx, next }: any) => {
+	return createMiddleware().define(async ({ ctx, next }) => {
 		const sessionData = await auth.api.getSession({ headers: await headers() });
 
 		if (opts?.authorize) {
-			return opts.authorize({ auth, sessionData, ctx, next });
+			return opts.authorize({ sessionData, ctx, next });
 		}
 
 		if (!sessionData) {
@@ -54,7 +55,7 @@ export function betterAuthMiddleware<O extends BetterAuthOptions>(
 		}
 
 		return next({ ctx: { auth: { user: sessionData.user, session: sessionData.session } } });
-	};
+	});
 }
 
 export type { AuthorizeFn, BetterAuthContext, BetterAuthMiddlewareOpts } from "./index.types";

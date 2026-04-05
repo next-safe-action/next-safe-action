@@ -1,4 +1,4 @@
-import type { Auth, BetterAuthOptions } from "better-auth";
+import type { Auth } from "better-auth";
 import { describe, expect, test, vi } from "vitest";
 
 // ─── Module mocks (hoisted by vitest) ────────────────────────────────
@@ -26,7 +26,7 @@ const mockUser = { id: "user-1", name: "Test User", email: "test@example.com", e
 const mockSession = { id: "session-1", userId: "user-1", token: "tok-abc", expiresAt: new Date() };
 
 function createMockAuth(sessionData: { user: typeof mockUser; session: typeof mockSession } | null) {
-	return { api: { getSession: vi.fn().mockResolvedValue(sessionData) } } as unknown as Auth<BetterAuthOptions>;
+	return { api: { getSession: vi.fn().mockResolvedValue(sessionData) } } as unknown as Auth;
 }
 
 function createMockNext() {
@@ -80,21 +80,19 @@ describe("default flow (no authorize callback)", () => {
 // ─── Custom authorize callback ───────────────────────────────────────
 
 describe("custom authorize callback", () => {
-	test("delegates to authorize with auth, sessionData, ctx, and next", async () => {
+	test("delegates to authorize with sessionData, ctx, and next", async () => {
 		const sessionData = { user: mockUser, session: mockSession };
 		const auth = createMockAuth(sessionData);
 		const next = createMockNext();
 		const ctx = { existingKey: "value" };
-		const authorize = vi.fn().mockImplementation(({ next: n, sessionData: sd }) =>
-			n({ ctx: { auth: sd } })
-		);
+		const authorize = vi.fn().mockImplementation(({ next: n, sessionData: sd }) => n({ ctx: { auth: sd } }));
 
 		const middleware = betterAuthMiddleware(auth, { authorize });
 
 		await middleware({ ...baseMiddlewareArgs, ctx, next });
 
 		expect(authorize).toHaveBeenCalledOnce();
-		expect(authorize).toHaveBeenCalledWith({ auth, sessionData, ctx, next });
+		expect(authorize).toHaveBeenCalledWith({ sessionData, ctx, next });
 	});
 
 	test("receives null sessionData when no session exists", async () => {
@@ -112,9 +110,9 @@ describe("custom authorize callback", () => {
 	test("authorize can return custom context via next", async () => {
 		const auth = createMockAuth({ user: mockUser, session: mockSession });
 		const next = createMockNext();
-		const authorize = vi.fn().mockImplementation(({ next: n, sessionData: sd }) =>
-			n({ ctx: { auth: sd, role: "admin" } })
-		);
+		const authorize = vi
+			.fn()
+			.mockImplementation(({ next: n, sessionData: sd }) => n({ ctx: { auth: sd, role: "admin" } }));
 
 		const middleware = betterAuthMiddleware(auth, { authorize });
 
@@ -137,12 +135,69 @@ describe("custom authorize callback", () => {
 	});
 });
 
+// ─── Context extension with prior middleware ────────────────────────
+
+describe("context extension with prior middleware", () => {
+	test("authorize receives ctx from prior middleware and forwards it via next", async () => {
+		const sessionData = { user: mockUser, session: mockSession };
+		const auth = createMockAuth(sessionData);
+		const next = createMockNext();
+		const priorCtx = { userId: "user-1", orgId: "org-42" };
+
+		const authorize = vi
+			.fn()
+			.mockImplementation(({ ctx, sessionData: sd, next: n }) => n({ ctx: { ...ctx, auth: sd } }));
+
+		const middleware = betterAuthMiddleware(auth, { authorize });
+
+		await middleware({ ...baseMiddlewareArgs, ctx: priorCtx, next });
+
+		expect(authorize).toHaveBeenCalledWith({ sessionData, ctx: priorCtx, next });
+		expect(next).toHaveBeenCalledWith({
+			ctx: { userId: "user-1", orgId: "org-42", auth: sessionData },
+		});
+	});
+
+	test("default flow preserves prior middleware ctx through next", async () => {
+		const auth = createMockAuth({ user: mockUser, session: mockSession });
+		const priorCtx = { tenantId: "tenant-1" };
+		const next = createMockNext();
+		const middleware = betterAuthMiddleware(auth);
+
+		await middleware({ ...baseMiddlewareArgs, ctx: priorCtx, next });
+
+		// Default flow calls next with auth context; prior ctx is preserved by the action builder's deepmerge
+		expect(next).toHaveBeenCalledWith({
+			ctx: { auth: { user: mockUser, session: mockSession } },
+		});
+	});
+
+	test("authorize can selectively extend prior ctx without spreading it", async () => {
+		const sessionData = { user: mockUser, session: mockSession };
+		const auth = createMockAuth(sessionData);
+		const next = createMockNext();
+		const priorCtx = { userId: "user-1" };
+
+		const authorize = vi.fn().mockImplementation(({ next: n, sessionData: sd }) =>
+			// Only passes new context; prior ctx is preserved by the action builder's deepmerge
+			n({ ctx: { auth: sd } })
+		);
+
+		const middleware = betterAuthMiddleware(auth, { authorize });
+
+		await middleware({ ...baseMiddlewareArgs, ctx: priorCtx, next });
+
+		expect(authorize).toHaveBeenCalledWith({ sessionData, ctx: priorCtx, next });
+		expect(next).toHaveBeenCalledWith({ ctx: { auth: sessionData } });
+	});
+});
+
 // ─── Error propagation ───────────────────────────────────────────────
 
 describe("error propagation", () => {
 	test("getSession error propagates without being caught", async () => {
 		const dbError = new Error("Database connection failed");
-		const auth = { api: { getSession: vi.fn().mockRejectedValue(dbError) } } as unknown as Auth<BetterAuthOptions>;
+		const auth = { api: { getSession: vi.fn().mockRejectedValue(dbError) } } as unknown as Auth;
 		const next = createMockNext();
 		const middleware = betterAuthMiddleware(auth);
 
@@ -153,7 +208,7 @@ describe("error propagation", () => {
 
 	test("getSession error propagates even with custom authorize", async () => {
 		const dbError = new Error("Connection timeout");
-		const auth = { api: { getSession: vi.fn().mockRejectedValue(dbError) } } as unknown as Auth<BetterAuthOptions>;
+		const auth = { api: { getSession: vi.fn().mockRejectedValue(dbError) } } as unknown as Auth;
 		const next = createMockNext();
 		const authorize = vi.fn();
 
