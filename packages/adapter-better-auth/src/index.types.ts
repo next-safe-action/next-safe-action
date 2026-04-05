@@ -11,18 +11,17 @@ export type BetterAuthContext<O extends BetterAuthOptions> = {
 
 /**
  * Authorize callback signature for custom authorization logic.
- * Receives the auth instance, pre-fetched session data, current context, and the `next` function.
+ * Receives the pre-fetched session data, current context, and the `next` function.
  */
-export type AuthorizeFn<O extends BetterAuthOptions, NC extends object> = (args: {
-	auth: Auth<O>;
+export type AuthorizeFn<O extends BetterAuthOptions, NC extends object, Ctx extends object = object> = (args: {
 	sessionData: Auth<O>["$Infer"]["Session"] | null;
-	ctx: object;
+	ctx: Ctx;
 	next: <C extends object>(opts?: { ctx?: C }) => Promise<MiddlewareResult<any, C>>;
 }) => Promise<MiddlewareResult<any, NC>>;
 
 /**
  * Options for `betterAuthMiddleware`.
  */
-export type BetterAuthMiddlewareOpts<O extends BetterAuthOptions, NC extends object> = {
-	authorize: AuthorizeFn<O, NC>;
+export type BetterAuthMiddlewareOpts<O extends BetterAuthOptions, NC extends object, Ctx extends object = object> = {
+	authorize: AuthorizeFn<O, NC, Ctx>;
 };
