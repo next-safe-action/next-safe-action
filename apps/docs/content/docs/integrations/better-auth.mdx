@@ -1,0 +1,250 @@
+---
+title: Better Auth
+description: Learn how to integrate next-safe-action with Better Auth for type-safe authentication in your server actions.
+---
+
+next-safe-action has a first-party adapter for [Better Auth](https://www.better-auth.com) that provides a `betterAuthMiddleware()` function. It fetches the session, blocks unauthenticated requests, and injects fully-typed `{ user, session }` data into the action context, including any fields added by Better Auth plugins.
+
+## Installation
+
+```package-install
+next-safe-action better-auth @next-safe-action/adapter-better-auth
+```
+
+## Quick start
+
+<Steps>
+<Step>
+
+### Set up Better Auth
+
+Create your Better Auth server instance. If your actions need to set cookies (e.g. `signInEmail`, `signUpEmail`), add the `nextCookies()` plugin:
+
+```ts title="src/lib/auth.ts"
+import { betterAuth } from "better-auth";
+import { nextCookies } from "better-auth/next-js";
+
+export const auth = betterAuth({
+	// ...your config (database, plugins, etc.)
+	plugins: [
+		// ...other plugins
+		nextCookies(), // must be the last plugin in the array
+	],
+});
+```
+
+<Callout>
+The `nextCookies()` plugin is only required if you call Better Auth functions that set cookies (like `signInEmail` or `signUpEmail`) from Server Actions. It uses the Next.js `cookies()` helper to set cookies when a `Set-Cookie` header is present in the response. If your actions only read the session, you can skip it. Refer to the [Better Auth documentation](https://better-auth.com/docs/integrations/next#server-action-cookies) for more details.
+</Callout>
+
+</Step>
+<Step>
+
+### Create an authenticated action client
+
+Use `betterAuthMiddleware()` to add authentication to your action client:
+
+```ts title="src/lib/safe-action.ts"
+import { createSafeActionClient } from "next-safe-action";
+import { betterAuthMiddleware } from "@next-safe-action/adapter-better-auth";
+import { auth } from "./auth";
+
+// Public action client (no auth required)
+export const actionClient = createSafeActionClient();
+
+// Authenticated action client
+export const authClient = actionClient.use(betterAuthMiddleware(auth));
+```
+
+</Step>
+<Step>
+
+### Use it in your actions
+
+Actions defined with `authClient` have typed access to `ctx.auth.user` and `ctx.auth.session`:
+
+```ts title="src/app/actions.ts"
+"use server";
+
+import { z } from "zod";
+import { authClient } from "@/lib/safe-action";
+
+export const updateProfile = authClient
+	.inputSchema(z.object({ name: z.string().min(1) }))
+	.action(async ({ parsedInput, ctx }) => {
+		// ctx.auth.user and ctx.auth.session are fully typed,
+		// including fields from Better Auth plugins
+		const userId = ctx.auth.user.id;
+
+		await db.user.update({
+			where: { id: userId },
+			data: { name: parsedInput.name },
+		});
+
+		return { success: true };
+	});
+```
+
+</Step>
+</Steps>
+
+## How it works
+
+`betterAuthMiddleware()` creates a pre-validation middleware for the safe action client's `.use()` chain:
+
+1. **Fetches the session** by calling `auth.api.getSession({ headers: await headers() })` using the request headers from `next/headers`
+2. **Blocks unauthenticated requests** by calling `unauthorized()` from `next/navigation` when no session exists
+3. **Injects typed context** by passing `{ auth: { user, session } }` to `next()`, merging it into the action context
+
+The context is namespaced under `auth` to avoid collisions with other middleware that might add their own context properties.
+
+### Type inference
+
+The middleware infers the exact `user` and `session` types from your Better Auth instance, including any fields added by plugins. For example, if you use the `organization` plugin, `ctx.auth.session` will include `activeOrganizationId`. No manual type annotations are needed.
+
+## `unauthorized()` and auth interrupts
+
+<Callout type="warn">
+The default behavior uses `unauthorized()` from `next/navigation`, which requires the `authInterrupts` experimental flag in your Next.js configuration:
+
+```ts title="next.config.ts"
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+	experimental: {
+		authInterrupts: true,
+	},
+};
+
+export default nextConfig;
+```
+
+When enabled, `unauthorized()` triggers a 401 response that renders your nearest `unauthorized.tsx` boundary. See the [framework errors](/docs/advanced/framework-errors) page for more details on how next-safe-action handles navigation functions.
+</Callout>
+
+## Custom authorization with `authorize`
+
+The default flow works for most cases, but you can customize the authorization logic by passing an `authorize` callback. The session is pre-fetched and passed to the callback, so common customizations like role checks don't need to re-fetch:
+
+### Role-based access
+
+```ts title="src/lib/safe-action.ts"
+import { unauthorized } from "next/navigation";
+import { betterAuthMiddleware } from "@next-safe-action/adapter-better-auth";
+import { auth } from "./auth";
+
+export const adminClient = actionClient.use(
+	betterAuthMiddleware(auth, {
+		authorize: ({ sessionData, next }) => {
+			if (!sessionData || sessionData.user.role !== "admin") {
+				unauthorized();
+			}
+			return next({ ctx: { auth: sessionData } });
+		},
+	})
+);
+```
+
+### Redirect instead of 401
+
+```ts title="src/lib/safe-action.ts"
+import { redirect } from "next/navigation";
+import { betterAuthMiddleware } from "@next-safe-action/adapter-better-auth";
+import { auth } from "./auth";
+
+export const authClient = actionClient.use(
+	betterAuthMiddleware(auth, {
+		authorize: ({ sessionData, next }) => {
+			if (!sessionData) {
+				redirect("/login");
+			}
+			return next({ ctx: { auth: sessionData } });
+		},
+	})
+);
+```
+
+### `authorize` callback parameters
+
+<TypeTable
+	type={{
+		auth: {
+			description: "The Better Auth server instance you passed to betterAuthMiddleware().",
+			type: "Auth<Options>",
+		},
+		sessionData: {
+			description: "The pre-fetched session data, or null if no valid session exists.",
+			type: "{ user: User; session: Session } | null",
+		},
+		ctx: {
+			description: "The current action context from preceding middleware.",
+			type: "object",
+		},
+		next: {
+			description: "Call this to continue the middleware chain. Pass { ctx } to inject context.",
+			type: "<C extends object>(opts?: { ctx?: C }) => Promise<MiddlewareResult<any, C>>",
+		},
+	}}
+/>
+
+## Server Action cookies
+
+When calling Better Auth functions that mutate cookies from Server Actions (e.g. `signInEmail`, `signUpEmail`), cookies won't be set by default. This is because Server Actions need to use the Next.js `cookies()` helper to set cookies.
+
+To handle this automatically, add the `nextCookies()` plugin to your Better Auth server instance:
+
+```ts title="src/lib/auth.ts"
+import { betterAuth } from "better-auth";
+import { nextCookies } from "better-auth/next-js";
+
+export const auth = betterAuth({
+	// ...your config
+	plugins: [
+		// ...other plugins
+		nextCookies(), // must be the last plugin in the array
+	],
+});
+```
+
+With this plugin, any Better Auth function called from a Server Action that returns a `Set-Cookie` header will automatically set the cookie via Next.js:
+
+```ts title="src/app/actions.ts"
+"use server";
+
+import { z } from "zod";
+import { authClient } from "@/lib/safe-action";
+
+export const signIn = authClient
+	.inputSchema(z.object({ email: z.string().email(), password: z.string() }))
+	.action(async ({ parsedInput, ctx }) => {
+		// This works because nextCookies() handles cookie setting
+		await ctx.auth.session; // session is already available from the middleware
+
+		// Or call other Better Auth functions that set cookies:
+		// await auth.api.signInEmail({ body: parsedInput });
+	});
+```
+
+## Package entry points
+
+| Entry point | Exports | Environment |
+|---|---|---|
+| `@next-safe-action/adapter-better-auth` | `betterAuthMiddleware` | Server |
+
+### Exported types
+
+| Type | Description |
+|---|---|
+| `BetterAuthContext<Options>` | The context shape added by the middleware: `{ auth: { user, session } }` |
+| `AuthorizeFn<Options, NextCtx>` | The `authorize` callback signature |
+| `BetterAuthMiddlewareOpts<Options, NextCtx>` | The options object type for `betterAuthMiddleware` |
+
+---
+
+## See also
+
+- [Middleware guide](/docs/guides/middleware): how middleware and context chaining work
+- [Framework errors](/docs/advanced/framework-errors): handling `unauthorized()`, `redirect()`, and other navigation functions
+- [Standalone middleware](/docs/advanced/standalone-middleware): `createMiddleware()` for reusable middleware
+- [TanStack Query integration](/docs/integrations/tanstack-query): sibling adapter for TanStack Query mutations
+- [React Hook Form integration](/docs/integrations/react-hook-form): sibling adapter for react-hook-form

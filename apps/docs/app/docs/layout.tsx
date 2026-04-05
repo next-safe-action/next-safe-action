@@ -7,6 +7,7 @@ import { source } from "@/lib/source";
 export default function Layout({ children }: { children: ReactNode }) {
 	let tree = addSidebarBadge(source.getPageTree(), "/docs/ai-skills", "NEW");
 	tree = addSidebarBadge(tree, "/docs/integrations/tanstack-query", "NEW");
+	tree = addSidebarBadge(tree, "/docs/integrations/better-auth", "NEW");
 
 	return (
 		<DocsLayout tree={tree} {...baseLayoutOptions}>
