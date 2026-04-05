@@ -1,7 +1,7 @@
 import type { Auth, BetterAuthOptions } from "better-auth";
+import type { MiddlewareFn } from "next-safe-action";
 import { headers } from "next/headers";
 import { unauthorized } from "next/navigation";
-import type { MiddlewareFn } from "next-safe-action";
 import type { BetterAuthContext, BetterAuthMiddlewareOpts } from "./index.types";
 
 /**
@@ -13,7 +13,7 @@ import type { BetterAuthContext, BetterAuthMiddlewareOpts } from "./index.types"
  * Pass an `authorize` callback to customize the authorization flow. The session is pre-fetched
  * and passed to the callback, so common customizations (e.g. role checks) don't need to re-fetch.
  *
- * Note: `unauthorized()` requires `experimental.authInterrupts: true` in your `next.config` file.
+ * Note: `unauthorized()` requires `experimental.authInterrupts: true` in your `next.config.ts` file.
  *
  * @example
  * ```ts
