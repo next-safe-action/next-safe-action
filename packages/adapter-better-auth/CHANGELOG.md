@@ -1,5 +1,11 @@
 # @next-safe-action/adapter-better-auth
 
+## 0.1.3
+
+### Patch Changes
+
+- [`b8168cf`](https://github.com/next-safe-action/next-safe-action/commit/b8168cfce7445046548fc01397427ea7dcb49dcd) Thanks [@TheEdoRan](https://github.com/TheEdoRan)! - Rename `sessionData` to `authData`.
+
 ## 0.1.2
 
 ### Patch Changes
