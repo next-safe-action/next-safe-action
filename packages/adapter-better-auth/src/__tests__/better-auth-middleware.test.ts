@@ -18,7 +18,7 @@ vi.mock("next/navigation", () => ({
 	}),
 }));
 
-import { betterAuthMiddleware } from "..";
+import { betterAuth } from "..";
 
 // ─── Test helpers ────────────────────────────────────────────────────
 
@@ -45,7 +45,7 @@ describe("default flow (no authorize callback)", () => {
 	test("calls getSession with headers from next/headers", async () => {
 		const auth = createMockAuth({ user: mockUser, session: mockSession });
 		const next = createMockNext();
-		const middleware = betterAuthMiddleware(auth);
+		const middleware = betterAuth(auth);
 
 		await middleware({ ...baseMiddlewareArgs, ctx: {}, next });
 
@@ -56,7 +56,7 @@ describe("default flow (no authorize callback)", () => {
 	test("session exists: calls next with auth context containing user and session", async () => {
 		const auth = createMockAuth({ user: mockUser, session: mockSession });
 		const next = createMockNext();
-		const middleware = betterAuthMiddleware(auth);
+		const middleware = betterAuth(auth);
 
 		await middleware({ ...baseMiddlewareArgs, ctx: {}, next });
 
@@ -69,7 +69,7 @@ describe("default flow (no authorize callback)", () => {
 	test("no session: calls unauthorized() and does not call next", async () => {
 		const auth = createMockAuth(null);
 		const next = createMockNext();
-		const middleware = betterAuthMiddleware(auth);
+		const middleware = betterAuth(auth);
 
 		await expect(middleware({ ...baseMiddlewareArgs, ctx: {}, next })).rejects.toThrow(unauthorizedError);
 
@@ -87,7 +87,7 @@ describe("custom authorize callback", () => {
 		const ctx = { existingKey: "value" };
 		const authorize = vi.fn().mockImplementation(({ next: n, sessionData: sd }) => n({ ctx: { auth: sd } }));
 
-		const middleware = betterAuthMiddleware(auth, { authorize });
+		const middleware = betterAuth(auth, { authorize });
 
 		await middleware({ ...baseMiddlewareArgs, ctx, next });
 
@@ -100,7 +100,7 @@ describe("custom authorize callback", () => {
 		const next = createMockNext();
 		const authorize = vi.fn().mockImplementation(({ next: n }) => n({ ctx: { custom: true } }));
 
-		const middleware = betterAuthMiddleware(auth, { authorize });
+		const middleware = betterAuth(auth, { authorize });
 
 		await middleware({ ...baseMiddlewareArgs, ctx: {}, next });
 
@@ -114,7 +114,7 @@ describe("custom authorize callback", () => {
 			.fn()
 			.mockImplementation(({ next: n, sessionData: sd }) => n({ ctx: { auth: sd, role: "admin" } }));
 
-		const middleware = betterAuthMiddleware(auth, { authorize });
+		const middleware = betterAuth(auth, { authorize });
 
 		await middleware({ ...baseMiddlewareArgs, ctx: {}, next });
 
@@ -127,7 +127,7 @@ describe("custom authorize callback", () => {
 		const customError = new Error("Forbidden: admin only");
 		const authorize = vi.fn().mockRejectedValue(customError);
 
-		const middleware = betterAuthMiddleware(auth, { authorize });
+		const middleware = betterAuth(auth, { authorize });
 
 		await expect(middleware({ ...baseMiddlewareArgs, ctx: {}, next })).rejects.toThrow(customError);
 
@@ -148,7 +148,7 @@ describe("context extension with prior middleware", () => {
 			.fn()
 			.mockImplementation(({ ctx, sessionData: sd, next: n }) => n({ ctx: { ...ctx, auth: sd } }));
 
-		const middleware = betterAuthMiddleware(auth, { authorize });
+		const middleware = betterAuth(auth, { authorize });
 
 		await middleware({ ...baseMiddlewareArgs, ctx: priorCtx, next });
 
@@ -162,7 +162,7 @@ describe("context extension with prior middleware", () => {
 		const auth = createMockAuth({ user: mockUser, session: mockSession });
 		const priorCtx = { tenantId: "tenant-1" };
 		const next = createMockNext();
-		const middleware = betterAuthMiddleware(auth);
+		const middleware = betterAuth(auth);
 
 		await middleware({ ...baseMiddlewareArgs, ctx: priorCtx, next });
 
@@ -183,7 +183,7 @@ describe("context extension with prior middleware", () => {
 			n({ ctx: { auth: sd } })
 		);
 
-		const middleware = betterAuthMiddleware(auth, { authorize });
+		const middleware = betterAuth(auth, { authorize });
 
 		await middleware({ ...baseMiddlewareArgs, ctx: priorCtx, next });
 
@@ -199,7 +199,7 @@ describe("error propagation", () => {
 		const dbError = new Error("Database connection failed");
 		const auth = { api: { getSession: vi.fn().mockRejectedValue(dbError) } } as unknown as Auth;
 		const next = createMockNext();
-		const middleware = betterAuthMiddleware(auth);
+		const middleware = betterAuth(auth);
 
 		await expect(middleware({ ...baseMiddlewareArgs, ctx: {}, next })).rejects.toThrow(dbError);
 
@@ -212,7 +212,7 @@ describe("error propagation", () => {
 		const next = createMockNext();
 		const authorize = vi.fn();
 
-		const middleware = betterAuthMiddleware(auth, { authorize });
+		const middleware = betterAuth(auth, { authorize });
 
 		await expect(middleware({ ...baseMiddlewareArgs, ctx: {}, next })).rejects.toThrow(dbError);
 

@@ -1,7 +1,7 @@
 import type { Auth } from "better-auth";
 import { createMiddleware, createSafeActionClient } from "next-safe-action";
 import { test, expectTypeOf } from "vitest";
-import { betterAuthMiddleware } from "../..";
+import { betterAuth } from "../..";
 
 declare const auth: Auth;
 
@@ -13,7 +13,7 @@ test("authorize callback ctx inherits prior middleware context when used inline"
 	});
 
 	client.use(
-		betterAuthMiddleware(auth, {
+		betterAuth(auth, {
 			authorize: ({ ctx, sessionData, next }) => {
 				expectTypeOf(ctx).toEqualTypeOf<{ userId: string }>();
 				if (!sessionData) {
@@ -29,7 +29,7 @@ test("authorize callback ctx is empty object when no prior middleware exists", (
 	const client = createSafeActionClient();
 
 	client.use(
-		betterAuthMiddleware(auth, {
+		betterAuth(auth, {
 			authorize: ({ ctx, next }) => {
 				expectTypeOf(ctx).toEqualTypeOf<{}>();
 				return next();
@@ -48,7 +48,7 @@ test("authorize callback ctx inherits multiple layers of prior middleware contex
 		});
 
 	client.use(
-		betterAuthMiddleware(auth, {
+		betterAuth(auth, {
 			authorize: ({ ctx, next }) => {
 				expectTypeOf(ctx).toEqualTypeOf<{ userId: string } & { role: "admin" }>();
 				return next();
@@ -65,7 +65,7 @@ test("authorize callback ctx inherits context from standalone createMiddleware",
 	const client = createSafeActionClient().use(loggerMiddleware);
 
 	client.use(
-		betterAuthMiddleware(auth, {
+		betterAuth(auth, {
 			authorize: ({ ctx, next }) => {
 				expectTypeOf(ctx).toEqualTypeOf<{ logger: { info: (msg: string) => void } }>();
 				return next();
@@ -76,14 +76,14 @@ test("authorize callback ctx inherits context from standalone createMiddleware",
 
 // ─── Default flow context output ────────────────────────────────────
 
-test("default betterAuthMiddleware adds BetterAuthContext to the client", () => {
+test("default betterAuth adds BetterAuthContext to the client", () => {
 	const client = createSafeActionClient()
 		.use(async ({ next }) => {
 			return next({ ctx: { userId: "user-1" } });
 		})
-		.use(betterAuthMiddleware(auth));
+		.use(betterAuth(auth));
 
-	// After default betterAuthMiddleware, next .use() receives merged context with both prior and auth context
+	// After default betterAuth, next .use() receives merged context with both prior and auth context
 	client.use(async ({ ctx, next }) => {
 		expectTypeOf(ctx).toHaveProperty("userId");
 		expectTypeOf(ctx).toHaveProperty("auth");

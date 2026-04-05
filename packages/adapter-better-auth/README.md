@@ -3,7 +3,7 @@
   <a href="https://github.com/next-safe-action/next-safe-action/packages/adapter-better-auth"><h1>adapter-better-auth</h1></a>
 </div>
 
-This adapter offers a way to seamlessly integrate [next-safe-action](https://github.com/next-safe-action/next-safe-action) with [Better Auth](https://www.better-auth.com). It provides a `betterAuthMiddleware()` function that fetches the session, blocks unauthenticated requests, and injects fully-typed `{ user, session }` data into the action context.
+This adapter offers a way to seamlessly integrate [next-safe-action](https://github.com/next-safe-action/next-safe-action) with [Better Auth](https://www.better-auth.com). It provides a `betterAuth()` function that fetches the session, blocks unauthenticated requests, and injects fully-typed `{ user, session }` data into the action context.
 
 ## Requirements
 
@@ -37,12 +37,12 @@ export const auth = betterAuth({
 ```ts
 // src/lib/safe-action.ts
 import { createSafeActionClient } from "next-safe-action";
-import { betterAuthMiddleware } from "@next-safe-action/adapter-better-auth";
+import { betterAuth } from "@next-safe-action/adapter-better-auth";
 import { auth } from "./auth";
 
 export const actionClient = createSafeActionClient();
 
-export const authClient = actionClient.use(betterAuthMiddleware(auth));
+export const authClient = actionClient.use(betterAuth(auth));
 ```
 
 ### 3. Use it in your actions
@@ -71,7 +71,7 @@ export const updateProfile = authClient
 
 ## How it works
 
-`betterAuthMiddleware()` creates a pre-validation middleware for the safe action client's `.use()` chain:
+`betterAuth()` creates a pre-validation middleware for the safe action client's `.use()` chain:
 
 1. **Fetches the session** by calling `auth.api.getSession({ headers: await headers() })`
 2. **Blocks unauthenticated requests** by calling `unauthorized()` from `next/navigation` when no session exists
@@ -100,12 +100,12 @@ Pass an `authorize` callback to customize the authorization flow. The session is
 
 ```ts
 import { unauthorized } from "next/navigation";
-import { betterAuthMiddleware } from "@next-safe-action/adapter-better-auth";
+import { betterAuth } from "@next-safe-action/adapter-better-auth";
 import { auth } from "./auth";
 
 // Role-based access
 export const adminClient = actionClient.use(
-	betterAuthMiddleware(auth, {
+	betterAuth(auth, {
 		authorize: ({ sessionData, next }) => {
 			if (!sessionData || sessionData.user.role !== "admin") {
 				unauthorized();
@@ -143,7 +143,7 @@ export const auth = betterAuth({
 
 ## API reference
 
-### `betterAuthMiddleware(auth, opts?)`
+### `betterAuth(auth, opts?)`
 
 Creates a middleware function for use with the safe action client's `.use()` method.
 
@@ -158,7 +158,7 @@ Creates a middleware function for use with the safe action client's `.use()` met
 
 - `BetterAuthContext<Options>`: the context shape added by the middleware (`{ auth: { user, session } }`)
 - `AuthorizeFn<Options, NextCtx>`: the `authorize` callback signature
-- `BetterAuthMiddlewareOpts<Options, NextCtx>`: the options object type for `betterAuthMiddleware`
+- `BetterAuthOpts<Options, NextCtx>`: the options object type for `betterAuth`
 
 ## Documentation
 

@@ -3,7 +3,7 @@ import { createMiddleware } from "next-safe-action";
 import type { MiddlewareFn } from "next-safe-action";
 import { headers } from "next/headers";
 import { unauthorized } from "next/navigation";
-import type { BetterAuthContext, BetterAuthMiddlewareOpts } from "./index.types";
+import type { BetterAuthContext, BetterAuthOpts } from "./index.types";
 
 /**
  * Creates a next-safe-action middleware that integrates with better-auth.
@@ -19,10 +19,10 @@ import type { BetterAuthContext, BetterAuthMiddlewareOpts } from "./index.types"
  * @example
  * ```ts
  * // Default: fetch session, unauthorized() if absent
- * actionClient.use(betterAuthMiddleware(auth));
+ * actionClient.use(betterAuth(auth));
  *
  * // Custom: check role
- * actionClient.use(betterAuthMiddleware(auth, {
+ * actionClient.use(betterAuth(auth, {
  *   authorize: ({ sessionData, next }) => {
  *     if (!sessionData || sessionData.user.role !== "admin") {
  *       unauthorized();
@@ -32,16 +32,16 @@ import type { BetterAuthContext, BetterAuthMiddlewareOpts } from "./index.types"
  * }));
  * ```
  */
-export function betterAuthMiddleware<O extends BetterAuthOptions>(
+export function betterAuth<O extends BetterAuthOptions>(
 	auth: Auth<O>
 ): MiddlewareFn<any, any, object, BetterAuthContext<O>>;
-export function betterAuthMiddleware<O extends BetterAuthOptions, NC extends object, Ctx extends object>(
+export function betterAuth<O extends BetterAuthOptions, NC extends object, Ctx extends object>(
 	auth: Auth<O>,
-	opts: BetterAuthMiddlewareOpts<O, NC, Ctx>
+	opts: BetterAuthOpts<O, NC, Ctx>
 ): MiddlewareFn<any, any, Ctx, NC>;
-export function betterAuthMiddleware<O extends BetterAuthOptions>(
+export function betterAuth<O extends BetterAuthOptions>(
 	auth: Auth<O>,
-	opts?: BetterAuthMiddlewareOpts<O, any, any>
+	opts?: BetterAuthOpts<O, any, any>
 ) {
 	return createMiddleware().define(async ({ ctx, next }) => {
 		const sessionData = await auth.api.getSession({ headers: await headers() });
@@ -58,4 +58,4 @@ export function betterAuthMiddleware<O extends BetterAuthOptions>(
 	});
 }
 
-export type { AuthorizeFn, BetterAuthContext, BetterAuthMiddlewareOpts } from "./index.types";
+export type { AuthorizeFn, BetterAuthContext, BetterAuthOpts } from "./index.types";

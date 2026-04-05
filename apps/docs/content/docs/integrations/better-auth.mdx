@@ -3,7 +3,7 @@ title: Better Auth
 description: Learn how to integrate next-safe-action with Better Auth for type-safe authentication in your server actions.
 ---
 
-next-safe-action has a first-party adapter for [Better Auth](https://www.better-auth.com) that provides a `betterAuthMiddleware()` function. It fetches the session, blocks unauthenticated requests, and injects fully-typed `{ user, session }` data into the action context, including any fields added by Better Auth plugins.
+next-safe-action has a first-party adapter for [Better Auth](https://www.better-auth.com) that provides a `betterAuth()` function. It fetches the session, blocks unauthenticated requests, and injects fully-typed `{ user, session }` data into the action context, including any fields added by Better Auth plugins.
 
 ## Installation
 
@@ -42,18 +42,18 @@ The `nextCookies()` plugin is only required if you call Better Auth functions th
 
 ### Create an authenticated action client
 
-Use `betterAuthMiddleware()` to add authentication to your action client:
+Use `betterAuth()` to add authentication to your action client:
 
 ```ts title="src/lib/safe-action.ts"
 import { createSafeActionClient } from "next-safe-action";
-import { betterAuthMiddleware } from "@next-safe-action/adapter-better-auth";
+import { betterAuth } from "@next-safe-action/adapter-better-auth";
 import { auth } from "./auth";
 
 // Public action client (no auth required)
 export const actionClient = createSafeActionClient();
 
 // Authenticated action client
-export const authClient = actionClient.use(betterAuthMiddleware(auth));
+export const authClient = actionClient.use(betterAuth(auth));
 ```
 
 </Step>
@@ -90,7 +90,7 @@ export const updateProfile = authClient
 
 ## How it works
 
-`betterAuthMiddleware()` creates a pre-validation middleware for the safe action client's `.use()` chain:
+`betterAuth()` creates a pre-validation middleware for the safe action client's `.use()` chain:
 
 1. **Fetches the session** by calling `auth.api.getSession({ headers: await headers() })` using the request headers from `next/headers`
 2. **Blocks unauthenticated requests** by calling `unauthorized()` from `next/navigation` when no session exists
@@ -130,11 +130,11 @@ The default flow works for most cases, but you can customize the authorization l
 
 ```ts title="src/lib/safe-action.ts"
 import { unauthorized } from "next/navigation";
-import { betterAuthMiddleware } from "@next-safe-action/adapter-better-auth";
+import { betterAuth } from "@next-safe-action/adapter-better-auth";
 import { auth } from "./auth";
 
 export const adminClient = actionClient.use(
-	betterAuthMiddleware(auth, {
+	betterAuth(auth, {
 		authorize: ({ sessionData, next }) => {
 			if (!sessionData || sessionData.user.role !== "admin") {
 				unauthorized();
@@ -149,11 +149,11 @@ export const adminClient = actionClient.use(
 
 ```ts title="src/lib/safe-action.ts"
 import { redirect } from "next/navigation";
-import { betterAuthMiddleware } from "@next-safe-action/adapter-better-auth";
+import { betterAuth } from "@next-safe-action/adapter-better-auth";
 import { auth } from "./auth";
 
 export const authClient = actionClient.use(
-	betterAuthMiddleware(auth, {
+	betterAuth(auth, {
 		authorize: ({ sessionData, next }) => {
 			if (!sessionData) {
 				redirect("/login");
@@ -169,7 +169,7 @@ export const authClient = actionClient.use(
 <TypeTable
 	type={{
 		auth: {
-			description: "The Better Auth server instance you passed to betterAuthMiddleware().",
+			description: "The Better Auth server instance you passed to betterAuth().",
 			type: "Auth<Options>",
 		},
 		sessionData: {
@@ -229,7 +229,7 @@ export const signIn = authClient
 
 | Entry point | Exports | Environment |
 |---|---|---|
-| `@next-safe-action/adapter-better-auth` | `betterAuthMiddleware` | Server |
+| `@next-safe-action/adapter-better-auth` | `betterAuth` | Server |
 
 ### Exported types
 
@@ -237,7 +237,7 @@ export const signIn = authClient
 |---|---|
 | `BetterAuthContext<Options>` | The context shape added by the middleware: `{ auth: { user, session } }` |
 | `AuthorizeFn<Options, NextCtx>` | The `authorize` callback signature |
-| `BetterAuthMiddlewareOpts<Options, NextCtx>` | The options object type for `betterAuthMiddleware` |
+| `BetterAuthOpts<Options, NextCtx>` | The options object type for `betterAuth` |
 
 ---
 

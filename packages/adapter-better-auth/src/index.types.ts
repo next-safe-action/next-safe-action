@@ -2,7 +2,7 @@ import type { Auth, BetterAuthOptions } from "better-auth";
 import type { MiddlewareResult } from "next-safe-action";
 
 /**
- * The default context shape added by `betterAuthMiddleware`.
+ * The default context shape added by `betterAuth`.
  * Contains `auth.user` and `auth.session`, fully typed from the better-auth instance.
  */
 export type BetterAuthContext<O extends BetterAuthOptions> = {
@@ -20,8 +20,8 @@ export type AuthorizeFn<O extends BetterAuthOptions, NC extends object, Ctx exte
 }) => Promise<MiddlewareResult<any, NC>>;
 
 /**
- * Options for `betterAuthMiddleware`.
+ * Options for `betterAuth`.
  */
-export type BetterAuthMiddlewareOpts<O extends BetterAuthOptions, NC extends object, Ctx extends object = object> = {
+export type BetterAuthOpts<O extends BetterAuthOptions, NC extends object, Ctx extends object = object> = {
 	authorize: AuthorizeFn<O, NC, Ctx>;
 };
