@@ -168,10 +168,6 @@ export const authClient = actionClient.use(
 
 <TypeTable
 	type={{
-		auth: {
-			description: "The Better Auth server instance you passed to betterAuth().",
-			type: "Auth<Options>",
-		},
 		authData: {
 			description: "The pre-fetched session data, or null if no valid session exists.",
 			type: "{ user: User; session: Session } | null",
