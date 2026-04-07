@@ -3,13 +3,41 @@
 		"source.fixAll.oxc": "always",
 		"source.removeUnusedImports": "explicit"
 	},
+	"prettier.enable": false,
 	"editor.defaultFormatter": "oxc.oxc-vscode",
 	"editor.formatOnSave": true,
 	"oxc.fmt.configPath": ".oxfmtrc.json",
 	"oxc.typeAware": true,
 	"editor.rulers": [120],
+	"typescript.tsdk": "node_modules/typescript/lib",
 	"[markdown]": {
 		"editor.formatOnSave": false
 	},
-	"typescript.tsdk": "node_modules/typescript/lib"
+	"[typescript]": {
+		"editor.defaultFormatter": "oxc.oxc-vscode"
+	},
+	"[typescriptreact]": {
+		"editor.defaultFormatter": "oxc.oxc-vscode"
+	},
+	"[javascript]": {
+		"editor.defaultFormatter": "oxc.oxc-vscode"
+	},
+	"[javascriptreact]": {
+		"editor.defaultFormatter": "oxc.oxc-vscode"
+	},
+	"[json]": {
+		"editor.defaultFormatter": "oxc.oxc-vscode"
+	},
+	"[jsonc]": {
+		"editor.defaultFormatter": "oxc.oxc-vscode"
+	},
+	"[json5]": {
+		"editor.defaultFormatter": "oxc.oxc-vscode"
+	},
+	"[css]": {
+		"editor.defaultFormatter": "oxc.oxc-vscode"
+	},
+	"[html]": {
+		"editor.defaultFormatter": "oxc.oxc-vscode"
+	}
 }
