@@ -1,5 +1,11 @@
 # @next-safe-action/adapter-better-auth
 
+## 0.1.4
+
+### Patch Changes
+
+- [#439](https://github.com/next-safe-action/next-safe-action/pull/439) [`24dbe26`](https://github.com/next-safe-action/next-safe-action/commit/24dbe260d1b0cb6b4cd69fa11df95443d6583ed8) Thanks [@TheEdoRan](https://github.com/TheEdoRan)! - Fix typing issues when using better-auth >= 1.6.0
+
 ## 0.1.3
 
 ### Patch Changes
