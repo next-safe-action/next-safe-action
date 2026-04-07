@@ -204,8 +204,7 @@ export function MiddlewareClient({ sources }: Props) {
 					</div>
 					<p className="text-muted-foreground text-sm">
 						useValidated() runs after input validation and receives typed parsedInput. Empty input fails validation
-						(useValidated is skipped entirely), non-owned posts are rejected by the middleware, and owned posts
-						succeed.
+						(useValidated is skipped entirely), non-owned posts are rejected by the middleware, and owned posts succeed.
 					</p>
 				</div>
 				<ResultDisplay result={validatedResult} />

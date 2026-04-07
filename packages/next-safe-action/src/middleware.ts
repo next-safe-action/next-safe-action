@@ -50,12 +50,8 @@ export const createValidatedMiddleware = <
 				NextCtx,
 				BaseData extends { parsedInput: infer PI } ? PI : unknown,
 				BaseData extends { clientInput: infer CI } ? CI : unknown,
-				BaseData extends { bindArgsParsedInputs: infer BAPI extends readonly unknown[] }
-					? BAPI
-					: readonly unknown[],
-				BaseData extends { bindArgsClientInputs: infer BACI extends readonly unknown[] }
-					? BACI
-					: readonly unknown[]
+				BaseData extends { bindArgsParsedInputs: infer BAPI extends readonly unknown[] } ? BAPI : readonly unknown[],
+				BaseData extends { bindArgsClientInputs: infer BACI extends readonly unknown[] } ? BACI : readonly unknown[]
 			>
 		) => middlewareFn,
 	};

@@ -25,11 +25,7 @@ export function NavigationMutationDemo({ source }: Props) {
 				<Button onClick={() => mutation.mutate({ kind: "redirect" })} disabled={mutation.isPending}>
 					Redirect
 				</Button>
-				<Button
-					onClick={() => mutation.mutate({ kind: "notFound" })}
-					variant="secondary"
-					disabled={mutation.isPending}
-				>
+				<Button onClick={() => mutation.mutate({ kind: "notFound" })} variant="secondary" disabled={mutation.isPending}>
 					Not Found
 				</Button>
 				<Button
@@ -46,11 +42,7 @@ export function NavigationMutationDemo({ source }: Props) {
 				>
 					Unauthorized
 				</Button>
-				<Button
-					onClick={() => mutation.mutate({ kind: "happy-path" })}
-					variant="outline"
-					disabled={mutation.isPending}
-				>
+				<Button onClick={() => mutation.mutate({ kind: "happy-path" })} variant="outline" disabled={mutation.isPending}>
 					Happy path
 				</Button>
 				<Button variant="ghost" onClick={() => mutation.reset()}>
