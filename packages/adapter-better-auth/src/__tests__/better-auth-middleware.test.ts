@@ -22,11 +22,24 @@ import { betterAuth } from "..";
 
 // ─── Test helpers ────────────────────────────────────────────────────
 
-const mockUser = { id: "user-1", name: "Test User", email: "test@example.com", emailVerified: true, image: null };
-const mockSession = { id: "session-1", userId: "user-1", token: "tok-abc", expiresAt: new Date() };
+const mockUser = {
+	id: "user-1",
+	name: "Test User",
+	email: "test@example.com",
+	emailVerified: true,
+	image: null,
+};
+const mockSession = {
+	id: "session-1",
+	userId: "user-1",
+	token: "tok-abc",
+	expiresAt: new Date(),
+};
 
 function createMockAuth(authData: { user: typeof mockUser; session: typeof mockSession } | null) {
-	return { api: { getSession: vi.fn().mockResolvedValue(authData) } } as unknown as Auth;
+	return {
+		api: { getSession: vi.fn().mockResolvedValue(authData) },
+	} as unknown as Auth;
 }
 
 function createMockNext() {
@@ -118,7 +131,9 @@ describe("custom authorize callback", () => {
 
 		await middleware({ ...baseMiddlewareArgs, ctx: {}, next });
 
-		expect(next).toHaveBeenCalledWith({ ctx: { auth: { user: mockUser, session: mockSession }, role: "admin" } });
+		expect(next).toHaveBeenCalledWith({
+			ctx: { auth: { user: mockUser, session: mockSession }, role: "admin" },
+		});
 	});
 
 	test("authorize can throw to block the request", async () => {
@@ -144,9 +159,7 @@ describe("context extension with prior middleware", () => {
 		const next = createMockNext();
 		const priorCtx = { userId: "user-1", orgId: "org-42" };
 
-		const authorize = vi
-			.fn()
-			.mockImplementation(({ ctx, authData: sd, next: n }) => n({ ctx: { ...ctx, auth: sd } }));
+		const authorize = vi.fn().mockImplementation(({ ctx, authData: sd, next: n }) => n({ ctx: { ...ctx, auth: sd } }));
 
 		const middleware = betterAuth(auth, { authorize });
 
@@ -197,7 +210,9 @@ describe("context extension with prior middleware", () => {
 describe("error propagation", () => {
 	test("getSession error propagates without being caught", async () => {
 		const dbError = new Error("Database connection failed");
-		const auth = { api: { getSession: vi.fn().mockRejectedValue(dbError) } } as unknown as Auth;
+		const auth = {
+			api: { getSession: vi.fn().mockRejectedValue(dbError) },
+		} as unknown as Auth;
 		const next = createMockNext();
 		const middleware = betterAuth(auth);
 
@@ -208,7 +223,9 @@ describe("error propagation", () => {
 
 	test("getSession error propagates even with custom authorize", async () => {
 		const dbError = new Error("Connection timeout");
-		const auth = { api: { getSession: vi.fn().mockRejectedValue(dbError) } } as unknown as Auth;
+		const auth = {
+			api: { getSession: vi.fn().mockRejectedValue(dbError) },
+		} as unknown as Auth;
 		const next = createMockNext();
 		const authorize = vi.fn();
 
