@@ -169,15 +169,17 @@ test("InferCtx returns object when no ctx constraint is specified", () => {
 // ─── Constraint inference ───────────────────────────────────────────
 
 test("createValidatedMiddleware with no constraints: all types are permissive defaults", () => {
-	createValidatedMiddleware().define(async ({ parsedInput, clientInput, bindArgsParsedInputs, bindArgsClientInputs, ctx, metadata, next }) => {
-		expectTypeOf(parsedInput).toBeUnknown();
-		expectTypeOf(clientInput).toBeUnknown();
-		expectTypeOf(bindArgsParsedInputs).toEqualTypeOf<readonly unknown[]>();
-		expectTypeOf(bindArgsClientInputs).toEqualTypeOf<readonly unknown[]>();
-		expectTypeOf(ctx).toEqualTypeOf<object>();
-		expectTypeOf(metadata).toBeAny();
-		return next();
-	});
+	createValidatedMiddleware().define(
+		async ({ parsedInput, clientInput, bindArgsParsedInputs, bindArgsClientInputs, ctx, metadata, next }) => {
+			expectTypeOf(parsedInput).toBeUnknown();
+			expectTypeOf(clientInput).toBeUnknown();
+			expectTypeOf(bindArgsParsedInputs).toEqualTypeOf<readonly unknown[]>();
+			expectTypeOf(bindArgsClientInputs).toEqualTypeOf<readonly unknown[]>();
+			expectTypeOf(ctx).toEqualTypeOf<object>();
+			expectTypeOf(metadata).toBeAny();
+			return next();
+		}
+	);
 });
 
 test("createValidatedMiddleware with parsedInput constraint infers parsedInput type", () => {
@@ -424,15 +426,11 @@ test("error callback ctx has pre-validation fields required and validated fields
 			},
 			{
 				onError: ({ ctx }) => {
-					expectTypeOf(ctx).toEqualTypeOf<
-						{ guaranteed: string; maybePresent?: number | undefined } | undefined
-					>();
+					expectTypeOf(ctx).toEqualTypeOf<{ guaranteed: string; maybePresent?: number | undefined } | undefined>();
 					return Promise.resolve();
 				},
 				onSettled: ({ ctx }) => {
-					expectTypeOf(ctx).toEqualTypeOf<
-						{ guaranteed: string; maybePresent?: number | undefined } | undefined
-					>();
+					expectTypeOf(ctx).toEqualTypeOf<{ guaranteed: string; maybePresent?: number | undefined } | undefined>();
 					return Promise.resolve();
 				},
 			}

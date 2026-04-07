@@ -73,8 +73,9 @@ type ActionUtilsThrowServer<U> = U extends { throwServerError: true } ? true : f
  * Detect if action-level `throwValidationErrors` is set to `true` (or the object form with `overrideErrorMessage`).
  * Returns `true` if enabled, `false` if explicitly disabled, `undefined` if not specified.
  */
-type ActionUtilsThrowValidation<U> = U extends
-	{ throwValidationErrors: true | { overrideErrorMessage: (...args: any[]) => any } }
+type ActionUtilsThrowValidation<U> = U extends {
+	throwValidationErrors: true | { overrideErrorMessage: (...args: any[]) => any };
+}
 	? true
 	: U extends { throwValidationErrors: false }
 		? false
@@ -84,13 +85,14 @@ type ActionUtilsThrowValidation<U> = U extends
  * Determine whether an action effectively throws errors, combining client-level and action-level settings.
  * Action-level settings take precedence over client-level defaults.
  */
-export type EffectiveThrows<ClientThrows extends boolean, U> = ActionUtilsThrowServer<U> extends true
-	? true
-	: ActionUtilsThrowValidation<U> extends true
+export type EffectiveThrows<ClientThrows extends boolean, U> =
+	ActionUtilsThrowServer<U> extends true
 		? true
-		: ActionUtilsThrowValidation<U> extends false
-			? false
-			: ClientThrows;
+		: ActionUtilsThrowValidation<U> extends true
+			? true
+			: ActionUtilsThrowValidation<U> extends false
+				? false
+				: ClientThrows;
 
 /**
  * Type of the arguments passed to the `SafeActionClient` constructor.
@@ -409,9 +411,7 @@ export type InferMiddlewareFnNextCtx<T> =
  * Infer the next context type returned by a validated middleware function using the `next` function.
  */
 export type InferValidatedMiddlewareFnNextCtx<T> =
-	T extends ValidatedMiddlewareFn<any, any, any, infer NextCtx extends object, any, any, any, any>
-		? NextCtx
-		: never;
+	T extends ValidatedMiddlewareFn<any, any, any, infer NextCtx extends object, any, any, any, any> ? NextCtx : never;
 
 /**
  * Infer the context type of a safe action client or middleware function.

@@ -39,19 +39,25 @@ test("useValidated errors without any schema", () => {
 test("inputSchema errors after useValidated", () => {
 	const ac = createSafeActionClient();
 	// @ts-expect-error - inputSchema cannot be called after useValidated
-	ac.inputSchema(z.string()).useValidated(async ({ next }) => next()).inputSchema(z.number());
+	ac.inputSchema(z.string())
+		.useValidated(async ({ next }) => next())
+		.inputSchema(z.number());
 });
 
 test("bindArgsSchemas errors after useValidated", () => {
 	const ac = createSafeActionClient();
 	// @ts-expect-error - bindArgsSchemas cannot be called after useValidated
-	ac.inputSchema(z.string()).useValidated(async ({ next }) => next()).bindArgsSchemas([z.number()]);
+	ac.inputSchema(z.string())
+		.useValidated(async ({ next }) => next())
+		.bindArgsSchemas([z.number()]);
 });
 
 test("use errors after useValidated", () => {
 	const ac = createSafeActionClient();
 	// @ts-expect-error - use() cannot be called after useValidated()
-	ac.inputSchema(z.string()).useValidated(async ({ next }) => next()).use(async ({ next }) => next({ ctx: { extra: true } }));
+	ac.inputSchema(z.string())
+		.useValidated(async ({ next }) => next())
+		.use(async ({ next }) => next({ ctx: { extra: true } }));
 });
 
 test("parsedInput type matches InferOutput", () => {
@@ -141,16 +147,12 @@ test("error callback ctx has pre-validation fields required and validated fields
 				},
 				onError: ({ ctx }) => {
 					// onError: pre-validation fields guaranteed, validated fields optional
-					expectTypeOf(ctx).toEqualTypeOf<
-						{ guaranteed: string; maybePresent?: number | undefined } | undefined
-					>();
+					expectTypeOf(ctx).toEqualTypeOf<{ guaranteed: string; maybePresent?: number | undefined } | undefined>();
 					return Promise.resolve();
 				},
 				onSettled: ({ ctx }) => {
 					// onSettled: same as onError
-					expectTypeOf(ctx).toEqualTypeOf<
-						{ guaranteed: string; maybePresent?: number | undefined } | undefined
-					>();
+					expectTypeOf(ctx).toEqualTypeOf<{ guaranteed: string; maybePresent?: number | undefined } | undefined>();
 					return Promise.resolve();
 				},
 			}
@@ -161,16 +163,13 @@ test("error callback ctx is full when no useValidated is used", () => {
 	const ac = createSafeActionClient();
 	ac.use(async ({ next }) => next({ ctx: { foo: "bar" } }))
 		.inputSchema(z.string())
-		.action(
-			async () => ({}),
-			{
-				onError: ({ ctx }) => {
-					// When no useValidated is used, PreValidationCtx = Ctx, so no Partial
-					expectTypeOf(ctx).toEqualTypeOf<{ foo: string } | undefined>();
-					return Promise.resolve();
-				},
-			}
-		);
+		.action(async () => ({}), {
+			onError: ({ ctx }) => {
+				// When no useValidated is used, PreValidationCtx = Ctx, so no Partial
+				expectTypeOf(ctx).toEqualTypeOf<{ foo: string } | undefined>();
+				return Promise.resolve();
+			},
+		});
 });
 
 test("useValidated with both inputSchema and bindArgsSchemas", () => {
@@ -290,7 +289,16 @@ test("InferMetadata extracts metadata from validated middleware", () => {
 test("InferServerError extracts server error from validated middleware", () => {
 	type CustomError = { code: string; message: string };
 
-	type Mw = ValidatedMiddlewareFn<CustomError, undefined, {}, { extra: boolean }, string, string, readonly [], readonly []>;
+	type Mw = ValidatedMiddlewareFn<
+		CustomError,
+		undefined,
+		{},
+		{ extra: boolean },
+		string,
+		string,
+		readonly [],
+		readonly []
+	>;
 
 	type SE = InferServerError<Mw>;
 	expectTypeOf<SE>().toEqualTypeOf<CustomError>();

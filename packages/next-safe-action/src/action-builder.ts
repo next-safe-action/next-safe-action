@@ -256,7 +256,16 @@ export function actionBuilder<
 		mainClientInput: InferInputOrDefault<InputSchema, undefined>,
 		bindArgsClientInputs: InferInputArray<BindArgsSchemas>,
 		currentCtx: object,
-		utils?: ActionCallbacks<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data, PreValidationCtx>
+		utils?: ActionCallbacks<
+			ServerError,
+			Metadata,
+			Ctx,
+			InputSchema,
+			BindArgsSchemas,
+			ShapedErrors,
+			Data,
+			PreValidationCtx
+		>
 	): Promise<SafeActionResult<ServerError, InputSchema, ShapedErrors, Data>> {
 		const callbackPromises: (Promise<unknown> | undefined)[] = [];
 
@@ -373,13 +382,31 @@ export function actionBuilder<
 	function buildAction({ withState }: { withState: false }): {
 		action: <Data extends InferOutputOrDefault<OutputSchema, any>>(
 			serverCodeFn: ServerCodeFn<Metadata, Ctx, InputSchema, BindArgsSchemas, Data>,
-			utils?: ActionCallbacks<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data, PreValidationCtx>
+			utils?: ActionCallbacks<
+				ServerError,
+				Metadata,
+				Ctx,
+				InputSchema,
+				BindArgsSchemas,
+				ShapedErrors,
+				Data,
+				PreValidationCtx
+			>
 		) => SafeActionFn<ServerError, InputSchema, BindArgsSchemas, ShapedErrors, Data>;
 	};
 	function buildAction({ withState }: { withState: true }): {
 		action: <Data extends InferOutputOrDefault<OutputSchema, any>>(
 			serverCodeFn: StatefulServerCodeFn<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data>,
-			utils?: ActionCallbacks<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data, PreValidationCtx>
+			utils?: ActionCallbacks<
+				ServerError,
+				Metadata,
+				Ctx,
+				InputSchema,
+				BindArgsSchemas,
+				ShapedErrors,
+				Data,
+				PreValidationCtx
+			>
 		) => SafeStateActionFn<ServerError, InputSchema, BindArgsSchemas, ShapedErrors, Data>;
 	};
 	function buildAction({ withState }: { withState: boolean }) {
@@ -388,7 +415,16 @@ export function actionBuilder<
 				serverCodeFn:
 					| ServerCodeFn<Metadata, Ctx, InputSchema, BindArgsSchemas, Data>
 					| StatefulServerCodeFn<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data>,
-				utils?: ActionCallbacks<ServerError, Metadata, Ctx, InputSchema, BindArgsSchemas, ShapedErrors, Data, PreValidationCtx>
+				utils?: ActionCallbacks<
+					ServerError,
+					Metadata,
+					Ctx,
+					InputSchema,
+					BindArgsSchemas,
+					ShapedErrors,
+					Data,
+					PreValidationCtx
+				>
 			) => {
 				return async (...clientInputs: unknown[]) => {
 					let currentCtx: object = {};
@@ -472,11 +508,7 @@ export function actionBuilder<
 										nextCalled = true;
 
 										currentCtx = deepmerge(currentCtx, nextOpts?.ctx ?? {});
-										await executeValidatedMiddlewareStack(
-											idx + 1,
-											parsedMainInput,
-											parsedBindArgsInputs
-										);
+										await executeValidatedMiddlewareStack(idx + 1, parsedMainInput, parsedBindArgsInputs);
 										return middlewareResult;
 									},
 								}).catch((e) => {

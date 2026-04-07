@@ -13,7 +13,13 @@ import type {
 	ServerCodeFn,
 	StatefulServerCodeFn,
 } from "./index.types";
-import type { InferInputOrDefault, InferInputArray, InferOutputOrDefault, InferOutputArray, StandardSchemaV1 } from "./standard-schema";
+import type {
+	InferInputOrDefault,
+	InferInputArray,
+	InferOutputOrDefault,
+	InferOutputArray,
+	StandardSchemaV1,
+} from "./standard-schema";
 import { isStandardSchema } from "./standard-schema";
 import type {
 	FlattenedValidationErrors,

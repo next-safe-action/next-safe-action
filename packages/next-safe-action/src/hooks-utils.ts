@@ -139,5 +139,17 @@ export const useActionCallbacks = <ServerError, Schema extends StandardSchemaV1 
 		};
 
 		executeCallbacks().catch(console.error);
-	}, [input, status, result, throwOnNavigation, navigationError, thrownError, onExecute, onSuccess, onSettled, onError, onNavigation]);
+	}, [
+		input,
+		status,
+		result,
+		throwOnNavigation,
+		navigationError,
+		thrownError,
+		onExecute,
+		onSuccess,
+		onSettled,
+		onError,
+		onNavigation,
+	]);
 };
