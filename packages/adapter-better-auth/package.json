@@ -1,6 +1,6 @@
 {
 	"name": "@next-safe-action/adapter-better-auth",
-	"version": "0.1.4",
+	"version": "0.1.5",
 	"private": false,
 	"description": "Better Auth adapter for next-safe-action.",
 	"main": "./dist/index.mjs",
