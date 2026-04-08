@@ -1,32 +1,60 @@
 name: Preview Release
 
 on:
-  issue_comment:
-    types: [created]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  pull_request_review:
+    types: [submitted]
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.issue.number }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  preview:
-    if: |
-      github.event.issue.pull_request &&
-      startsWith(github.event.comment.body, '!prnew') &&
-      github.event.comment.author_association == 'MEMBER'
+  check:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    outputs:
+      should-publish: ${{ steps.decide.outputs.result }}
+    steps:
+      - name: Decide whether to publish
+        id: decide
+        run: |
+          # For pull_request events (open/push/reopen/ready_for_review),
+          # check if the PR author is a maintainer.
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            ASSOCIATION="${{ github.event.pull_request.author_association }}"
+          else
+            # For pull_request_review events, only proceed if the review
+            # is an approval.
+            if [ "${{ github.event.review.state }}" = "approved" ]; then
+              # Check if the approving reviewer is a maintainer.
+              ASSOCIATION="${{ github.event.review.author_association }}"
+            else
+              echo "result=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          # Only MEMBER (org member) and OWNER (repo/org owner) are
+          # considered maintainers and can trigger a preview release.
+          if [ "$ASSOCIATION" = "MEMBER" ] || [ "$ASSOCIATION" = "OWNER" ]; then
+            echo "result=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "result=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  publish:
+    needs: check
+    if: needs.check.outputs.should-publish == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
-      - name: Checkout PR head
-        run: gh pr checkout ${{ github.event.issue.number }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: pnpm/action-setup@v4
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -34,6 +62,7 @@ jobs:
           node-version-file: ".node-version"
           cache: "pnpm"
       - run: pnpm install --frozen-lockfile
+      - run: pnpm run test:lib
       - run: pnpm run build:lib
       - name: Publish preview packages
-        run: pnpm dlx pkg-pr-new publish './packages/*' --comment=create
+        run: pnpm dlx pkg-pr-new publish './packages/*' --packageManager=pnpm --commentWithSha
