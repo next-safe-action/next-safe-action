@@ -1,4 +1,7 @@
-# @next-safe-action/adapter-tanstack-query
+<div align="center">
+  <img src="https://raw.githubusercontent.com/next-safe-action/next-safe-action/main/assets/logo.png" alt="next-safe-action logo" width="36" height="36">
+  <a href="https://github.com/next-safe-action/next-safe-action/packages/adapter-tanstack-query"><h1>adapter-tanstack-query</h1></a>
+</div>
 
 TanStack Query mutation adapter for [next-safe-action](https://github.com/next-safe-action/next-safe-action).
 
