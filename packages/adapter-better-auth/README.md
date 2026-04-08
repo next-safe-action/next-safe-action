@@ -118,7 +118,6 @@ export const adminClient = actionClient.use(
 
 ### `authorize` callback parameters
 
-- `auth`: the Better Auth server instance
 - `authData`: the pre-fetched session data (`{ user, session } | null`)
 - `ctx`: the current action context from preceding middleware
 - `next`: call this to continue the middleware chain, pass `{ ctx }` to inject context
