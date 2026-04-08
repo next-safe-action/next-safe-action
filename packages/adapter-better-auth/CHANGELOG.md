@@ -1,5 +1,11 @@
 # @next-safe-action/adapter-better-auth
 
+## 0.1.5
+
+### Patch Changes
+
+- [`4671709`](https://github.com/next-safe-action/next-safe-action/commit/46717099b197f297dc7ace50f5b79b5dd1efdca8) Thanks [@TheEdoRan](https://github.com/TheEdoRan)! - Remove missing `auth` param from `authorize` callback in README.
+
 ## 0.1.4
 
 ### Patch Changes
