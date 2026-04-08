@@ -1,5 +1,11 @@
 # @next-safe-action/adapter-tanstack-query
 
+## 0.1.1
+
+### Patch Changes
+
+- [`6b650f5`](https://github.com/next-safe-action/next-safe-action/commit/6b650f51f7b02e6d366f1e93529bc723dc6e9065) Thanks [@TheEdoRan](https://github.com/TheEdoRan)! - Add library logo in README
+
 ## 0.1.0
 
 ### Minor Changes
