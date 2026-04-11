@@ -149,6 +149,25 @@ export type CreateClientOpts<
 
 /**
  * Type of the result of a safe action.
+ *
+ * Modeled as a discriminated union so that checking one field narrows the
+ * others to `undefined`. The runtime guarantees mutual exclusion (see
+ * `buildResultAndRunCallbacks` in `action-builder.ts`), and this type makes
+ * that guarantee visible to consumers:
+ *
+ * ```ts
+ * const { data, serverError, validationErrors } = await myAction(input);
+ *
+ * if (data) {
+ *   // TS knows serverError and validationErrors are undefined here
+ * }
+ * ```
+ *
+ * Branches:
+ * - idle / initial state (e.g. `useAction`'s `useState<Result>({})`)
+ * - success (only `data` is set)
+ * - server error (only `serverError` is set)
+ * - validation error (only `validationErrors` is set)
  */
 export type SafeActionResult<
 	ServerError,
@@ -157,11 +176,11 @@ export type SafeActionResult<
 	Data = unknown,
 	// oxlint-disable-next-line
 	NextCtx = object,
-> = {
-	data?: Data;
-	serverError?: ServerError;
-	validationErrors?: ShapedErrors;
-};
+> =
+	| { data?: undefined; serverError?: undefined; validationErrors?: undefined }
+	| { data: Data; serverError?: undefined; validationErrors?: undefined }
+	| { data?: undefined; serverError: ServerError; validationErrors?: undefined }
+	| { data?: undefined; serverError?: undefined; validationErrors: ShapedErrors };
 
 /**
  * Type of the function called from components with type safe input data.
@@ -194,16 +213,30 @@ export type SafeStateActionFn<
 ) => Promise<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>;
 
 /**
- * Type of the result of a middleware function. It extends the result of a safe action with
- * information about the action execution.
+ * Type of the result of a middleware function. Carries the same data/error fields as
+ * `SafeActionResult` plus internal bookkeeping (navigation kind, parsed inputs, context,
+ * success flag).
+ *
+ * This is intentionally a flat object rather than `SafeActionResult & { ... }`, because
+ * `SafeActionResult` is now a discriminated union and intersecting it with additional
+ * fields would prevent mutation of `data`/`serverError`/`validationErrors` during
+ * middleware execution. The public shape (the set of readable fields) is unchanged.
+ *
+ * `NextCtx` is a phantom generic parameter kept for backward compatibility with the
+ * previous signature — it is intentionally unused in the body so that
+ * `MiddlewareResult<SE, A>` and `MiddlewareResult<SE, B>` remain mutually assignable
+ * (as they were when this type intersected `SafeActionResult<..., NextCtx>`, where
+ * `NextCtx` was likewise phantom).
  */
-export type MiddlewareResult<ServerError, NextCtx extends object> = SafeActionResult<
-	ServerError,
-	any,
-	any,
-	any,
-	NextCtx
-> & {
+// `data` and `validationErrors` are intentionally typed as `any` to match the
+// previous definition (`SafeActionResult<ServerError, any, any, any, NextCtx>
+// & { ... }`), preserving universal-donor assignability for middleware authors
+// who inspect the return value of `await next()`.
+// oxlint-disable-next-line no-unused-vars
+export type MiddlewareResult<ServerError, NextCtx extends object> = {
+	data?: any;
+	serverError?: ServerError;
+	validationErrors?: any;
 	navigationKind?: NavigationKind;
 	parsedInput?: unknown;
 	bindArgsParsedInputs?: unknown[];

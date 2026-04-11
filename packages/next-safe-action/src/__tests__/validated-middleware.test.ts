@@ -283,8 +283,9 @@ test("useValidated middleware next() called multiple times returns error", async
 
 	const actualResult = await action({ name: "test" });
 
+	// serverError takes precedence over the first next() call's data per the
+	// result precedence rule (validationErrors > serverError > data).
 	expect(actualResult).toStrictEqual({
-		data: { ok: true },
 		serverError: {
 			message: "next() called multiple times in middleware. Each middleware must call next() at most once.",
 		},

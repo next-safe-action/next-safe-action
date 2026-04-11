@@ -36,10 +36,10 @@ test("middleware that calls next twice throws an error", async () => {
 
 	const actualResult = await action();
 
-	// Calling next() twice is guarded. The first call succeeds (data is set),
-	// then the second call triggers a server error.
+	// Calling next() twice is guarded. The second call triggers a server error,
+	// which takes precedence over the first call's data per the result precedence
+	// rule (validationErrors > serverError > data).
 	expect(actualResult).toStrictEqual({
-		data: { ok: true },
 		serverError: "next() called multiple times in middleware. Each middleware must call next() at most once.",
 	});
 });

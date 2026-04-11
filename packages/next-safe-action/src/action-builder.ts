@@ -299,12 +299,15 @@ export function actionBuilder<
 			throw frameworkErrorHandler.error;
 		}
 
-		// Build the action result.
-		const actionResult: SafeActionResult<ServerError, InputSchema, ShapedErrors, Data> = {};
-
+		// Handle error throws first. `throwValidationErrors` has higher priority
+		// since it's set at the action level and overrides the client setting.
+		// `throwServerError` is gated on the absence of `validationErrors` so that
+		// the advertised precedence (validationErrors > serverError > data) is
+		// honored even when a compound state reaches this point — e.g. invalid
+		// bind args (wrapped as `serverError`) combined with invalid main input
+		// (`validationErrors`). In that case we must not throw the wrapped bind
+		// args server error and lose the actionable field errors.
 		if (typeof middlewareResult.validationErrors !== "undefined") {
-			// `utils.throwValidationErrors` has higher priority since it's set at the action level.
-			// It overrides the client setting, if set.
 			if (
 				winningBoolean(
 					args.throwValidationErrors,
@@ -320,29 +323,41 @@ export function actionBuilder<
 					middlewareResult.validationErrors as ShapedErrors,
 					await overrideErrorMessageFn?.(middlewareResult.validationErrors as ShapedErrors)
 				);
-			} else {
-				actionResult.validationErrors = middlewareResult.validationErrors as ShapedErrors;
 			}
+		} else if (typeof middlewareResult.serverError !== "undefined" && utils?.throwServerError) {
+			throw middlewareResult.serverError;
 		}
 
-		if (typeof middlewareResult.serverError !== "undefined") {
-			if (utils?.throwServerError) {
-				throw middlewareResult.serverError;
-			} else {
-				actionResult.serverError = middlewareResult.serverError;
-			}
+		// The result is a discriminated union: exactly one of `validationErrors`,
+		// `serverError`, or `data` is populated, or the result is idle `{}`.
+		// In compound-error scenarios where the runtime could otherwise produce
+		// multiple populated fields (e.g. `next()` called twice after the action
+		// had already succeeded, or invalid bind args combined with invalid main
+		// input), we apply a fixed precedence: validation errors beat server
+		// errors beat success data. The higher-priority state fully describes
+		// the outcome and lower-priority state is discarded.
+		const hasValidationError = typeof middlewareResult.validationErrors !== "undefined";
+		const hasServerError = typeof middlewareResult.serverError !== "undefined";
+		const treatAsSuccess = middlewareResult.success && !hasValidationError && !hasServerError;
+
+		let actionResult: SafeActionResult<ServerError, InputSchema, ShapedErrors, Data>;
+
+		if (hasValidationError) {
+			actionResult = { validationErrors: middlewareResult.validationErrors as ShapedErrors };
+		} else if (hasServerError) {
+			actionResult = { serverError: middlewareResult.serverError as ServerError };
+		} else if (treatAsSuccess && typeof middlewareResult.data !== "undefined") {
+			actionResult = { data: middlewareResult.data as Data };
+		} else {
+			actionResult = {};
 		}
 
-		if (middlewareResult.success) {
-			if (typeof middlewareResult.data !== "undefined") {
-				actionResult.data = middlewareResult.data as Data;
-			}
-
+		if (treatAsSuccess) {
 			callbackPromises.push(
 				utils?.onSuccess?.({
 					metadata: args.metadata,
 					ctx: currentCtx as Ctx,
-					data: actionResult.data as Data,
+					data: middlewareResult.data as Data,
 					clientInput: mainClientInput,
 					bindArgsClientInputs,
 					parsedInput: middlewareResult.parsedInput as InferOutputOrDefault<InputSchema, undefined>,

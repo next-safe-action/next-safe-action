@@ -41,6 +41,31 @@ test("UseActionHookReturn result.data matches action return type", () => {
 	expectTypeOf<Return["result"]["serverError"]>().toEqualTypeOf<string | undefined>();
 });
 
+test("UseActionHookReturn result narrows on truthy data", () => {
+	const schema = z.object({ name: z.string() });
+	type Return = UseActionHookReturn<string, typeof schema, ValidationErrors<typeof schema>, { id: string }>;
+	const ret = {} as Return;
+
+	if (ret.result.data) {
+		expectTypeOf(ret.result.data).toEqualTypeOf<{ id: string }>();
+		expectTypeOf(ret.result.serverError).toEqualTypeOf<undefined>();
+		expectTypeOf(ret.result.validationErrors).toEqualTypeOf<undefined>();
+	}
+});
+
+test("UseActionHookReturn result destructuring narrows together", () => {
+	const schema = z.object({ name: z.string() });
+	type Return = UseActionHookReturn<string, typeof schema, ValidationErrors<typeof schema>, { id: string }>;
+	const ret = {} as Return;
+	const { data, serverError, validationErrors } = ret.result;
+
+	if (data) {
+		expectTypeOf(data).toEqualTypeOf<{ id: string }>();
+		expectTypeOf(serverError).toEqualTypeOf<undefined>();
+		expectTypeOf(validationErrors).toEqualTypeOf<undefined>();
+	}
+});
+
 test("UseActionHookReturn has shorthand status booleans", () => {
 	type Return = UseActionHookReturn<string, undefined, undefined, void>;
 

@@ -78,3 +78,39 @@ test("SafeActionResult has correct shape", () => {
 	expectTypeOf<Result["serverError"]>().toEqualTypeOf<string | undefined>();
 	expectTypeOf<Result["validationErrors"]>().toEqualTypeOf<undefined>();
 });
+
+test("SafeActionResult narrows on truthy data", () => {
+	const schema = z.object({ name: z.string() });
+	type Result = SafeActionResult<string, typeof schema, ValidationErrors<typeof schema>, { id: string }>;
+	const r = {} as Result;
+
+	if (r.data) {
+		expectTypeOf(r.data).toEqualTypeOf<{ id: string }>();
+		expectTypeOf(r.serverError).toEqualTypeOf<undefined>();
+		expectTypeOf(r.validationErrors).toEqualTypeOf<undefined>();
+	}
+});
+
+test("SafeActionResult narrows on truthy serverError", () => {
+	const schema = z.object({ name: z.string() });
+	type Result = SafeActionResult<string, typeof schema, ValidationErrors<typeof schema>, { id: string }>;
+	const r = {} as Result;
+
+	if (r.serverError) {
+		expectTypeOf(r.data).toEqualTypeOf<undefined>();
+		expectTypeOf(r.serverError).toEqualTypeOf<string>();
+		expectTypeOf(r.validationErrors).toEqualTypeOf<undefined>();
+	}
+});
+
+test("SafeActionResult narrows on truthy validationErrors", () => {
+	const schema = z.object({ name: z.string() });
+	type Result = SafeActionResult<string, typeof schema, ValidationErrors<typeof schema>, { id: string }>;
+	const r = {} as Result;
+
+	if (r.validationErrors) {
+		expectTypeOf(r.data).toEqualTypeOf<undefined>();
+		expectTypeOf(r.serverError).toEqualTypeOf<undefined>();
+		expectTypeOf(r.validationErrors).toEqualTypeOf<ValidationErrors<typeof schema>>();
+	}
+});
