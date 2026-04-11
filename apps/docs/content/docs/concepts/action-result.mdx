@@ -7,27 +7,27 @@ Every safe action returns a **result object**, a structured response that tells 
 
 ## Result structure
 
-The result object has three optional keys:
+The result is a **discriminated union**. At most one of `data`, `validationErrors`, or `serverError` is populated, and TypeScript enforces this at the type level — checking one field narrows the others to `undefined`:
 
 ```ts
-{
-	data?: Data;              // Your server code's return value
-	validationErrors?: VE;    // Input validation failures
-	serverError?: ServerError; // Server-side errors
-}
+type SafeActionResult<ServerError, Schema, ShapedErrors, Data> =
+	| { data?: undefined; serverError?: undefined; validationErrors?: undefined } // idle / framework navigation
+	| { data: Data; serverError?: undefined; validationErrors?: undefined }        // success
+	| { data?: undefined; serverError: ServerError; validationErrors?: undefined } // server error
+	| { data?: undefined; serverError?: undefined; validationErrors: ShapedErrors }; // validation failure
 ```
 
-Only **one** of these will be present at a time, as they're mutually exclusive outcomes:
+The four branches correspond to these outcomes:
 
 | Outcome | `data` | `validationErrors` | `serverError` |
 |---|---|---|---|
 | Success | Present | - | - |
 | Validation failure | - | Present | - |
 | Server error | - | - | Present |
-| Framework error (redirect, etc.) | - | - | - |
+| Idle / framework navigation | - | - | - |
 
 <Callout>
-Framework navigation/errors (like `redirect()` or `notFound()`) are a special case. They don't return a result at all. Instead, Next.js handles the navigation directly. See [Error Handling](/docs/concepts/error-handling) for details.
+Framework navigation/errors (like `redirect()` or `notFound()`) are a special case. They don't populate any of the three fields. On the server the error is re-thrown so Next.js can handle the navigation; on the client, the hook exposes the idle branch `{}` together with a `"hasNavigated"` status. See [Error Handling](/docs/concepts/error-handling) for details.
 </Callout>
 
 ## `data`
@@ -118,12 +118,29 @@ A typical pattern for handling all cases:
 ```ts
 const result = await myAction(input);
 
-if (result?.data) {
-	// Success: use result.data
-} else if (result?.validationErrors) {
-	// Validation failed: show errors to user
-} else if (result?.serverError) {
-	// Server error: show error message
+if (result.data) {
+	// TypeScript knows serverError and validationErrors are undefined here
+	console.log(result.data);
+} else if (result.validationErrors) {
+	// TypeScript knows data and serverError are undefined here
+	console.log(result.validationErrors);
+} else if (result.serverError) {
+	// TypeScript knows data and validationErrors are undefined here
+	console.log(result.serverError);
+}
+```
+
+Destructuring works the same way — checking any one of the three variables narrows the other two:
+
+```ts
+const { data, serverError, validationErrors } = await myAction(input);
+
+if (data) {
+	// serverError and validationErrors are `undefined`
+}
+
+if (serverError) {
+	// data and validationErrors are `undefined`
 }
 ```
 
@@ -138,6 +155,10 @@ const { execute } = useAction(myAction, {
 	},
 });
 ```
+
+<Callout>
+**Precedence for edge cases.** In rare situations where the runtime could otherwise produce multiple populated fields (e.g. middleware calling `next()` twice after the action had already succeeded, or invalid bind args combined with invalid main input), next-safe-action applies a fixed precedence: `validationErrors` > `serverError` > `data`. The higher-priority state fully describes the outcome; lower-priority state is discarded. This keeps the discriminated union honest at runtime.
+</Callout>
 
 <Accordions>
 <Accordion title="Bind args validation errors">

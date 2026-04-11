@@ -41,7 +41,7 @@ export default function Page() {
 	const handleClick = async () => {
 		const result = await greetUser({ name: "Alice" });
 
-		if (result?.data) {
+		if (result.data) {
 			alert(result.data.greeting);
 		}
 	};
@@ -92,7 +92,7 @@ export default function Page() {
 		<form action={dispatch}>
 			<input name="name" defaultValue="Alice" />
 			<button type="submit">Greet</button>
-			{result?.data && <p>{result.data.greeting}</p>}
+			{result.data && <p>{result.data.greeting}</p>}
 		</form>
 	);
 }

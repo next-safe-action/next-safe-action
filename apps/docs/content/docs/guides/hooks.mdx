@@ -72,7 +72,7 @@ execute({ name: "Alice" });
 
 // Await the result: useful for sequential operations
 const result = await executeAsync({ name: "Alice" });
-if (result?.data) {
+if (result.data) {
 	await executeAsync({ name: "Bob" });
 }
 ```
