@@ -49,6 +49,10 @@ const result = await greetUser({ name: "Alice" });
 
 The `data` type is **inferred** from your server code's return type. If you define an `outputSchema`, the type comes from the schema instead.
 
+<Callout>
+If your server code doesn't return anything, `result.data` is typed as exactly `undefined` rather than `void | undefined`. The runtime never emits a separate `{ data: undefined }` for void-returning actions (it returns `{}`), and the types mirror that: the idle and void-success branches collapse into a single shape. Discriminate success for these actions by checking the absence of errors instead of truthy `data`.
+</Callout>
+
 ## `validationErrors`
 
 When the input doesn't match the schema, `validationErrors` contains the validation failures. Your server code **never runs** in this case:

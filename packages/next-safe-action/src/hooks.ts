@@ -12,7 +12,7 @@ import type {
 	UseOptimisticActionHookReturn,
 	UseStateActionHookReturn,
 } from "./hooks.types";
-import type { SafeActionResult } from "./index.types";
+import type { NormalizeActionResult, SafeActionResult } from "./index.types";
 import { FrameworkErrorHandler } from "./next/errors";
 import type { InferInputOrDefault, StandardSchemaV1 } from "./standard-schema";
 
@@ -254,12 +254,16 @@ export const useStateAction = <ServerError, Schema extends StandardSchemaV1 | un
 
 	// ─── Return ───────────────────────────────────────────────────────────
 
+	// See `useActionBase` in hooks-shared.ts for the rationale behind the
+	// `NormalizeActionResult` cast — same invariant applies here.
 	return {
 		execute,
-		executeAsync,
+		executeAsync: executeAsync as unknown as (
+			input: InferInputOrDefault<Schema, void>
+		) => Promise<NormalizeActionResult<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>>,
 		formAction: dispatcher as (input: InferInputOrDefault<Schema, void>) => void,
 		input: clientInput as InferInputOrDefault<Schema, undefined>,
-		result,
+		result: result as unknown as NormalizeActionResult<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>,
 		reset,
 		status,
 		...getActionShorthandStatusObject({ status, isTransitioning }),

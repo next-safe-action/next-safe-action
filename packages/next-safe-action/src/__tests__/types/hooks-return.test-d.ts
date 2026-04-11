@@ -78,6 +78,14 @@ test("UseActionHookReturn has shorthand status booleans", () => {
 	expectTypeOf<Return["hasNavigated"]>().toEqualTypeOf<boolean>();
 });
 
+test("void-returning action: UseActionHookReturn result.data is exactly `undefined`", () => {
+	// When the action returns nothing, `result.data` should narrow to `undefined`
+	// rather than `void | undefined`. This mirrors the `await action()` behavior
+	// at the hook layer so users see the same type regardless of how they invoke.
+	type Return = UseActionHookReturn<string, undefined, undefined, void>;
+	expectTypeOf<Return["result"]["data"]>().toEqualTypeOf<undefined>();
+});
+
 test("UseOptimisticActionHookReturn includes optimisticState", () => {
 	type Return = UseOptimisticActionHookReturn<string, undefined, undefined, void, { count: number }>;
 

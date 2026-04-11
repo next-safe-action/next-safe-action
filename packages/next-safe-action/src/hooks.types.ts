@@ -1,4 +1,10 @@
-import type { NavigationKind, SafeActionFn, SafeActionResult, SafeStateActionFn } from "./index.types";
+import type {
+	NavigationKind,
+	NormalizeActionResult,
+	SafeActionFn,
+	SafeActionResult,
+	SafeStateActionFn,
+} from "./index.types";
 import type { InferInputOrDefault, StandardSchemaV1 } from "./standard-schema";
 import type { MaybePromise, Prettify } from "./utils.types";
 
@@ -34,7 +40,7 @@ export type HookCallbacks<ServerError, Schema extends StandardSchemaV1 | undefin
 		navigationKind: NavigationKind;
 	}) => MaybePromise<unknown>;
 	onSettled?: (args: {
-		result: Prettify<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>;
+		result: Prettify<NormalizeActionResult<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>>;
 		input: InferInputOrDefault<Schema, undefined>;
 		navigationKind?: NavigationKind;
 	}) => MaybePromise<unknown>;
@@ -77,14 +83,18 @@ export type HookShorthandStatus = {
 
 /**
  * Type of the return object of the `useAction` hook.
+ *
+ * `result` and `executeAsync` are run through `NormalizeActionResult` so that
+ * void-returning actions expose `result.data: undefined` rather than `void | undefined`,
+ * matching the `await action()` shape from `SafeActionFn`.
  */
 export type UseActionHookReturn<ServerError, Schema extends StandardSchemaV1 | undefined, ShapedErrors, Data> = {
 	execute: (input: InferInputOrDefault<Schema, void>) => void;
 	executeAsync: (
 		input: InferInputOrDefault<Schema, void>
-	) => Promise<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>;
+	) => Promise<NormalizeActionResult<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>>;
 	input: InferInputOrDefault<Schema, undefined>;
-	result: Prettify<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>;
+	result: Prettify<NormalizeActionResult<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>>;
 	reset: () => void;
 	status: HookActionStatus;
 } & HookShorthandStatus;

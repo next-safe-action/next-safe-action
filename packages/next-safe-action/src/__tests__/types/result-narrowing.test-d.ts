@@ -5,6 +5,7 @@
 
 import { expectTypeOf, test } from "vitest";
 import { z } from "zod";
+import { createSafeActionClient } from "../..";
 import type { ActionCallbacks, InferSafeActionFnResult, SafeActionFn, SafeActionResult } from "../../index.types";
 import type { ValidationErrors } from "../../validation-errors.types";
 
@@ -161,4 +162,84 @@ test("the canonical user DX case: await action() destructured + narrowed", async
 		expectTypeOf(serverError).toEqualTypeOf<undefined>();
 		expectTypeOf(validationErrors).toEqualTypeOf<Shape>();
 	}
+});
+
+// ─── Void-returning actions: idle and success branches collapse ────────────
+//
+// When `Data = void`, the runtime never emits `{ data: undefined }` separately
+// from the idle `{}` — see `buildResultAndRunCallbacks` in action-builder.ts,
+// which only sets `data` when `middlewareResult.data !== undefined`. Public-
+// facing types apply `NormalizeActionResult` at the boundary so that user
+// code sees `data: undefined` rather than `data: void | undefined`.
+
+// Use a schema so ShapedErrors is a real type (not `undefined`), which keeps
+// the error branches distinguishable for narrowing tests. Build the result
+// type from the user-facing `SafeActionFn` so it goes through the collapse.
+type VoidFn = SafeActionFn<string, typeof schema, [], Shape, void>;
+type VoidResult = InferSafeActionFnResult<VoidFn>;
+
+test("void-returning action: r.data is exactly `undefined`", () => {
+	const r = {} as VoidResult;
+	expectTypeOf<typeof r.data>().toEqualTypeOf<undefined>();
+});
+
+test("void-returning action: error branches still narrow and leave data as undefined", () => {
+	const r = {} as VoidResult;
+	if (r.serverError) {
+		expectTypeOf(r.serverError).toEqualTypeOf<string>();
+		expectTypeOf(r.data).toEqualTypeOf<undefined>();
+		expectTypeOf(r.validationErrors).toEqualTypeOf<undefined>();
+	}
+	if (r.validationErrors) {
+		expectTypeOf(r.validationErrors).toEqualTypeOf<Shape>();
+		expectTypeOf(r.data).toEqualTypeOf<undefined>();
+		expectTypeOf(r.serverError).toEqualTypeOf<undefined>();
+	}
+});
+
+test("void-returning action: runtime `{}` still assigns to the result type", () => {
+	// The successful compilation IS the assertion — the runtime idle/success
+	// shape must remain compatible with the type.
+	const _idle: VoidResult = {};
+	void _idle;
+});
+
+test("void-returning action inferred from serverCodeFn has r.data = undefined", async () => {
+	// End-to-end: define an action that returns nothing and verify the
+	// awaited result's `data` field is exactly `undefined`.
+	const ac = createSafeActionClient();
+	const action = ac.action(async () => {
+		return;
+	});
+
+	const r = await action();
+	expectTypeOf<typeof r.data>().toEqualTypeOf<undefined>();
+});
+
+test("data-returning action still narrows unchanged (regression guard)", async () => {
+	const ac = createSafeActionClient();
+	const action = ac.action(async () => {
+		return { id: "abc" };
+	});
+
+	const r = await action();
+	expectTypeOf<typeof r.data>().toEqualTypeOf<{ id: string } | undefined>();
+	if (r.data) {
+		expectTypeOf(r.data).toEqualTypeOf<{ id: string }>();
+	}
+});
+
+test("default SafeActionResult (Data=unknown) keeps the success branch", () => {
+	// If `Data` is the default `unknown`, the success branch must NOT collapse.
+	// `r.data` stays reachable as `unknown` rather than being forced to `undefined`.
+	type R = SafeActionResult<string, typeof schema>;
+	const r = {} as R;
+	// Before any narrowing, r.data unions the success branch's `unknown` with the
+	// other branches' `undefined`, which simplifies to `unknown`.
+	expectTypeOf<typeof r.data>().toEqualTypeOf<unknown>();
+	// A fresh object with an arbitrary `data` value must still be assignable
+	// through the success branch — this fails if the success branch has been
+	// incorrectly collapsed for non-void Data.
+	const _success: R = { data: { anything: true } };
+	void _success;
 });
