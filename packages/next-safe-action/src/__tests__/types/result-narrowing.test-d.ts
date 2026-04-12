@@ -164,23 +164,27 @@ test("the canonical user DX case: await action() destructured + narrowed", async
 	}
 });
 
-// ─── Void-returning actions: idle and success branches collapse ────────────
+// ─── Void-returning actions ───────────────────────────────────────────────
 //
 // When `Data = void`, the runtime never emits `{ data: undefined }` separately
 // from the idle `{}` — see `buildResultAndRunCallbacks` in action-builder.ts,
-// which only sets `data` when `middlewareResult.data !== undefined`. Public-
-// facing types apply `NormalizeActionResult` at the boundary so that user
-// code sees `data: undefined` rather than `data: void | undefined`.
+// which only sets `data` when `middlewareResult.data !== undefined`.
+//
+// `NormalizeActionResult` is NOT applied at the `SafeActionFn` return level
+// because doing so would cause TypeScript to eagerly expand the discriminated
+// union during `.bind()`, breaking generic inference for hooks. Instead,
+// normalization is applied at the hook boundary (e.g. `UseActionHookReturn`),
+// where users see `data: undefined` for void actions. At the direct `await`
+// level, `data` is `void | undefined`.
 
 // Use a schema so ShapedErrors is a real type (not `undefined`), which keeps
-// the error branches distinguishable for narrowing tests. Build the result
-// type from the user-facing `SafeActionFn` so it goes through the collapse.
+// the error branches distinguishable for narrowing tests.
 type VoidFn = SafeActionFn<string, typeof schema, [], Shape, void>;
 type VoidResult = InferSafeActionFnResult<VoidFn>;
 
-test("void-returning action: r.data is exactly `undefined`", () => {
+test("void-returning action: r.data is `void | undefined` at direct await level", () => {
 	const r = {} as VoidResult;
-	expectTypeOf<typeof r.data>().toEqualTypeOf<undefined>();
+	expectTypeOf<typeof r.data>().toEqualTypeOf<void | undefined>();
 });
 
 test("void-returning action: error branches still narrow and leave data as undefined", () => {
@@ -204,16 +208,16 @@ test("void-returning action: runtime `{}` still assigns to the result type", () 
 	void _idle;
 });
 
-test("void-returning action inferred from serverCodeFn has r.data = undefined", async () => {
+test("void-returning action inferred from serverCodeFn has r.data = void | undefined", async () => {
 	// End-to-end: define an action that returns nothing and verify the
-	// awaited result's `data` field is exactly `undefined`.
+	// awaited result's `data` field type at the direct await level.
 	const ac = createSafeActionClient();
 	const action = ac.action(async () => {
 		return;
 	});
 
 	const r = await action();
-	expectTypeOf<typeof r.data>().toEqualTypeOf<undefined>();
+	expectTypeOf<typeof r.data>().toEqualTypeOf<void | undefined>();
 });
 
 test("data-returning action still narrows unchanged (regression guard)", async () => {

@@ -171,13 +171,14 @@ export type CreateClientOpts<
  *
  * Note: when `Data` is `void` (the action returns nothing), the success
  * branch's `data` becomes `void`, which is indistinguishable from the idle
- * branch's `data?: undefined` at read time. For public, user-facing types
- * (`SafeActionFn`, `SafeStateActionFn`, hook return types), `NormalizeActionResult`
- * is applied at the boundary to drop the void-success branch entirely,
- * giving `r.data` an exact `undefined` type. This type is kept unconditional
- * so that internal builders in `action-builder.ts` and `hooks-shared.ts`
- * can construct `{ data: Data }` assignments without fighting deferred
- * conditional types.
+ * branch's `data?: undefined` at read time. Hook return types apply
+ * `NormalizeActionResult` at the boundary to drop the void-success branch
+ * entirely, giving `result.data` an exact `undefined` type.
+ *
+ * `NormalizeActionResult` is NOT applied on `SafeActionFn`/`SafeStateActionFn`
+ * return types because doing so causes TypeScript to eagerly expand the
+ * discriminated union when `.bind()` is used, breaking generic inference for
+ * hooks (the `Schema` parameter falls back to `StandardSchemaV1<unknown, unknown>`).
  */
 export type SafeActionResult<
 	ServerError,
@@ -216,9 +217,6 @@ export type NormalizeActionResult<R> = R extends { data: infer D }
 
 /**
  * Type of the function called from components with type safe input data.
- *
- * The awaited result is run through `NormalizeActionResult` so that
- * void-returning actions expose `data: undefined` rather than `data: void | undefined`.
  */
 export type SafeActionFn<
 	ServerError,
@@ -228,13 +226,10 @@ export type SafeActionFn<
 	Data,
 > = (
 	...clientInputs: [...bindArgsInputs: InferInputArray<BindArgsSchemas>, input: InferInputOrDefault<Schema, void>]
-) => Promise<NormalizeActionResult<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>>;
+) => Promise<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>;
 
 /**
  * Type of the stateful function called from components with type safe input data.
- *
- * Both `prevResult` and the awaited result are run through `NormalizeActionResult`
- * so that `useStateAction` consumers see `data: undefined` for void-returning actions.
  */
 export type SafeStateActionFn<
 	ServerError,
@@ -245,10 +240,10 @@ export type SafeStateActionFn<
 > = (
 	...clientInputs: [
 		...bindArgsInputs: InferInputArray<BindArgsSchemas>,
-		prevResult: Prettify<NormalizeActionResult<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>>,
+		prevResult: Prettify<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>,
 		input: InferInputOrDefault<Schema, void>,
 	]
-) => Promise<NormalizeActionResult<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>>;
+) => Promise<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>;
 
 /**
  * Type of the result of a middleware function. Carries the same data/error fields as
@@ -453,10 +448,6 @@ export type InferSafeActionFnInput<T extends Function> = T extends
 
 /**
  * Infer the result type of a safe action.
- *
- * Extracted via `Awaited<ReturnType<T>>` so that the `NormalizeActionResult`
- * wrapper applied in `SafeActionFn`/`SafeStateActionFn` flows through (i.e.
- * void-returning actions yield `data: undefined` rather than `data: void`).
  */
 export type InferSafeActionFnResult<T extends Function> = T extends (...args: any[]) => Promise<infer R> ? R : never;
 
