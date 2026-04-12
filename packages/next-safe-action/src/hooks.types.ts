@@ -66,7 +66,7 @@ export type SingleInputStateActionFn<ServerError, Schema extends StandardSchemaV
 /**
  * Type of the action status returned by `useAction`, `useOptimisticAction` and `useStateAction` hooks.
  */
-export type HookActionStatus = "idle" | "executing" | "transitioning" | "hasSucceeded" | "hasErrored" | "hasNavigated";
+export type HookActionStatus = "idle" | "executing" | "hasSucceeded" | "hasErrored" | "hasNavigated";
 
 /**
  * Type of the shorthand status object returned by `useAction`, `useOptimisticAction` and `useStateAction` hooks.
@@ -82,25 +82,126 @@ export type HookShorthandStatus = {
 };
 
 /**
- * Type of the return object of the `useAction` hook.
- *
- * `result` and `executeAsync` are run through `NormalizeActionResult` so that
- * void-returning actions expose `result.data: undefined` rather than `void | undefined`,
- * matching the `await action()` shape from `SafeActionFn`.
+ * Result shape when no action has completed yet (idle, executing, navigated).
  */
-export type UseActionHookReturn<ServerError, Schema extends StandardSchemaV1 | undefined, ShapedErrors, Data> = {
+export type HookIdleResult = { data?: undefined; serverError?: undefined; validationErrors?: undefined };
+
+/**
+ * Result shape for the success branch. For void-returning actions, collapses to `HookIdleResult`
+ * so that `result.data` is `undefined` rather than `void`.
+ */
+export type HookSuccessResult<Data> = [Data] extends [void]
+	? HookIdleResult
+	: { data: Data; serverError?: undefined; validationErrors?: undefined };
+
+/**
+ * Result shape for the error branch. Includes the idle shape for thrown errors
+ * (where `result` is `{}` and the error is captured internally).
+ */
+export type HookErrorResult<ServerError, ShapedErrors> =
+	| HookIdleResult
+	| { data?: undefined; serverError: ServerError; validationErrors?: undefined }
+	| { data?: undefined; serverError?: undefined; validationErrors: ShapedErrors };
+
+/**
+ * Common properties shared across all status branches of the hook return type.
+ */
+type HookResultCommon<ServerError, Schema extends StandardSchemaV1 | undefined, ShapedErrors, Data> = {
 	execute: (input: InferInputOrDefault<Schema, void>) => void;
 	executeAsync: (
 		input: InferInputOrDefault<Schema, void>
 	) => Promise<NormalizeActionResult<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>>;
 	input: InferInputOrDefault<Schema, undefined>;
-	result: Prettify<NormalizeActionResult<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>>;
 	reset: () => void;
-	status: HookActionStatus;
-} & HookShorthandStatus;
+	isTransitioning: boolean;
+};
+
+/**
+ * Type of the return object of the `useAction` hook.
+ *
+ * This is a discriminated union keyed on `status` and the shorthand boolean
+ * properties (`hasSucceeded`, `hasErrored`, etc.). Checking any discriminant
+ * narrows the `result` type:
+ *
+ * ```ts
+ * const action = useAction(myAction);
+ * if (action.hasSucceeded) {
+ *   action.result.data        // Data (guaranteed)
+ *   action.result.serverError // undefined
+ * }
+ * ```
+ *
+ * Destructured narrowing works too (TypeScript 4.6+):
+ *
+ * ```ts
+ * const { status, result } = useAction(myAction);
+ * if (status === "hasSucceeded") {
+ *   result.data // narrowed to Data
+ * }
+ * ```
+ *
+ * `result` and `executeAsync` are run through `NormalizeActionResult` so that
+ * void-returning actions expose `result.data: undefined` rather than `void | undefined`.
+ */
+export type UseActionHookReturn<ServerError, Schema extends StandardSchemaV1 | undefined, ShapedErrors, Data> =
+	HookResultCommon<ServerError, Schema, ShapedErrors, Data> &
+		(
+			| {
+					status: "idle";
+					isIdle: true;
+					isExecuting: false;
+					isPending: boolean;
+					hasSucceeded: false;
+					hasErrored: false;
+					hasNavigated: false;
+					result: Prettify<HookIdleResult>;
+			  }
+			| {
+					status: "executing";
+					isIdle: false;
+					isExecuting: true;
+					isPending: true;
+					hasSucceeded: false;
+					hasErrored: false;
+					hasNavigated: false;
+					result: Prettify<NormalizeActionResult<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>>;
+			  }
+			| {
+					status: "hasSucceeded";
+					isIdle: false;
+					isExecuting: false;
+					isPending: boolean;
+					hasSucceeded: true;
+					hasErrored: false;
+					hasNavigated: false;
+					result: Prettify<HookSuccessResult<Data>>;
+			  }
+			| {
+					status: "hasErrored";
+					isIdle: false;
+					isExecuting: false;
+					isPending: boolean;
+					hasSucceeded: false;
+					hasErrored: true;
+					hasNavigated: false;
+					result: Prettify<HookErrorResult<ServerError, ShapedErrors>>;
+			  }
+			| {
+					status: "hasNavigated";
+					isIdle: false;
+					isExecuting: false;
+					isPending: boolean;
+					hasSucceeded: false;
+					hasErrored: false;
+					hasNavigated: true;
+					result: Prettify<HookIdleResult>;
+			  }
+		);
 
 /**
  * Type of the return object of the `useOptimisticAction` hook.
+ * Extends `UseActionHookReturn` with `optimisticState`. TypeScript distributes
+ * the intersection over the union, preserving the discriminated union narrowing.
  */
 export type UseOptimisticActionHookReturn<
 	ServerError,
@@ -108,24 +209,23 @@ export type UseOptimisticActionHookReturn<
 	ShapedErrors,
 	Data,
 	State,
-> = UseActionHookReturn<ServerError, Schema, ShapedErrors, Data> &
-	HookShorthandStatus & {
-		optimisticState: State;
-	};
+> = UseActionHookReturn<ServerError, Schema, ShapedErrors, Data> & {
+	optimisticState: State;
+};
 
 /**
  * Type of the return object of the `useStateAction` hook.
  * Extends `UseActionHookReturn` with `formAction` for `<form action={formAction}>` integration.
+ * TypeScript distributes the intersection over the union, preserving the discriminated union narrowing.
  */
 export type UseStateActionHookReturn<
 	ServerError,
 	Schema extends StandardSchemaV1 | undefined,
 	ShapedErrors,
 	Data,
-> = UseActionHookReturn<ServerError, Schema, ShapedErrors, Data> &
-	HookShorthandStatus & {
-		formAction: (input: InferInputOrDefault<Schema, void>) => void;
-	};
+> = UseActionHookReturn<ServerError, Schema, ShapedErrors, Data> & {
+	formAction: (input: InferInputOrDefault<Schema, void>) => void;
+};
 
 /**
  * Type of the return object of the `useAction` hook.

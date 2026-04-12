@@ -336,7 +336,6 @@ Union type representing all possible hook states:
 type HookActionStatus =
 	| "idle"           // No action executed yet (or after reset)
 	| "executing"      // Action is running on the server
-	| "transitioning"  // React transition after action completes
 	| "hasSucceeded"   // Action completed with data, no errors
 	| "hasErrored"     // Action completed with errors
 	| "hasNavigated";  // Navigation function was called

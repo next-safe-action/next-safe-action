@@ -34,6 +34,10 @@ export const useAction = <ServerError, Schema extends StandardSchemaV1 | undefin
 		opts
 	);
 
+	// Cast rationale: the return object's runtime values are guaranteed consistent
+	// by `getActionStatus` + `getActionShorthandStatusObject`, but TypeScript can't
+	// verify that the widened types (e.g. `status: HookActionStatus`) satisfy a
+	// specific branch of the discriminated union. The cast is safe and isolated here.
 	return {
 		execute,
 		executeAsync,
@@ -42,7 +46,7 @@ export const useAction = <ServerError, Schema extends StandardSchemaV1 | undefin
 		reset,
 		status,
 		...shorthandStatus,
-	};
+	} as UseActionHookReturn<ServerError, Schema, ShapedErrors, Data>;
 };
 
 /**
@@ -79,6 +83,10 @@ export const useOptimisticAction = <
 		setOptimisticValue
 	);
 
+	// Cast rationale: same as `useAction` — runtime consistency guaranteed by
+	// `getActionStatus` + `getActionShorthandStatusObject`. The double assertion
+	// is needed because TypeScript can't verify overlap between the widened object
+	// and the distributed intersection-over-union (`UseActionHookReturn & { optimisticState }`).
 	return {
 		execute,
 		executeAsync,
@@ -88,7 +96,7 @@ export const useOptimisticAction = <
 		reset,
 		status,
 		...shorthandStatus,
-	};
+	} as unknown as UseOptimisticActionHookReturn<ServerError, Schema, ShapedErrors, Data, State>;
 };
 
 /**
@@ -254,8 +262,10 @@ export const useStateAction = <ServerError, Schema extends StandardSchemaV1 | un
 
 	// ─── Return ───────────────────────────────────────────────────────────
 
-	// See `useActionBase` in hooks-shared.ts for the rationale behind the
-	// `NormalizeActionResult` cast — same invariant applies here.
+	// Cast rationale: same as `useAction` — runtime consistency guaranteed by
+	// `getActionStatus` + `getActionShorthandStatusObject`. The double assertion
+	// through `unknown` is needed because TypeScript can't verify overlap between
+	// the widened object and the distributed intersection-over-union.
 	return {
 		execute,
 		executeAsync: executeAsync as unknown as (
@@ -267,7 +277,7 @@ export const useStateAction = <ServerError, Schema extends StandardSchemaV1 | un
 		reset,
 		status,
 		...getActionShorthandStatusObject({ status, isTransitioning }),
-	};
+	} as unknown as UseStateActionHookReturn<ServerError, Schema, ShapedErrors, Data>;
 };
 
 export type * from "./hooks.types";
