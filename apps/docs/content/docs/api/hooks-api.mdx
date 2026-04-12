@@ -90,6 +90,10 @@ const { execute, result, status, ... } = useAction(safeActionFn, callbacks?);
 	}}
 />
 
+<Callout>
+The return object is a **discriminated union** keyed on `status` and the shorthand booleans (`hasSucceeded`, `hasErrored`, etc.). Checking any discriminant narrows the `result` type. For example, when `hasSucceeded` is `true`, `result.data` is guaranteed to be `Data` (not `Data | undefined`), and `result.serverError` / `result.validationErrors` are narrowed to `undefined`. See the [Type narrowing](/docs/guides/hooks#type-narrowing) guide for details.
+</Callout>
+
 ### Example
 
 ```tsx
@@ -99,7 +103,7 @@ import { useAction } from "next-safe-action/hooks";
 import { createUser } from "./actions";
 
 export function CreateUserForm() {
-	const { execute, result, isPending, hasSucceeded } = useAction(createUser, {
+	const { execute, result, isPending, hasSucceeded, hasErrored } = useAction(createUser, {
 		onSuccess: ({ data }) => {
 			console.log("Created user:", data.id);
 		},
@@ -113,10 +117,15 @@ export function CreateUserForm() {
 			e.preventDefault();
 			execute({ name: "John", email: "john@example.com" });
 		}}>
-			{result.validationErrors?.name && <p>{result.validationErrors.name._errors[0]}</p>}
+			{/* hasErrored narrows result: data is undefined, errors may be present */}
+			{hasErrored && result.validationErrors?.name && (
+				<p>{result.validationErrors.name._errors[0]}</p>
+			)}
 			<button disabled={isPending}>
 				{isPending ? "Creating..." : "Create User"}
 			</button>
+			{/* hasSucceeded narrows result: data is guaranteed present */}
+			{hasSucceeded && <p>Created user: {result.data.id}</p>}
 		</form>
 	);
 }

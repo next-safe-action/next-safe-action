@@ -245,6 +245,65 @@ type ServerErrorFunctionUtils<MetadataSchema> = {
 
 ---
 
+## Hook result types
+
+These types describe the `result` shape within each branch of the hook return discriminated union. They are exported from `next-safe-action/hooks`.
+
+### `NormalizeActionResult`
+
+Collapses the void-success branch of a `SafeActionResult` union. When an action returns nothing (`void`), the `{ data: void }` branch is dropped so that `result.data` is exactly `undefined` rather than `void | undefined`. Applied automatically to hook `result` and `executeAsync` return types.
+
+```ts
+type NormalizeActionResult<R> = R extends { data: infer D }
+	? [D] extends [void]
+		? Exclude<R, { data: D }>
+		: R
+	: R;
+```
+
+When `Data` is not `void`, the type passes through unchanged.
+
+---
+
+### `HookIdleResult`
+
+The result shape when no action has completed yet (idle, executing, navigated). All fields are `undefined`.
+
+```ts
+type HookIdleResult = {
+	data?: undefined;
+	serverError?: undefined;
+	validationErrors?: undefined;
+};
+```
+
+---
+
+### `HookSuccessResult`
+
+The result shape for the success branch. For void-returning actions, collapses to `HookIdleResult`.
+
+```ts
+type HookSuccessResult<Data> = [Data] extends [void]
+	? HookIdleResult
+	: { data: Data; serverError?: undefined; validationErrors?: undefined };
+```
+
+---
+
+### `HookErrorResult`
+
+The result shape for the error branch. Includes the idle shape for thrown errors (where `result` is `{}` and the error is captured internally).
+
+```ts
+type HookErrorResult<ServerError, ShapedErrors> =
+	| HookIdleResult
+	| { data?: undefined; serverError: ServerError; validationErrors?: undefined }
+	| { data?: undefined; serverError?: undefined; validationErrors: ShapedErrors };
+```
+
+---
+
 ## Validation error types
 
 ### `ValidationErrors`

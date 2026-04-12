@@ -59,6 +59,46 @@ The `status` property transitions through these states:
 
 The boolean shortcuts (`isExecuting`, `hasSucceeded`, etc.) are derived from `status` for convenience.
 
+## Type narrowing
+
+The hook return object is a **discriminated union** keyed on `status` and the shorthand booleans (`hasSucceeded`, `hasErrored`, etc.). Checking any discriminant narrows the `result` type:
+
+```tsx
+const action = useAction(myAction);
+
+// Narrowing via status
+if (action.status === "hasSucceeded") {
+	action.result.data;             // Data (guaranteed present)
+	action.result.serverError;      // undefined (narrowed away)
+	action.result.validationErrors; // undefined (narrowed away)
+}
+
+// Narrowing via shorthand booleans
+if (action.hasErrored) {
+	action.result.data; // undefined (narrowed away)
+	// Further narrow between error kinds:
+	if (action.result.serverError) {
+		action.result.validationErrors; // undefined
+	}
+}
+```
+
+Destructured narrowing works too (TypeScript 4.6+):
+
+```tsx
+const { status, result, hasSucceeded } = useAction(myAction);
+
+if (status === "hasSucceeded") {
+	result.data; // narrowed to Data
+}
+
+if (hasSucceeded) {
+	result.data; // also narrowed to Data
+}
+```
+
+This applies to all hooks: `useAction`, `useOptimisticAction`, and `useStateAction`. The `result` field itself is also a discriminated union (see [Action result](/docs/concepts/action-result)), so you get two layers of narrowing: status-level and result-level.
+
 ## `execute` vs `executeAsync`
 
 | Method | Returns | Use when |

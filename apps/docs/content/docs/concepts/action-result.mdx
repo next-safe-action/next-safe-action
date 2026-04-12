@@ -148,17 +148,41 @@ if (serverError) {
 }
 ```
 
-With the `useAction` hook, you get this handled via callbacks:
+### In hooks
+
+With the `useAction` hook (and `useOptimisticAction`, `useStateAction`), the return object is itself a **discriminated union keyed on `status`** and shorthand booleans. Checking any discriminant narrows `result` to the matching branch:
+
+```ts
+const action = useAction(myAction);
+
+// Status-based narrowing
+if (action.hasSucceeded) {
+	action.result.data;             // Data (guaranteed)
+	action.result.serverError;      // undefined
+	action.result.validationErrors; // undefined
+}
+
+if (action.hasErrored) {
+	action.result.data; // undefined
+	// Further narrow between error kinds:
+	if (action.result.serverError) { /* ... */ }
+	if (action.result.validationErrors) { /* ... */ }
+}
+```
+
+Lifecycle callbacks also benefit from narrowing:
 
 ```ts
 const { execute } = useAction(myAction, {
-	onSuccess: ({ data }) => { /* ... */ },
+	onSuccess: ({ data }) => { /* data is guaranteed here */ },
 	onError: ({ error }) => {
 		if (error.validationErrors) { /* ... */ }
 		if (error.serverError) { /* ... */ }
 	},
 });
 ```
+
+See the [Type narrowing](/docs/guides/hooks#type-narrowing) section for more patterns.
 
 <Callout>
 **Precedence for edge cases.** In rare situations where the runtime could otherwise produce multiple populated fields (e.g. middleware calling `next()` twice after the action had already succeeded, or invalid bind args combined with invalid main input), next-safe-action applies a fixed precedence: `validationErrors` > `serverError` > `data`. The higher-priority state fully describes the outcome; lower-priority state is discarded. This keeps the discriminated union honest at runtime.
