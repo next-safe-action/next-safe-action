@@ -390,6 +390,10 @@ export type InferUseHookFormOptimisticActionHookReturn<T extends Function, State
 		: never;
 ```
 
+# Preview releases powered by [pkg.pr.new](https://pkg.pr.new)
+
+[![pkg.pr.new](https://pkg.pr.new/badge/next-safe-action/next-safe-action)](https://pkg.pr.new/~/next-safe-action/next-safe-action)
+
 # License
 
 This project is released under the [MIT License](https://github.com/next-safe-action/next-safe-action/blob/main/LICENSE).

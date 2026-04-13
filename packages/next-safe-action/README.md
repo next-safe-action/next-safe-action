@@ -57,6 +57,10 @@ If you found bugs or just want to ask a question, feel free to open an issue or 
 
 Made with [contrib.rocks](https://contrib.rocks).
 
+## Preview releases powered by [pkg.pr.new](https://pkg.pr.new)
+
+[![pkg.pr.new](https://pkg.pr.new/badge/next-safe-action/next-safe-action)](https://pkg.pr.new/~/next-safe-action/next-safe-action)
+
 ## License
 
 next-safe-action is released under the [MIT License](https://github.com/next-safe-action/next-safe-action/blob/main/LICENSE).
