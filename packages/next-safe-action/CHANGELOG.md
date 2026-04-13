@@ -1,5 +1,11 @@
 # next-safe-action
 
+## 8.5.2
+
+### Patch Changes
+
+- [#448](https://github.com/next-safe-action/next-safe-action/pull/448) [`c10b464`](https://github.com/next-safe-action/next-safe-action/commit/c10b46427739e08ef23b7c23d8c0c421382f4fb3) Thanks [@TheEdoRan](https://github.com/TheEdoRan)! - Add the pkg.pr.new badge to README. Documentation-only change, no runtime impact.
+
 ## 8.5.1
 
 ### Patch Changes
