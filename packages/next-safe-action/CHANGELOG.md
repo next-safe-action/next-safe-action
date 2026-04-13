@@ -1,5 +1,11 @@
 # next-safe-action
 
+## 8.5.1
+
+### Patch Changes
+
+- [#446](https://github.com/next-safe-action/next-safe-action/pull/446) [`6b1e3f6`](https://github.com/next-safe-action/next-safe-action/commit/6b1e3f6ba1a2b80873baab8bf936b88b442246b2) Thanks [@TheEdoRan](https://github.com/TheEdoRan)! - Filter out undefined entries from the callback promises array before awaiting `Promise.all`, to satisfy the stricter `await-thenable` rule in the latest `oxlint-tsgolint`. No runtime behavior change.
+
 ## 8.5.0
 
 ### Minor Changes
