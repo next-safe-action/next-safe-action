@@ -209,6 +209,10 @@ Creates a complete `UseMutationOptions` object for use with `useMutation`.
 - `InferMutationOptions<T>`: Infer the `UseMutationOptions` type from a safe action function
 - `InferActionMutationError<T>`: Infer the `ActionMutationError` type from a safe action function
 
+## Preview releases powered by [pkg.pr.new](https://pkg.pr.new)
+
+[![pkg.pr.new](https://pkg.pr.new/badge/next-safe-action/next-safe-action)](https://pkg.pr.new/~/next-safe-action/next-safe-action)
+
 ## License
 
 MIT

@@ -163,6 +163,10 @@ Creates a middleware function for use with the safe action client's `.use()` met
 
 For full documentation, visit [next-safe-action.dev/docs/integrations/better-auth](https://next-safe-action.dev/docs/integrations/better-auth).
 
+## Preview releases powered by [pkg.pr.new](https://pkg.pr.new)
+
+[![pkg.pr.new](https://pkg.pr.new/badge/next-safe-action/next-safe-action)](https://pkg.pr.new/~/next-safe-action/next-safe-action)
+
 ## License
 
 MIT
