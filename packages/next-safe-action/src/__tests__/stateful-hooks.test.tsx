@@ -205,6 +205,54 @@ describe("useStateAction basic lifecycle", () => {
 
 		expect(result.current.result.data).toEqual({ message: "initial" });
 	});
+
+	test("initResult with data is exposed as result on idle mount", () => {
+		const action = createMockStateAction();
+		const { result } = renderHook(() =>
+			useStateAction(action, {
+				initResult: { data: { message: "initial" } },
+			})
+		);
+
+		expect(result.current.status).toBe("idle");
+		expect(result.current.isIdle).toBe(true);
+		expect(result.current.result.data).toEqual({ message: "initial" });
+	});
+
+	test("initResult with serverError is exposed as result on idle mount", () => {
+		const action = createMockStateAction();
+		const { result } = renderHook(() =>
+			useStateAction(action, {
+				initResult: { serverError: "Seeded error" },
+			})
+		);
+
+		expect(result.current.status).toBe("idle");
+		expect(result.current.isIdle).toBe(true);
+		expect(result.current.result.serverError).toBe("Seeded error");
+	});
+
+	test("initResult with validationErrors is exposed as result on idle mount", () => {
+		const action = createMockStateAction();
+		const { result } = renderHook(() =>
+			useStateAction(action, {
+				initResult: { validationErrors: { _errors: ["Seeded validation failure"] } as any },
+			})
+		);
+
+		expect(result.current.status).toBe("idle");
+		expect(result.current.isIdle).toBe(true);
+		expect(result.current.result.validationErrors).toEqual({ _errors: ["Seeded validation failure"] });
+	});
+
+	test("empty initResult starts idle with empty result", () => {
+		const action = createMockStateAction();
+		const { result } = renderHook(() => useStateAction(action, { initResult: {} }));
+
+		expect(result.current.status).toBe("idle");
+		expect(result.current.isIdle).toBe(true);
+		expect(result.current.result).toEqual({});
+	});
 });
 
 // ─── prevResult ─────────────────────────────────────────────────────────────
@@ -325,6 +373,29 @@ describe("useStateAction reset", () => {
 		expect(result.current.isIdle).toBe(true);
 		expect(result.current.result).toEqual({});
 		expect(result.current.input).toBeUndefined();
+	});
+
+	test("reset restores visible result to initResult", async () => {
+		const action = createMockStateAction(async () => ({ data: { message: "after-execute" } }));
+		const initResult: TestResult = { data: { message: "seed" } };
+		const { result } = renderHook(() => useStateAction(action, { initResult }));
+
+		expect(result.current.result.data).toEqual({ message: "seed" });
+
+		act(() => {
+			result.current.execute(undefined);
+		});
+		await flushHookTimers();
+
+		expect(result.current.result.data).toEqual({ message: "after-execute" });
+
+		act(() => {
+			result.current.reset();
+		});
+
+		expect(result.current.status).toBe("idle");
+		expect(result.current.isIdle).toBe(true);
+		expect(result.current.result.data).toEqual({ message: "seed" });
 	});
 
 	test("reset overrides prevResult for next execution", async () => {

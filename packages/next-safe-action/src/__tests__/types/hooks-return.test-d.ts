@@ -333,6 +333,54 @@ test("UseStateActionHookReturn has all UseActionHookReturn properties plus formA
 	expectTypeOf<Return["result"]["data"]>().toEqualTypeOf<{ id: string } | undefined>();
 });
 
+test("UseStateActionHookReturn idle branch is narrowed by InitR generic", () => {
+	type SeededInit = { data: { id: number }; serverError?: undefined; validationErrors?: undefined };
+	type Return = UseStateActionHookReturn<
+		string,
+		typeof schema,
+		ValidationErrors<typeof schema>,
+		{ id: number },
+		SeededInit
+	>;
+	const ret = {} as Return;
+
+	if (ret.status === "idle") {
+		// Idle branch's result is narrowed to the seeded shape, not the empty HookIdleResult
+		expectTypeOf(ret.result.data).toEqualTypeOf<{ id: number }>();
+	}
+});
+
+test("UseStateActionHookReturn idle branch preserves all idle keys when InitR is a partial seed", () => {
+	// InitR inferred from a literal omits serverError/validationErrors keys; the public idle
+	// type must still expose them as `undefined` so destructuring code stays sound.
+	type SeededInit = { data: { id: number } };
+	type Return = UseStateActionHookReturn<
+		string,
+		typeof schema,
+		ValidationErrors<typeof schema>,
+		{ id: number },
+		SeededInit
+	>;
+	const ret = {} as Return;
+
+	if (ret.status === "idle") {
+		expectTypeOf(ret.result.data).toEqualTypeOf<{ id: number }>();
+		expectTypeOf(ret.result.serverError).toEqualTypeOf<undefined>();
+		expectTypeOf(ret.result.validationErrors).toEqualTypeOf<undefined>();
+	}
+});
+
+test("UseStateActionHookReturn idle branch defaults to HookIdleResult when InitR is omitted", () => {
+	type Return = UseStateActionHookReturn<string, typeof schema, ValidationErrors<typeof schema>, { id: number }>;
+	const ret = {} as Return;
+
+	if (ret.status === "idle") {
+		expectTypeOf(ret.result.data).toEqualTypeOf<undefined>();
+		expectTypeOf(ret.result.serverError).toEqualTypeOf<undefined>();
+		expectTypeOf(ret.result.validationErrors).toEqualTypeOf<undefined>();
+	}
+});
+
 // ─── Infer utility types ────────────────────────────────────────────────────
 
 test("InferUseActionHookReturn extracts return type from SafeActionFn", () => {

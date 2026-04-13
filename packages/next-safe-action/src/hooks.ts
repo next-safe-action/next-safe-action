@@ -6,6 +6,7 @@ import { getActionShorthandStatusObject, getActionStatus, useActionCallbacks } f
 import type {
 	HookBaseOptions,
 	HookCallbacks,
+	HookIdleResult,
 	SingleInputActionFn,
 	SingleInputStateActionFn,
 	UseActionHookReturn,
@@ -113,12 +114,18 @@ export const useOptimisticAction = <
  *
  * {@link https://next-safe-action.dev/docs/execute-actions/hooks/usestateaction See docs for more information}
  */
-export const useStateAction = <ServerError, Schema extends StandardSchemaV1 | undefined, ShapedErrors, Data>(
+export const useStateAction = <
+	ServerError,
+	Schema extends StandardSchemaV1 | undefined,
+	ShapedErrors,
+	Data,
+	InitR extends SafeActionResult<ServerError, Schema, ShapedErrors, Data> = HookIdleResult,
+>(
 	safeActionFn: SingleInputStateActionFn<ServerError, Schema, ShapedErrors, Data>,
 	opts?: {
-		initResult?: Awaited<ReturnType<typeof safeActionFn>>;
+		initResult?: InitR;
 	} & HookBaseOptions<ServerError, Schema, ShapedErrors, Data>
-): UseStateActionHookReturn<ServerError, Schema, ShapedErrors, Data> => {
+): UseStateActionHookReturn<ServerError, Schema, ShapedErrors, Data, InitR> => {
 	if (typeof React.useActionState !== "function") {
 		throw new Error(
 			"useStateAction requires React 19+ (Next.js 15+). " +
@@ -234,7 +241,12 @@ export const useStateAction = <ServerError, Schema extends StandardSchemaV1 | un
 
 	// ─── Status ───────────────────────────────────────────────────────────
 
-	const result = isReset ? ({} as SafeActionResult<ServerError, Schema, ShapedErrors, Data>) : (rawResult ?? {});
+	// On reset, the visible `result` is restored to `initResult` (or `{}` when not provided) so
+	// the idle branch's runtime value matches its declared type in both phases: at mount and
+	// after reset. This is also the intuitive contract for `reset` — return to the initial state.
+	const result = isReset
+		? ((initResult ?? {}) as SafeActionResult<ServerError, Schema, ShapedErrors, Data>)
+		: (rawResult ?? {});
 
 	const status = getActionStatus<ServerError, Schema, ShapedErrors, Data>({
 		isExecuting,
@@ -277,7 +289,7 @@ export const useStateAction = <ServerError, Schema extends StandardSchemaV1 | un
 		reset,
 		status,
 		...getActionShorthandStatusObject({ status, isTransitioning }),
-	} as unknown as UseStateActionHookReturn<ServerError, Schema, ShapedErrors, Data>;
+	} as unknown as UseStateActionHookReturn<ServerError, Schema, ShapedErrors, Data, InitR>;
 };
 
 export type * from "./hooks.types";

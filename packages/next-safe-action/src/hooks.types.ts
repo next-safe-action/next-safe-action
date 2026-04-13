@@ -143,60 +143,64 @@ type HookResultCommon<ServerError, Schema extends StandardSchemaV1 | undefined, 
  * `result` and `executeAsync` are run through `NormalizeActionResult` so that
  * void-returning actions expose `result.data: undefined` rather than `void | undefined`.
  */
-export type UseActionHookReturn<ServerError, Schema extends StandardSchemaV1 | undefined, ShapedErrors, Data> =
-	HookResultCommon<ServerError, Schema, ShapedErrors, Data> &
-		(
-			| {
-					status: "idle";
-					isIdle: true;
-					isExecuting: false;
-					isPending: boolean;
-					hasSucceeded: false;
-					hasErrored: false;
-					hasNavigated: false;
-					result: Prettify<HookIdleResult>;
-			  }
-			| {
-					status: "executing";
-					isIdle: false;
-					isExecuting: true;
-					isPending: true;
-					hasSucceeded: false;
-					hasErrored: false;
-					hasNavigated: false;
-					result: Prettify<NormalizeActionResult<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>>;
-			  }
-			| {
-					status: "hasSucceeded";
-					isIdle: false;
-					isExecuting: false;
-					isPending: boolean;
-					hasSucceeded: true;
-					hasErrored: false;
-					hasNavigated: false;
-					result: Prettify<HookSuccessResult<Data>>;
-			  }
-			| {
-					status: "hasErrored";
-					isIdle: false;
-					isExecuting: false;
-					isPending: boolean;
-					hasSucceeded: false;
-					hasErrored: true;
-					hasNavigated: false;
-					result: Prettify<HookErrorResult<ServerError, ShapedErrors>>;
-			  }
-			| {
-					status: "hasNavigated";
-					isIdle: false;
-					isExecuting: false;
-					isPending: boolean;
-					hasSucceeded: false;
-					hasErrored: false;
-					hasNavigated: true;
-					result: Prettify<HookIdleResult>;
-			  }
-		);
+export type UseActionHookReturn<
+	ServerError,
+	Schema extends StandardSchemaV1 | undefined,
+	ShapedErrors,
+	Data,
+> = HookResultCommon<ServerError, Schema, ShapedErrors, Data> &
+	(
+		| {
+				status: "idle";
+				isIdle: true;
+				isExecuting: false;
+				isPending: boolean;
+				hasSucceeded: false;
+				hasErrored: false;
+				hasNavigated: false;
+				result: Prettify<HookIdleResult>;
+		  }
+		| {
+				status: "executing";
+				isIdle: false;
+				isExecuting: true;
+				isPending: true;
+				hasSucceeded: false;
+				hasErrored: false;
+				hasNavigated: false;
+				result: Prettify<NormalizeActionResult<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>>;
+		  }
+		| {
+				status: "hasSucceeded";
+				isIdle: false;
+				isExecuting: false;
+				isPending: boolean;
+				hasSucceeded: true;
+				hasErrored: false;
+				hasNavigated: false;
+				result: Prettify<HookSuccessResult<Data>>;
+		  }
+		| {
+				status: "hasErrored";
+				isIdle: false;
+				isExecuting: false;
+				isPending: boolean;
+				hasSucceeded: false;
+				hasErrored: true;
+				hasNavigated: false;
+				result: Prettify<HookErrorResult<ServerError, ShapedErrors>>;
+		  }
+		| {
+				status: "hasNavigated";
+				isIdle: false;
+				isExecuting: false;
+				isPending: boolean;
+				hasSucceeded: false;
+				hasErrored: false;
+				hasNavigated: true;
+				result: Prettify<HookIdleResult>;
+		  }
+	);
 
 /**
  * Type of the return object of the `useOptimisticAction` hook.
@@ -215,15 +219,34 @@ export type UseOptimisticActionHookReturn<
 
 /**
  * Type of the return object of the `useStateAction` hook.
+ *
  * Extends `UseActionHookReturn` with `formAction` for `<form action={formAction}>` integration.
  * TypeScript distributes the intersection over the union, preserving the discriminated union narrowing.
+ *
+ * The optional `InitR` generic represents the shape of the `initResult` option. When provided,
+ * it narrows the idle branch's `result` to exactly that shape, so seeded fields are typed as
+ * required rather than `Data | undefined`. For example, `initResult: { data: { id: 1 } }` gives
+ * `result.data` the type `{ id: number }` on the idle branch — matching the runtime value that
+ * is seeded at mount and restored after `reset()`. Defaults to `HookIdleResult` (empty result)
+ * when `initResult` is not provided.
  */
 export type UseStateActionHookReturn<
 	ServerError,
 	Schema extends StandardSchemaV1 | undefined,
 	ShapedErrors,
 	Data,
-> = UseActionHookReturn<ServerError, Schema, ShapedErrors, Data> & {
+	InitR extends SafeActionResult<ServerError, Schema, ShapedErrors, Data> = HookIdleResult,
+> = (UseActionHookReturn<ServerError, Schema, ShapedErrors, Data> extends infer R
+	? R extends { status: "idle" }
+		? Omit<R, "result"> & {
+				result: Prettify<{
+					data: "data" extends keyof InitR ? InitR["data"] : undefined;
+					serverError: "serverError" extends keyof InitR ? InitR["serverError"] : undefined;
+					validationErrors: "validationErrors" extends keyof InitR ? InitR["validationErrors"] : undefined;
+				}>;
+			}
+		: R
+	: never) & {
 	formAction: (input: InferInputOrDefault<Schema, void>) => void;
 };
 
