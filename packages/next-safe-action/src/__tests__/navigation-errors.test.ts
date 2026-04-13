@@ -204,3 +204,44 @@ test("multiple redirects in sequence each throw navigation error", async () => {
 
 	expect(redirectCount).toBe(2);
 });
+
+test("navigation error discards any pre-populated result (onSettled receives empty result)", async () => {
+	// Regression guard for the precedence at `buildResultAndRunCallbacks` in
+	// `action-builder.ts`: a framework navigation error at any stage short-circuits
+	// the result to `{}` before any data accumulated during the run can leak into
+	// `onSettled`. We construct a compound state where the inner action succeeds
+	// (populating `middlewareResult.data`) and then an outer middleware throws a
+	// redirect during post-processing — onSettled must still see `result: {}`.
+	let onSettledResult: unknown;
+	let innerData: unknown;
+
+	const action = ac
+		.use(async ({ next }) => {
+			const res = await next();
+			// Inner action succeeded; its data is observable here, confirming the
+			// setup is valid — the inner `next()` did populate `data`.
+			innerData = (res as { data?: unknown }).data;
+			redirect("/after-success");
+		})
+		.action(
+			async () => {
+				return { inner: "ran to completion" };
+			},
+			{
+				onSettled: async ({ result }) => {
+					onSettledResult = result;
+				},
+			}
+		);
+
+	await action().catch((e) => {
+		if (!FrameworkErrorHandler.isNavigationError(e)) {
+			throw e;
+		}
+	});
+
+	// Inner action data DID exist mid-flight — middleware saw it.
+	expect(innerData).toEqual({ inner: "ran to completion" });
+	// But onSettled received the idle shape, not the partial success.
+	expect(onSettledResult).toStrictEqual({});
+});

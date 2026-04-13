@@ -107,6 +107,41 @@ test("fresh object literals assign for each branch", () => {
 	void _validationErr;
 });
 
+// ─── Negative tests: compound literals must not assign ─────────────────────
+//
+// These tests pin the mutual exclusivity contract. Without them, a regression
+// that widens `SafeActionResult` back into a flat object (where all three fields
+// are independently optional) would silently re-admit compound literals —
+// defeating the narrowing guarantee users depend on.
+
+test("compound {data, serverError} literal is rejected", () => {
+	// @ts-expect-error — success and server error branches are mutually exclusive
+	const _bad: Result = { data: { id: "x" }, serverError: "oops" };
+	void _bad;
+});
+
+test("compound {data, validationErrors} literal is rejected", () => {
+	// @ts-expect-error — success and validation error branches are mutually exclusive
+	const _bad: Result = { data: { id: "x" }, validationErrors: { name: { _errors: ["required"] } } as Shape };
+	void _bad;
+});
+
+test("compound {serverError, validationErrors} literal is rejected", () => {
+	// @ts-expect-error — server error and validation error branches are mutually exclusive
+	const _bad: Result = { serverError: "oops", validationErrors: { name: { _errors: ["required"] } } as Shape };
+	void _bad;
+});
+
+test("all-three-fields literal is rejected", () => {
+	// @ts-expect-error — no branch of the union accepts all three fields populated
+	const _bad: Result = {
+		data: { id: "x" },
+		serverError: "oops",
+		validationErrors: { name: { _errors: ["required"] } } as Shape,
+	};
+	void _bad;
+});
+
 // ─── onError callback receives the full union (no cast needed) ─────────────
 
 test("onError callback's error parameter accepts the full result union", () => {
@@ -123,6 +158,47 @@ test("onError callback's error parameter accepts the full result union", () => {
 	}
 	if (err.validationErrors) {
 		expectTypeOf(err.validationErrors).toEqualTypeOf<Shape>();
+	}
+});
+
+// ─── onSettled callback receives the full result union ─────────────────────
+
+test("onSettled callback's result parameter narrows on truthy data", () => {
+	type CB = NonNullable<ActionCallbacks<ServerError, undefined, object, typeof schema, [], Shape, Data>["onSettled"]>;
+	type ResultArg = Parameters<CB>[0]["result"];
+
+	// `onSettled` fires after every outcome, so it receives the raw
+	// `SafeActionResult` union. Narrowing must still propagate through
+	// `Prettify<...>` to the callback consumer.
+	const settled = {} as ResultArg;
+	if (settled.data) {
+		expectTypeOf(settled.data).toEqualTypeOf<Data>();
+		expectTypeOf(settled.serverError).toEqualTypeOf<undefined>();
+		expectTypeOf(settled.validationErrors).toEqualTypeOf<undefined>();
+	}
+});
+
+test("onSettled callback's result parameter narrows on truthy serverError", () => {
+	type CB = NonNullable<ActionCallbacks<ServerError, undefined, object, typeof schema, [], Shape, Data>["onSettled"]>;
+	type ResultArg = Parameters<CB>[0]["result"];
+
+	const settled = {} as ResultArg;
+	if (settled.serverError) {
+		expectTypeOf(settled.serverError).toEqualTypeOf<ServerError>();
+		expectTypeOf(settled.data).toEqualTypeOf<undefined>();
+		expectTypeOf(settled.validationErrors).toEqualTypeOf<undefined>();
+	}
+});
+
+test("onSettled callback's result parameter narrows on truthy validationErrors", () => {
+	type CB = NonNullable<ActionCallbacks<ServerError, undefined, object, typeof schema, [], Shape, Data>["onSettled"]>;
+	type ResultArg = Parameters<CB>[0]["result"];
+
+	const settled = {} as ResultArg;
+	if (settled.validationErrors) {
+		expectTypeOf(settled.validationErrors).toEqualTypeOf<Shape>();
+		expectTypeOf(settled.data).toEqualTypeOf<undefined>();
+		expectTypeOf(settled.serverError).toEqualTypeOf<undefined>();
 	}
 });
 

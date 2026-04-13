@@ -12,6 +12,7 @@ import type {
 	InferUseOptimisticActionHookReturn,
 	InferUseStateActionHookReturn,
 	HookActionStatus,
+	HookCallbacks,
 	HookIdleResult,
 	HookSuccessResult,
 	HookErrorResult,
@@ -86,6 +87,93 @@ test("void-returning action: UseActionHookReturn result.data is exactly `undefin
 	// at the hook layer so users see the same type regardless of how they invoke.
 	type VoidReturn = UseActionHookReturn<string, undefined, undefined, void>;
 	expectTypeOf<VoidReturn["result"]["data"]>().toEqualTypeOf<undefined>();
+});
+
+// ─── Hook callback narrowing ────────────────────────────────────────────────
+//
+// `useAction`, `useOptimisticAction`, and `useStateAction` all forward lifecycle
+// callbacks (`onSuccess`, `onError`, `onSettled`, `onNavigation`) from the
+// `HookCallbacks` type defined in `hooks.types.ts`. These tests pin the
+// discriminated-union narrowing and auxiliary fields on those callback args,
+// because the hook layer adds `thrownError` to `onError` that the server-side
+// `ActionCallbacks` does not expose.
+
+test("onSettled hook callback's result parameter narrows on truthy data", () => {
+	type CB = NonNullable<HookCallbacks<ServerError, typeof schema, Shape, Data>["onSettled"]>;
+	type ResultArg = Parameters<CB>[0]["result"];
+
+	const settled = {} as ResultArg;
+	if (settled.data) {
+		expectTypeOf(settled.data).toEqualTypeOf<Data>();
+		expectTypeOf(settled.serverError).toEqualTypeOf<undefined>();
+		expectTypeOf(settled.validationErrors).toEqualTypeOf<undefined>();
+	}
+});
+
+test("onSettled hook callback's result parameter narrows on truthy serverError", () => {
+	type CB = NonNullable<HookCallbacks<ServerError, typeof schema, Shape, Data>["onSettled"]>;
+	type ResultArg = Parameters<CB>[0]["result"];
+
+	const settled = {} as ResultArg;
+	if (settled.serverError) {
+		expectTypeOf(settled.serverError).toEqualTypeOf<ServerError>();
+		expectTypeOf(settled.data).toEqualTypeOf<undefined>();
+		expectTypeOf(settled.validationErrors).toEqualTypeOf<undefined>();
+	}
+});
+
+test("onSettled hook callback's result parameter narrows on truthy validationErrors", () => {
+	type CB = NonNullable<HookCallbacks<ServerError, typeof schema, Shape, Data>["onSettled"]>;
+	type ResultArg = Parameters<CB>[0]["result"];
+
+	const settled = {} as ResultArg;
+	if (settled.validationErrors) {
+		expectTypeOf(settled.validationErrors).toEqualTypeOf<Shape>();
+		expectTypeOf(settled.data).toEqualTypeOf<undefined>();
+		expectTypeOf(settled.serverError).toEqualTypeOf<undefined>();
+	}
+});
+
+test("onSettled hook callback receives optional navigationKind", () => {
+	type CB = NonNullable<HookCallbacks<ServerError, typeof schema, Shape, Data>["onSettled"]>;
+	type NavArg = Parameters<CB>[0]["navigationKind"];
+	// `navigationKind` is optional because non-navigation outcomes omit it.
+	// The "other" member is emitted by `FrameworkErrorHandler.getNavigationKind`
+	// as a fallback for unrecognized digests, so it must stay in the union.
+	expectTypeOf<NavArg>().toEqualTypeOf<
+		"redirect" | "notFound" | "forbidden" | "unauthorized" | "other" | undefined
+	>();
+});
+
+test("onError hook callback's error parameter exposes thrownError: Error | undefined", () => {
+	// The hook-level `onError` intersects the server error result with
+	// `{ thrownError?: Error }` so hook consumers can surface exceptions that
+	// never became a typed `serverError` (e.g. render-phase throws, mid-transition
+	// failures). The field is optional — present only when an exception was caught.
+	type CB = NonNullable<HookCallbacks<ServerError, typeof schema, Shape, Data>["onError"]>;
+	type ErrorArg = Parameters<CB>[0]["error"];
+
+	expectTypeOf<ErrorArg["thrownError"]>().toEqualTypeOf<Error | undefined>();
+});
+
+test("onError hook callback's error parameter still narrows on serverError/validationErrors", () => {
+	// Intersecting `{ thrownError?: Error }` with the discriminated union must
+	// NOT collapse the narrowing behavior of the underlying branches.
+	//
+	// Note: the sibling-to-`undefined` narrowing (proven for `ActionCallbacks`
+	// in `result-narrowing.test-d.ts`) does NOT carry through cleanly after the
+	// `Prettify` + intersection, so here we only assert positive narrowing on
+	// the checked field. That matches how consumers actually use `onError`.
+	type CB = NonNullable<HookCallbacks<ServerError, typeof schema, Shape, Data>["onError"]>;
+	type ErrorArg = Parameters<CB>[0]["error"];
+
+	const err = {} as ErrorArg;
+	if (err.serverError) {
+		expectTypeOf(err.serverError).toEqualTypeOf<ServerError>();
+	}
+	if (err.validationErrors) {
+		expectTypeOf(err.validationErrors).toEqualTypeOf<Shape>();
+	}
 });
 
 // ─── Status-based narrowing (discriminated union) ───────────────────────────
@@ -381,6 +469,65 @@ test("UseStateActionHookReturn idle branch defaults to HookIdleResult when InitR
 	}
 });
 
+test("UseStateActionHookReturn idle branch narrowed by serverError-only InitR", () => {
+	// Users sometimes seed `initResult` with a fresh-state server error (e.g. from
+	// a server component that already failed) and rely on the idle result exposing
+	// that error literally rather than `string | undefined`.
+	type SeededInit = { serverError: "seeded" };
+	type Return = UseStateActionHookReturn<
+		string,
+		typeof schema,
+		ValidationErrors<typeof schema>,
+		{ id: number },
+		SeededInit
+	>;
+	const ret = {} as Return;
+
+	if (ret.status === "idle") {
+		expectTypeOf(ret.result.serverError).toEqualTypeOf<"seeded">();
+		expectTypeOf(ret.result.data).toEqualTypeOf<undefined>();
+		expectTypeOf(ret.result.validationErrors).toEqualTypeOf<undefined>();
+	}
+});
+
+test("UseStateActionHookReturn idle branch narrowed by validationErrors-only InitR", () => {
+	type SeededShape = { name: { _errors: string[] } };
+	type SeededInit = { validationErrors: SeededShape };
+	type Return = UseStateActionHookReturn<
+		string,
+		typeof schema,
+		ValidationErrors<typeof schema>,
+		{ id: number },
+		SeededInit
+	>;
+	const ret = {} as Return;
+
+	if (ret.status === "idle") {
+		expectTypeOf(ret.result.validationErrors).toEqualTypeOf<SeededShape>();
+		expectTypeOf(ret.result.data).toEqualTypeOf<undefined>();
+		expectTypeOf(ret.result.serverError).toEqualTypeOf<undefined>();
+	}
+});
+
+test("UseStateActionHookReturn idle branch passes-through non-idle branches when InitR is set", () => {
+	// Non-idle branches are unaffected by InitR. If the action succeeds after the
+	// seeded idle result, the success branch's `result.data` is the real Data
+	// type, not the seed.
+	type SeededInit = { data: { id: 42 } };
+	type Return = UseStateActionHookReturn<
+		string,
+		typeof schema,
+		ValidationErrors<typeof schema>,
+		{ id: number },
+		SeededInit
+	>;
+	const ret = {} as Return;
+
+	if (ret.status === "hasSucceeded") {
+		expectTypeOf(ret.result.data).toEqualTypeOf<{ id: number }>();
+	}
+});
+
 // ─── Infer utility types ────────────────────────────────────────────────────
 
 test("InferUseActionHookReturn extracts return type from SafeActionFn", () => {
@@ -405,6 +552,116 @@ test("InferUseStateActionHookReturn extracts from SafeStateActionFn", () => {
 
 	expectTypeOf<Return["result"]["data"]>().toEqualTypeOf<{ id: string } | undefined>();
 	expectTypeOf<Return>().not.toBeAny();
+});
+
+// ─── Infer*HookReturn preserves discriminated union narrowing ───────────────
+//
+// The `Infer*` utilities are a public API surface (exported from `hooks.types`).
+// Consumers rely on them producing a usable discriminated union — not just a
+// flat bag where `result.data` happens to have the right leaf type. These tests
+// pin the narrowing behavior on inferred returns, catching any regression that
+// collapses the union during inference.
+
+test("InferUseActionHookReturn preserves narrowing on hasSucceeded", () => {
+	type ActionFn = SafeActionFn<string, typeof schema, [], Shape, { id: string }>;
+	type Return = InferUseActionHookReturn<ActionFn>;
+	const ret = {} as Return;
+
+	if (ret.hasSucceeded) {
+		expectTypeOf(ret.result.data).toEqualTypeOf<{ id: string }>();
+		expectTypeOf(ret.result.serverError).toEqualTypeOf<undefined>();
+		expectTypeOf(ret.result.validationErrors).toEqualTypeOf<undefined>();
+	}
+});
+
+test("InferUseOptimisticActionHookReturn preserves narrowing on hasSucceeded", () => {
+	type ActionFn = SafeActionFn<string, typeof schema, [], Shape, { id: string }>;
+	type Return = InferUseOptimisticActionHookReturn<ActionFn, { count: number }>;
+	const ret = {} as Return;
+
+	if (ret.hasSucceeded) {
+		expectTypeOf(ret.result.data).toEqualTypeOf<{ id: string }>();
+		expectTypeOf(ret.optimisticState).toEqualTypeOf<{ count: number }>();
+		expectTypeOf(ret.status).toEqualTypeOf<"hasSucceeded">();
+	}
+});
+
+test("InferUseStateActionHookReturn preserves narrowing on hasSucceeded", () => {
+	type StateActionFn = SafeStateActionFn<string, typeof schema, [], Shape, { id: string }>;
+	type Return = InferUseStateActionHookReturn<StateActionFn>;
+	const ret = {} as Return;
+
+	if (ret.hasSucceeded) {
+		expectTypeOf(ret.result.data).toEqualTypeOf<{ id: string }>();
+		expectTypeOf(ret.result.serverError).toEqualTypeOf<undefined>();
+		expectTypeOf(ret.status).toEqualTypeOf<"hasSucceeded">();
+	}
+});
+
+test("InferUseActionHookReturn preserves narrowing on hasErrored status", () => {
+	type ActionFn = SafeActionFn<string, typeof schema, [], Shape, { id: string }>;
+	type Return = InferUseActionHookReturn<ActionFn>;
+	const ret = {} as Return;
+
+	if (ret.status === "hasErrored" && ret.result.serverError) {
+		expectTypeOf(ret.result.serverError).toEqualTypeOf<string>();
+		expectTypeOf(ret.result.data).toEqualTypeOf<undefined>();
+	}
+});
+
+// ─── Destructured narrowing on state and optimistic hook returns ────────────
+//
+// TypeScript 4.6+ narrows destructured fields of a discriminated union. The
+// base test at `UseActionHookReturn` already pins this behavior, but the state
+// and optimistic hook types are built via different type constructions
+// (intersection + Omit over a mapped conditional for state, plain intersection
+// for optimistic). A regression in either construction would break destructured
+// narrowing without breaking the base test — worth a separate assertion.
+
+test("destructuring UseStateActionHookReturn narrows on status", () => {
+	const { status, result } = {} as UseStateActionHookReturn<ServerError, typeof schema, Shape, Data>;
+
+	if (status === "hasSucceeded") {
+		expectTypeOf(result.data).toEqualTypeOf<Data>();
+		expectTypeOf(result.serverError).toEqualTypeOf<undefined>();
+	}
+});
+
+test("destructuring UseStateActionHookReturn narrows on hasErrored shorthand", () => {
+	const { hasErrored, result } = {} as UseStateActionHookReturn<ServerError, typeof schema, Shape, Data>;
+
+	if (hasErrored) {
+		expectTypeOf(result.data).toEqualTypeOf<undefined>();
+	}
+});
+
+test("destructuring UseOptimisticActionHookReturn narrows on status", () => {
+	const { status, result, optimisticState } = {} as UseOptimisticActionHookReturn<
+		ServerError,
+		typeof schema,
+		Shape,
+		Data,
+		{ count: number }
+	>;
+
+	if (status === "hasSucceeded") {
+		expectTypeOf(result.data).toEqualTypeOf<Data>();
+		expectTypeOf(optimisticState).toEqualTypeOf<{ count: number }>();
+	}
+});
+
+test("destructuring UseOptimisticActionHookReturn narrows on hasSucceeded shorthand", () => {
+	const { hasSucceeded, result } = {} as UseOptimisticActionHookReturn<
+		ServerError,
+		typeof schema,
+		Shape,
+		Data,
+		{ count: number }
+	>;
+
+	if (hasSucceeded) {
+		expectTypeOf(result.data).toEqualTypeOf<Data>();
+	}
 });
 
 // ─── Result helper types ────────────────────────────────────────────────────
