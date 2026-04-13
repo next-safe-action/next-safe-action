@@ -1,6 +1,6 @@
 import * as React from "react";
 import type { HookActionStatus, HookCallbacks, HookShorthandStatus } from "./hooks.types";
-import type { SafeActionResult } from "./index.types";
+import type { NormalizeActionResult, SafeActionResult } from "./index.types";
 import { FrameworkErrorHandler } from "./next/errors";
 import type { InferInputOrDefault, StandardSchemaV1 } from "./standard-schema";
 
@@ -101,7 +101,19 @@ export const useActionCallbacks = <ServerError, Schema extends StandardSchemaV1 
 
 					await Promise.all([
 						Promise.resolve(onSuccess?.({ data: result.data!, input })),
-						Promise.resolve(onSettled?.({ result, input })),
+						// Cast rationale: `onSettled`'s public type uses
+						// `NormalizeActionResult` so void actions surface `data: undefined`,
+						// but internally `result` is the raw `SafeActionResult<..., Data>`.
+						// The two are structurally equivalent for every concrete `Data` the
+						// runtime produces — see the comment in `useActionBase`.
+						Promise.resolve(
+							onSettled?.({
+								result: result as unknown as NormalizeActionResult<
+									SafeActionResult<ServerError, Schema, ShapedErrors, Data>
+								>,
+								input,
+							})
+						),
 					]);
 					break;
 				case "hasErrored":
@@ -112,7 +124,14 @@ export const useActionCallbacks = <ServerError, Schema extends StandardSchemaV1 
 								input,
 							})
 						),
-						Promise.resolve(onSettled?.({ result, input })),
+						Promise.resolve(
+							onSettled?.({
+								result: result as unknown as NormalizeActionResult<
+									SafeActionResult<ServerError, Schema, ShapedErrors, Data>
+								>,
+								input,
+							})
+						),
 					]);
 					break;
 			}
@@ -133,7 +152,15 @@ export const useActionCallbacks = <ServerError, Schema extends StandardSchemaV1 
 							navigationKind: actualNavigationKind,
 						})
 					),
-					Promise.resolve(onSettled?.({ result, input, navigationKind: actualNavigationKind })),
+					Promise.resolve(
+						onSettled?.({
+							result: result as unknown as NormalizeActionResult<
+								SafeActionResult<ServerError, Schema, ShapedErrors, Data>
+							>,
+							input,
+							navigationKind: actualNavigationKind,
+						})
+					),
 				]);
 			}
 		};

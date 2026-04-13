@@ -36,10 +36,10 @@ test("middleware that calls next twice throws an error", async () => {
 
 	const actualResult = await action();
 
-	// Calling next() twice is guarded. The first call succeeds (data is set),
-	// then the second call triggers a server error.
+	// Calling next() twice is guarded. The second call triggers a server error,
+	// which takes precedence over the first call's data per the result precedence
+	// rule (validationErrors > serverError > data).
 	expect(actualResult).toStrictEqual({
-		data: { ok: true },
 		serverError: "next() called multiple times in middleware. Each middleware must call next() at most once.",
 	});
 });
@@ -435,6 +435,77 @@ test("use() middleware calling next() normally still works (chain completion gua
 
 	expect(result).toStrictEqual({ data: { ok: true } });
 	expect(order).toStrictEqual(["before", "action", "after"]);
+});
+
+// ─── Result invariant: at most one populated discriminator field ─────
+//
+// The discriminated-union contract guarantees that `SafeActionResult` has at
+// most one populated field among `{ data, serverError, validationErrors }`.
+// These tests walk scenarios that could internally produce a compound state
+// (next() twice, failed bind args + failed main input, error thrown mid-chain)
+// and assert the invariant holds across all of them. Without these, a future
+// edit to `buildResultAndRunCallbacks` in `action-builder.ts` could quietly
+// re-admit compound results and no single-scenario test would catch it.
+
+test("result invariant: at most one of data/serverError/validationErrors is ever populated", async () => {
+	const schema = z.object({ name: z.string().min(3) });
+	const bindSchemas: [n: z.ZodNumber] = [z.number().positive()];
+
+	const scenarios: Array<{ label: string; run: () => Promise<unknown> }> = [
+		{
+			label: "happy path",
+			run: () => ac.inputSchema(schema).action(async () => ({ ok: true }))({ name: "alice" }),
+		},
+		{
+			label: "validation error",
+			run: () => ac.inputSchema(schema).action(async () => ({ ok: true }))({ name: "ab" }),
+		},
+		{
+			label: "server error from thrown middleware",
+			run: () =>
+				ac
+					.use(async () => {
+						throw new Error("boom");
+					})
+					.action(async () => ({ ok: true }))(),
+		},
+		{
+			label: "next() twice after success",
+			run: () =>
+				ac
+					.use(async ({ next }) => {
+						await next();
+						return next();
+					})
+					.action(async () => ({ ok: true }))(),
+		},
+		{
+			label: "invalid bind args + invalid main input",
+			run: () =>
+				ac
+					.inputSchema(schema)
+					.bindArgsSchemas(bindSchemas)
+					.action(async () => ({ ok: true }))(-1, { name: "ab" }),
+		},
+		{
+			label: "idle (middleware returns early without next())",
+			run: () =>
+				ac
+					// @ts-expect-error - intentional short-circuit to exercise idle output
+					.use(async () => {
+						// no next()
+					})
+					.action(async () => ({ ok: true }))(),
+		},
+	];
+
+	for (const { label, run } of scenarios) {
+		const result = (await run()) as Record<string, unknown>;
+		const populated = (["data", "serverError", "validationErrors"] as const).filter(
+			(k) => typeof result[k] !== "undefined"
+		);
+		expect(populated.length, `${label} produced compound result: ${JSON.stringify(result)}`).toBeLessThanOrEqual(1);
+	}
 });
 
 test("stored next() from use() that was called once cannot be called again after chain completion", async () => {

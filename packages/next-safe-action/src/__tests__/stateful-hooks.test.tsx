@@ -205,6 +205,54 @@ describe("useStateAction basic lifecycle", () => {
 
 		expect(result.current.result.data).toEqual({ message: "initial" });
 	});
+
+	test("initResult with data is exposed as result on idle mount", () => {
+		const action = createMockStateAction();
+		const { result } = renderHook(() =>
+			useStateAction(action, {
+				initResult: { data: { message: "initial" } },
+			})
+		);
+
+		expect(result.current.status).toBe("idle");
+		expect(result.current.isIdle).toBe(true);
+		expect(result.current.result.data).toEqual({ message: "initial" });
+	});
+
+	test("initResult with serverError is exposed as result on idle mount", () => {
+		const action = createMockStateAction();
+		const { result } = renderHook(() =>
+			useStateAction(action, {
+				initResult: { serverError: "Seeded error" },
+			})
+		);
+
+		expect(result.current.status).toBe("idle");
+		expect(result.current.isIdle).toBe(true);
+		expect(result.current.result.serverError).toBe("Seeded error");
+	});
+
+	test("initResult with validationErrors is exposed as result on idle mount", () => {
+		const action = createMockStateAction();
+		const { result } = renderHook(() =>
+			useStateAction(action, {
+				initResult: { validationErrors: { _errors: ["Seeded validation failure"] } as any },
+			})
+		);
+
+		expect(result.current.status).toBe("idle");
+		expect(result.current.isIdle).toBe(true);
+		expect(result.current.result.validationErrors).toEqual({ _errors: ["Seeded validation failure"] });
+	});
+
+	test("empty initResult starts idle with empty result", () => {
+		const action = createMockStateAction();
+		const { result } = renderHook(() => useStateAction(action, { initResult: {} }));
+
+		expect(result.current.status).toBe("idle");
+		expect(result.current.isIdle).toBe(true);
+		expect(result.current.result).toEqual({});
+	});
 });
 
 // ─── prevResult ─────────────────────────────────────────────────────────────
@@ -325,6 +373,84 @@ describe("useStateAction reset", () => {
 		expect(result.current.isIdle).toBe(true);
 		expect(result.current.result).toEqual({});
 		expect(result.current.input).toBeUndefined();
+	});
+
+	test("reset restores visible result to initResult", async () => {
+		const action = createMockStateAction(async () => ({ data: { message: "after-execute" } }));
+		const initResult: TestResult = { data: { message: "seed" } };
+		const { result } = renderHook(() => useStateAction(action, { initResult }));
+
+		expect(result.current.result.data).toEqual({ message: "seed" });
+
+		act(() => {
+			result.current.execute(undefined);
+		});
+		await flushHookTimers();
+
+		expect(result.current.result.data).toEqual({ message: "after-execute" });
+
+		act(() => {
+			result.current.reset();
+		});
+
+		expect(result.current.status).toBe("idle");
+		expect(result.current.isIdle).toBe(true);
+		expect(result.current.result.data).toEqual({ message: "seed" });
+	});
+
+	test("reset restores initResult with serverError (regression for non-data seeds)", async () => {
+		// The data-seed reset case is already covered above. This test pins the
+		// same contract for an initResult that only carries a `serverError`,
+		// catching a hypothetical regression where the restore path special-cases
+		// the `data` field instead of preserving the full seed object.
+		const action = createMockStateAction(async () => ({ data: { message: "after-execute" } }));
+		const initResult: TestResult = { serverError: "seeded error" };
+		const { result } = renderHook(() => useStateAction(action, { initResult }));
+
+		expect(result.current.result.serverError).toBe("seeded error");
+
+		act(() => {
+			result.current.execute(undefined);
+		});
+		await flushHookTimers();
+
+		expect(result.current.status).toBe("hasSucceeded");
+		expect(result.current.result.data).toEqual({ message: "after-execute" });
+
+		act(() => {
+			result.current.reset();
+		});
+
+		expect(result.current.status).toBe("idle");
+		expect(result.current.isIdle).toBe(true);
+		expect(result.current.result.serverError).toBe("seeded error");
+		expect(result.current.result.data).toBeUndefined();
+	});
+
+	test("reset restores initResult with validationErrors (regression for non-data seeds)", async () => {
+		const action = createMockStateAction(async () => ({ data: { message: "after-execute" } }));
+		const seededValidationErrors = { _errors: ["seeded validation failure"] } as any;
+		const initResult: TestResult = { validationErrors: seededValidationErrors };
+		const { result } = renderHook(() => useStateAction(action, { initResult }));
+
+		expect(result.current.result.validationErrors).toEqual(seededValidationErrors);
+
+		act(() => {
+			result.current.execute(undefined);
+		});
+		await flushHookTimers();
+
+		expect(result.current.status).toBe("hasSucceeded");
+		expect(result.current.result.data).toEqual({ message: "after-execute" });
+
+		act(() => {
+			result.current.reset();
+		});
+
+		expect(result.current.status).toBe("idle");
+		expect(result.current.isIdle).toBe(true);
+		expect(result.current.result.validationErrors).toEqual(seededValidationErrors);
+		expect(result.current.result.data).toBeUndefined();
 	});
 
 	test("reset overrides prevResult for next execution", async () => {

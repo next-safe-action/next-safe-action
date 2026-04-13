@@ -149,6 +149,36 @@ export type CreateClientOpts<
 
 /**
  * Type of the result of a safe action.
+ *
+ * Modeled as a discriminated union so that checking one field narrows the
+ * others to `undefined`. The runtime guarantees mutual exclusion (see
+ * `buildResultAndRunCallbacks` in `action-builder.ts`), and this type makes
+ * that guarantee visible to consumers:
+ *
+ * ```ts
+ * const { data, serverError, validationErrors } = await myAction(input);
+ *
+ * if (data) {
+ *   // TS knows serverError and validationErrors are undefined here
+ * }
+ * ```
+ *
+ * Branches:
+ * - idle / initial state (e.g. `useAction`'s `useState<Result>({})`)
+ * - success (only `data` is set)
+ * - server error (only `serverError` is set)
+ * - validation error (only `validationErrors` is set)
+ *
+ * Note: when `Data` is `void` (the action returns nothing), the success
+ * branch's `data` becomes `void`, which is indistinguishable from the idle
+ * branch's `data?: undefined` at read time. Hook return types apply
+ * `NormalizeActionResult` at the boundary to drop the void-success branch
+ * entirely, giving `result.data` an exact `undefined` type.
+ *
+ * `NormalizeActionResult` is NOT applied on `SafeActionFn`/`SafeStateActionFn`
+ * return types because doing so causes TypeScript to eagerly expand the
+ * discriminated union when `.bind()` is used, breaking generic inference for
+ * hooks (the `Schema` parameter falls back to `StandardSchemaV1<unknown, unknown>`).
  */
 export type SafeActionResult<
 	ServerError,
@@ -157,11 +187,33 @@ export type SafeActionResult<
 	Data = unknown,
 	// oxlint-disable-next-line
 	NextCtx = object,
-> = {
-	data?: Data;
-	serverError?: ServerError;
-	validationErrors?: ShapedErrors;
-};
+> =
+	| { data?: undefined; serverError?: undefined; validationErrors?: undefined }
+	| { data: Data; serverError?: undefined; validationErrors?: undefined }
+	| { data?: undefined; serverError: ServerError; validationErrors?: undefined }
+	| { data?: undefined; serverError?: undefined; validationErrors: ShapedErrors };
+
+/**
+ * Collapses the void-success branch of a `SafeActionResult` union.
+ *
+ * The runtime never emits `{ data: undefined }` for a void-returning action
+ * (see `buildResultAndRunCallbacks` in `action-builder.ts` — it only sets
+ * `data` when `middlewareResult.data !== undefined`). For user-facing types,
+ * we drop the `{ data: void }` branch so that `r.data` narrows to exactly
+ * `undefined` instead of `void | undefined`.
+ *
+ * This is a distributive conditional — each member of the input union is
+ * checked individually. Only the exact `{ data: void }` shape is excluded;
+ * other branches (idle, server error, validation error) pass through.
+ *
+ * When `Data` is not exactly `void`, the success branch doesn't match the
+ * filter and the whole union is returned unchanged.
+ */
+export type NormalizeActionResult<R> = R extends { data: infer D }
+	? [D] extends [void]
+		? Exclude<R, { data: D }>
+		: R
+	: R;
 
 /**
  * Type of the function called from components with type safe input data.
@@ -194,16 +246,30 @@ export type SafeStateActionFn<
 ) => Promise<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>;
 
 /**
- * Type of the result of a middleware function. It extends the result of a safe action with
- * information about the action execution.
+ * Type of the result of a middleware function. Carries the same data/error fields as
+ * `SafeActionResult` plus internal bookkeeping (navigation kind, parsed inputs, context,
+ * success flag).
+ *
+ * This is intentionally a flat object rather than `SafeActionResult & { ... }`, because
+ * `SafeActionResult` is now a discriminated union and intersecting it with additional
+ * fields would prevent mutation of `data`/`serverError`/`validationErrors` during
+ * middleware execution. The public shape (the set of readable fields) is unchanged.
+ *
+ * `NextCtx` is a phantom generic parameter kept for backward compatibility with the
+ * previous signature — it is intentionally unused in the body so that
+ * `MiddlewareResult<SE, A>` and `MiddlewareResult<SE, B>` remain mutually assignable
+ * (as they were when this type intersected `SafeActionResult<..., NextCtx>`, where
+ * `NextCtx` was likewise phantom).
  */
-export type MiddlewareResult<ServerError, NextCtx extends object> = SafeActionResult<
-	ServerError,
-	any,
-	any,
-	any,
-	NextCtx
-> & {
+// `data` and `validationErrors` are intentionally typed as `any` to match the
+// previous definition (`SafeActionResult<ServerError, any, any, any, NextCtx>
+// & { ... }`), preserving universal-donor assignability for middleware authors
+// who inspect the return value of `await next()`.
+// oxlint-disable-next-line no-unused-vars
+export type MiddlewareResult<ServerError, NextCtx extends object> = {
+	data?: any;
+	serverError?: ServerError;
+	validationErrors?: any;
 	navigationKind?: NavigationKind;
 	parsedInput?: unknown;
 	bindArgsParsedInputs?: unknown[];
@@ -383,23 +449,7 @@ export type InferSafeActionFnInput<T extends Function> = T extends
 /**
  * Infer the result type of a safe action.
  */
-export type InferSafeActionFnResult<T extends Function> = T extends
-	| SafeActionFn<
-			infer ServerError,
-			infer Schema extends StandardSchemaV1 | undefined,
-			any,
-			infer ShapedErrors,
-			infer Data
-	  >
-	| SafeStateActionFn<
-			infer ServerError,
-			infer Schema extends StandardSchemaV1 | undefined,
-			any,
-			infer ShapedErrors,
-			infer Data
-	  >
-	? SafeActionResult<ServerError, Schema, ShapedErrors, Data>
-	: never;
+export type InferSafeActionFnResult<T extends Function> = T extends (...args: any[]) => Promise<infer R> ? R : never;
 
 /**
  * Infer the next context type returned by a middleware function using the `next` function.

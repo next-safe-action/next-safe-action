@@ -62,7 +62,8 @@ jobs:
           node-version-file: ".node-version"
           cache: "pnpm"
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run test:lib
       - run: pnpm run build:lib
+      - run: pnpm run lint:lib
+      - run: pnpm run test:lib
       - name: Publish preview packages
-        run: pnpm dlx pkg-pr-new publish './packages/*' --packageManager=pnpm --commentWithSha
+        run: pnpm dlx pkg-pr-new publish './packages/*' --no-template --packageManager=pnpm --pnpm

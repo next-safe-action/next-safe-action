@@ -175,3 +175,48 @@ test("MiddlewareFn type parameters are correctly constrained", () => {
 
 	expectTypeOf(mw).not.toBeAny();
 });
+
+// ─── MiddlewareResult flat shape (post-refactor regression guard) ──────────
+//
+// `MiddlewareResult` used to be `SafeActionResult<SE, any, any, any, NextCtx> & { success; ... }`.
+// When `SafeActionResult` became a discriminated union, that intersection would
+// have forced middleware authors to narrow before reading any field of `await next()`.
+// The type was flattened to a plain object with independently-optional result
+// fields. These tests pin that shape so a future refactor doesn't silently
+// re-introduce the discriminated union there.
+
+test("MiddlewareResult exposes result fields as independently optional", () => {
+	type MR = MiddlewareResult<string, { userId: string }>;
+	const mr = {} as MR;
+
+	// All three result fields are independently readable — no narrowing needed.
+	expectTypeOf(mr.data).toEqualTypeOf<any>();
+	expectTypeOf(mr.serverError).toEqualTypeOf<string | undefined>();
+	expectTypeOf(mr.validationErrors).toEqualTypeOf<any>();
+	expectTypeOf(mr.success).toEqualTypeOf<boolean>();
+	expectTypeOf(mr.parsedInput).toEqualTypeOf<unknown>();
+	expectTypeOf(mr.bindArgsParsedInputs).toEqualTypeOf<unknown[] | undefined>();
+});
+
+test("MiddlewareResult admits all result fields populated simultaneously", () => {
+	type MR = MiddlewareResult<string, object>;
+	// If MiddlewareResult were still a discriminated union, this compound
+	// literal would be rejected. The flat shape must accept it so middleware
+	// authors can construct partial results (e.g., stubbing in tests).
+	const _flat: MR = {
+		data: { id: "x" },
+		serverError: "oops",
+		validationErrors: { name: { _errors: ["required"] } },
+		success: false,
+	};
+	void _flat;
+});
+
+test("MiddlewareResult<SE, A> and MiddlewareResult<SE, B> are mutually assignable (NextCtx is phantom)", () => {
+	type A = MiddlewareResult<string, { a: 1 }>;
+	type B = MiddlewareResult<string, { b: 2 }>;
+	const a = {} as A;
+	const b: B = a;
+	const _aFromB: A = b;
+	void _aFromB;
+});

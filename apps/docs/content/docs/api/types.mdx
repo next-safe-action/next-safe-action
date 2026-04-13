@@ -9,32 +9,36 @@ This page documents all the TypeScript types exported by next-safe-action. Types
 
 ### `SafeActionResult`
 
-The result object returned by every action execution. Each field is optional, and the presence of fields indicates the action's outcome.
+The result object returned by every action execution. Modeled as a **discriminated union** so that at most one of `data`, `serverError`, and `validationErrors` is populated — checking one field narrows the others to `undefined`.
 
 ```ts
-type SafeActionResult<ServerError, Schema, ShapedErrors, Data> = {
-	data?: Data;
-	serverError?: ServerError;
-	validationErrors?: ShapedErrors;
-};
+type SafeActionResult<ServerError, Schema, ShapedErrors, Data> =
+	| { data?: undefined; serverError?: undefined; validationErrors?: undefined } // idle / framework navigation
+	| { data: Data; serverError?: undefined; validationErrors?: undefined }        // success
+	| { data?: undefined; serverError: ServerError; validationErrors?: undefined } // server error
+	| { data?: undefined; serverError?: undefined; validationErrors: ShapedErrors }; // validation failure
 ```
 
 <TypeTable
 	type={{
 		data: {
-			description: "The successful return value from the action's server code. Present when the action completes without errors.",
+			description: "The successful return value from the action's server code. Present only in the success branch; undefined in every other branch.",
 			type: "Data | undefined",
 		},
 		serverError: {
-			description: "Error value from handleServerError when server code throws. Default type is string.",
+			description: "Error value from handleServerError when server code throws. Default type is string. Present only in the server-error branch; undefined in every other branch.",
 			type: "ServerError | undefined",
 		},
 		validationErrors: {
-			description: "Validation errors when input doesn't match the schema or when returnValidationErrors is called. Shape depends on defaultValidationErrorsShape.",
+			description: "Validation errors when input doesn't match the schema or when returnValidationErrors is called. Shape depends on defaultValidationErrorsShape. Present only in the validation-failure branch; undefined in every other branch.",
 			type: "ShapedErrors | undefined",
 		},
 	}}
 />
+
+<Callout>
+In compound-error scenarios where the runtime could otherwise produce multiple populated fields (middleware calling `next()` twice, or invalid bind args combined with invalid main input), a fixed precedence is applied: `validationErrors` > `serverError` > `data`. See [Action result](/docs/concepts/action-result#reading-the-result) for details.
+</Callout>
 
 ---
 
@@ -90,10 +94,13 @@ type MiddlewareFn<ServerError, Metadata, Ctx, NextCtx> = (opts: {
 
 ### `MiddlewareResult`
 
-The result type returned by the `next()` function inside middleware. Extends `SafeActionResult` with execution metadata.
+The result type returned by the `next()` function inside middleware. Carries the same readable fields as `SafeActionResult` plus execution metadata (navigation kind, parsed inputs, context, success flag).
 
 ```ts
-type MiddlewareResult<ServerError, NextCtx> = SafeActionResult<ServerError, any, any, any, NextCtx> & {
+type MiddlewareResult<ServerError, NextCtx> = {
+	data?: any;
+	serverError?: ServerError;
+	validationErrors?: any;
 	navigationKind?: NavigationKind;
 	parsedInput?: unknown;
 	bindArgsParsedInputs?: unknown[];
@@ -101,6 +108,10 @@ type MiddlewareResult<ServerError, NextCtx> = SafeActionResult<ServerError, any,
 	success: boolean;
 };
 ```
+
+<Callout>
+This is intentionally a flat object rather than an intersection with `SafeActionResult`. Because `SafeActionResult` is now a discriminated union, intersecting it would prevent middleware from mutating `data`/`serverError`/`validationErrors` while the chain executes. The set of readable fields is unchanged from previous versions.
+</Callout>
 
 <TypeTable
 	type={{
@@ -230,6 +241,65 @@ type ServerErrorFunctionUtils<MetadataSchema> = {
 	ctx: object;
 	metadata: InferOutput<MetadataSchema> | undefined;
 };
+```
+
+---
+
+## Hook result types
+
+These types describe the `result` shape within each branch of the hook return discriminated union. They are exported from `next-safe-action/hooks`.
+
+### `NormalizeActionResult`
+
+Collapses the void-success branch of a `SafeActionResult` union. When an action returns nothing (`void`), the `{ data: void }` branch is dropped so that `result.data` is exactly `undefined` rather than `void | undefined`. Applied automatically to hook `result` and `executeAsync` return types.
+
+```ts
+type NormalizeActionResult<R> = R extends { data: infer D }
+	? [D] extends [void]
+		? Exclude<R, { data: D }>
+		: R
+	: R;
+```
+
+When `Data` is not `void`, the type passes through unchanged.
+
+---
+
+### `HookIdleResult`
+
+The result shape when no action has completed yet (idle, executing, navigated). All fields are `undefined`.
+
+```ts
+type HookIdleResult = {
+	data?: undefined;
+	serverError?: undefined;
+	validationErrors?: undefined;
+};
+```
+
+---
+
+### `HookSuccessResult`
+
+The result shape for the success branch. For void-returning actions, collapses to `HookIdleResult`.
+
+```ts
+type HookSuccessResult<Data> = [Data] extends [void]
+	? HookIdleResult
+	: { data: Data; serverError?: undefined; validationErrors?: undefined };
+```
+
+---
+
+### `HookErrorResult`
+
+The result shape for the error branch. Includes the idle shape for thrown errors (where `result` is `{}` and the error is captured internally).
+
+```ts
+type HookErrorResult<ServerError, ShapedErrors> =
+	| HookIdleResult
+	| { data?: undefined; serverError: ServerError; validationErrors?: undefined }
+	| { data?: undefined; serverError?: undefined; validationErrors: ShapedErrors };
 ```
 
 ---

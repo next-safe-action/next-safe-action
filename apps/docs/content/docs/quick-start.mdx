@@ -130,11 +130,13 @@ export default function Login() {
 			password: "12345678",
 		});
 
-		if (result?.data) {
+		// The result is a discriminated union, so checking one
+		// field narrows the others to `undefined`.
+		if (result.data) {
 			console.log("Welcome,", result.data.name);
-		} else if (result?.validationErrors) {
+		} else if (result.validationErrors) {
 			console.log("Validation failed:", result.validationErrors);
-		} else if (result?.serverError) {
+		} else if (result.serverError) {
 			console.log("Server error:", result.serverError);
 		}
 	};

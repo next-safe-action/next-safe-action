@@ -149,7 +149,7 @@ export default function LoginForm() {
 				{isPending ? "Logging in..." : "Log in"}
 			</button>
 
-			{hasSucceeded && <p>Logged in as user {result.data?.userId}</p>}
+			{hasSucceeded && <p>Logged in as user {result.data.userId}</p>}
 			{hasErrored && result.serverError && <p>Error: {result.serverError}</p>}
 			{!isPending && (hasSucceeded || hasErrored) && (
 				<button type="button" onClick={reset}>Try again</button>

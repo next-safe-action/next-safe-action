@@ -180,7 +180,7 @@ import type {
 
 ### `InferUseActionHookReturn`
 
-Infer the return type of `useAction` for a given action function.
+Infer the return type of `useAction` for a given action function. The inferred type is a discriminated union keyed on `status` and shorthand booleans, so checking any discriminant narrows `result` to the matching branch.
 
 ```ts
 type InferUseActionHookReturn<T extends Function>
@@ -190,7 +190,7 @@ type InferUseActionHookReturn<T extends Function>
 
 ### `InferUseOptimisticActionHookReturn`
 
-Infer the return type of `useOptimisticAction` for a given action function and state type.
+Infer the return type of `useOptimisticAction` for a given action function and state type. Includes `optimisticState` plus the same discriminated union narrowing as `InferUseActionHookReturn`.
 
 ```ts
 type InferUseOptimisticActionHookReturn<T extends Function, State = any>
@@ -198,9 +198,9 @@ type InferUseOptimisticActionHookReturn<T extends Function, State = any>
 
 **Works with:** `SafeActionFn`
 
-### `InferUseStateActionHookReturn` (deprecated)
+### `InferUseStateActionHookReturn`
 
-Infer the return type of `useStateAction` for a given stateful action function.
+Infer the return type of `useStateAction` for a given stateful action function. Includes `formAction` plus the same discriminated union narrowing as `InferUseActionHookReturn`.
 
 ```ts
 type InferUseStateActionHookReturn<T extends Function>

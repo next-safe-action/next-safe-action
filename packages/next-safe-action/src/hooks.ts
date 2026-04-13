@@ -6,13 +6,14 @@ import { getActionShorthandStatusObject, getActionStatus, useActionCallbacks } f
 import type {
 	HookBaseOptions,
 	HookCallbacks,
+	HookIdleResult,
 	SingleInputActionFn,
 	SingleInputStateActionFn,
 	UseActionHookReturn,
 	UseOptimisticActionHookReturn,
 	UseStateActionHookReturn,
 } from "./hooks.types";
-import type { SafeActionResult } from "./index.types";
+import type { NormalizeActionResult, SafeActionResult } from "./index.types";
 import { FrameworkErrorHandler } from "./next/errors";
 import type { InferInputOrDefault, StandardSchemaV1 } from "./standard-schema";
 
@@ -34,6 +35,10 @@ export const useAction = <ServerError, Schema extends StandardSchemaV1 | undefin
 		opts
 	);
 
+	// Cast rationale: the return object's runtime values are guaranteed consistent
+	// by `getActionStatus` + `getActionShorthandStatusObject`, but TypeScript can't
+	// verify that the widened types (e.g. `status: HookActionStatus`) satisfy a
+	// specific branch of the discriminated union. The cast is safe and isolated here.
 	return {
 		execute,
 		executeAsync,
@@ -42,7 +47,7 @@ export const useAction = <ServerError, Schema extends StandardSchemaV1 | undefin
 		reset,
 		status,
 		...shorthandStatus,
-	};
+	} as UseActionHookReturn<ServerError, Schema, ShapedErrors, Data>;
 };
 
 /**
@@ -79,6 +84,10 @@ export const useOptimisticAction = <
 		setOptimisticValue
 	);
 
+	// Cast rationale: same as `useAction` — runtime consistency guaranteed by
+	// `getActionStatus` + `getActionShorthandStatusObject`. The double assertion
+	// is needed because TypeScript can't verify overlap between the widened object
+	// and the distributed intersection-over-union (`UseActionHookReturn & { optimisticState }`).
 	return {
 		execute,
 		executeAsync,
@@ -88,7 +97,7 @@ export const useOptimisticAction = <
 		reset,
 		status,
 		...shorthandStatus,
-	};
+	} as unknown as UseOptimisticActionHookReturn<ServerError, Schema, ShapedErrors, Data, State>;
 };
 
 /**
@@ -105,12 +114,18 @@ export const useOptimisticAction = <
  *
  * {@link https://next-safe-action.dev/docs/execute-actions/hooks/usestateaction See docs for more information}
  */
-export const useStateAction = <ServerError, Schema extends StandardSchemaV1 | undefined, ShapedErrors, Data>(
+export const useStateAction = <
+	ServerError,
+	Schema extends StandardSchemaV1 | undefined,
+	ShapedErrors,
+	Data,
+	InitR extends SafeActionResult<ServerError, Schema, ShapedErrors, Data> = HookIdleResult,
+>(
 	safeActionFn: SingleInputStateActionFn<ServerError, Schema, ShapedErrors, Data>,
 	opts?: {
-		initResult?: Awaited<ReturnType<typeof safeActionFn>>;
+		initResult?: InitR;
 	} & HookBaseOptions<ServerError, Schema, ShapedErrors, Data>
-): UseStateActionHookReturn<ServerError, Schema, ShapedErrors, Data> => {
+): UseStateActionHookReturn<ServerError, Schema, ShapedErrors, Data, InitR> => {
 	if (typeof React.useActionState !== "function") {
 		throw new Error(
 			"useStateAction requires React 19+ (Next.js 15+). " +
@@ -226,7 +241,12 @@ export const useStateAction = <ServerError, Schema extends StandardSchemaV1 | un
 
 	// ─── Status ───────────────────────────────────────────────────────────
 
-	const result = isReset ? ({} as SafeActionResult<ServerError, Schema, ShapedErrors, Data>) : (rawResult ?? {});
+	// On reset, the visible `result` is restored to `initResult` (or `{}` when not provided) so
+	// the idle branch's runtime value matches its declared type in both phases: at mount and
+	// after reset. This is also the intuitive contract for `reset` — return to the initial state.
+	const result = isReset
+		? ((initResult ?? {}) as SafeActionResult<ServerError, Schema, ShapedErrors, Data>)
+		: (rawResult ?? {});
 
 	const status = getActionStatus<ServerError, Schema, ShapedErrors, Data>({
 		isExecuting,
@@ -254,16 +274,22 @@ export const useStateAction = <ServerError, Schema extends StandardSchemaV1 | un
 
 	// ─── Return ───────────────────────────────────────────────────────────
 
+	// Cast rationale: same as `useAction` — runtime consistency guaranteed by
+	// `getActionStatus` + `getActionShorthandStatusObject`. The double assertion
+	// through `unknown` is needed because TypeScript can't verify overlap between
+	// the widened object and the distributed intersection-over-union.
 	return {
 		execute,
-		executeAsync,
+		executeAsync: executeAsync as unknown as (
+			input: InferInputOrDefault<Schema, void>
+		) => Promise<NormalizeActionResult<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>>,
 		formAction: dispatcher as (input: InferInputOrDefault<Schema, void>) => void,
 		input: clientInput as InferInputOrDefault<Schema, undefined>,
-		result,
+		result: result as unknown as NormalizeActionResult<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>,
 		reset,
 		status,
 		...getActionShorthandStatusObject({ status, isTransitioning }),
-	};
+	} as unknown as UseStateActionHookReturn<ServerError, Schema, ShapedErrors, Data, InitR>;
 };
 
 export type * from "./hooks.types";

@@ -9,7 +9,7 @@ import type {
 	SingleInputActionFn,
 	HookShorthandStatus,
 } from "./hooks.types";
-import type { SafeActionResult } from "./index.types";
+import type { NormalizeActionResult, SafeActionResult } from "./index.types";
 import { FrameworkErrorHandler } from "./next/errors";
 import type { InferInputOrDefault, StandardSchemaV1 } from "./standard-schema";
 
@@ -26,11 +26,17 @@ export function useActionBase<ServerError, Schema extends StandardSchemaV1 | und
 	onTransitionStart?: (input: InferInputOrDefault<Schema, undefined>) => void
 ): {
 	isTransitioning: boolean;
-	result: SafeActionResult<ServerError, Schema, ShapedErrors, Data>;
+	// Exposed as `NormalizeActionResult<...>` so that void-returning actions
+	// surface `data: undefined` rather than `data: void | undefined`. The
+	// internal `useState` still holds the raw `SafeActionResult` union — the
+	// type-only narrowing happens once at this boundary via a cast.
+	result: NormalizeActionResult<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>;
 	clientInput: InferInputOrDefault<Schema, void> | undefined;
 	status: HookActionStatus;
 	execute: (input: InferInputOrDefault<Schema, void>) => void;
-	executeAsync: (input: InferInputOrDefault<Schema, void>) => Promise<Awaited<ReturnType<typeof safeActionFn>>>;
+	executeAsync: (
+		input: InferInputOrDefault<Schema, void>
+	) => Promise<NormalizeActionResult<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>>;
 	reset: () => void;
 	shorthandStatus: HookShorthandStatus;
 } {
@@ -184,11 +190,20 @@ export function useActionBase<ServerError, Schema extends StandardSchemaV1 | und
 
 	return {
 		isTransitioning,
-		result,
+		// `result` and `executeAsync` are structurally compatible with
+		// `NormalizeActionResult<SafeActionResult<...>>` for every concrete `Data`
+		// the runtime ever produces — `NormalizeActionResult` only drops the
+		// `{ data: void }` branch, which the action builder never emits (see
+		// `buildResultAndRunCallbacks` in `action-builder.ts`). TypeScript can't
+		// verify this while `Data` is still a free generic, so the cast is
+		// isolated here and not repeated across every consumer hook.
+		result: result as unknown as NormalizeActionResult<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>,
 		clientInput,
 		status,
 		execute,
-		executeAsync,
+		executeAsync: executeAsync as unknown as (
+			input: InferInputOrDefault<Schema, void>
+		) => Promise<NormalizeActionResult<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>>,
 		reset,
 		shorthandStatus: getActionShorthandStatusObject({ status, isTransitioning }),
 	};

@@ -7,7 +7,6 @@ const statusConfig: Record<
 > = {
 	idle: { label: "Idle", variant: "secondary" },
 	executing: { label: "Executing", variant: "default" },
-	transitioning: { label: "Transitioning", variant: "outline" },
 	hasSucceeded: { label: "Succeeded", variant: "default" },
 	hasErrored: { label: "Errored", variant: "destructive" },
 	hasNavigated: { label: "Navigated", variant: "outline" },

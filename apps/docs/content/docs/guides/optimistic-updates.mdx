@@ -146,7 +146,7 @@ If the server action fails, `optimisticState` automatically reverts to `currentS
 |---|---|---|
 | `optimisticState` | `State` | The current optimistic state to render |
 
-All callbacks (`onSuccess`, `onError`, `onSettled`, etc.) work the same way as `useAction`.
+All callbacks (`onSuccess`, `onError`, `onSettled`, etc.) work the same way as `useAction`. The return object is also a discriminated union: checking `status` or shorthand booleans like `hasSucceeded` narrows `result` to the matching branch. See [Type narrowing](/docs/guides/hooks#type-narrowing) for details.
 
 ## What's next?
 

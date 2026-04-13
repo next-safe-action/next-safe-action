@@ -155,7 +155,7 @@ test("action with some valid and some invalid bind args returns server error wit
 	expect(actualResult).toStrictEqual(expectedResult);
 });
 
-test("action with invalid bind args and invalid main input returns both errors", async () => {
+test("action with invalid bind args and invalid main input reports main input errors (precedence)", async () => {
 	const schema = z.object({
 		username: z.string().min(3),
 	});
@@ -174,15 +174,44 @@ test("action with invalid bind args and invalid main input returns both errors",
 	// Invalid bind arg (-1 is not positive) and invalid main input ("ab" is less than 3 chars).
 	const actualResult = await action(-1, { username: "ab" });
 
-	// Both serverError (from bind args) and validationErrors (from main input) should be present.
-	expect(actualResult).toHaveProperty("serverError");
+	// The result precedence rule (validationErrors > serverError > data) means
+	// main input validation errors take precedence over bind args errors (which
+	// are wrapped as serverError). After the user fixes the main input and
+	// resubmits, they will see the bind args errors.
+	expect(actualResult).not.toHaveProperty("serverError");
 	expect(actualResult).toHaveProperty("validationErrors");
-	expect((actualResult as any).serverError).toStrictEqual({
-		bindArgsValidationErrors: [
-			{
-				_errors: ["Too small: expected number to be >0"],
-			},
-		],
+	expect((actualResult as any).validationErrors).toHaveProperty("username");
+});
+
+test("throwServerError does not override validationErrors precedence in compound state", async () => {
+	// Regression test: when bind args validation fails (wrapped as serverError)
+	// AND main input validation fails (validationErrors) AND the action opts
+	// into `throwServerError: true`, the action must NOT throw the wrapped bind
+	// args server error. The advertised precedence (validationErrors > serverError)
+	// has to be honored in the throwing path too, otherwise users lose the
+	// actionable field errors they were trying to surface.
+	const schema = z.object({
+		username: z.string().min(3),
 	});
+
+	const bindArgsSchemas: [age: z.ZodNumber] = [z.number().positive()];
+
+	const action = uac
+		.inputSchema(schema)
+		.bindArgsSchemas(bindArgsSchemas)
+		.action(
+			async () => {
+				return { ok: true };
+			},
+			{ throwServerError: true }
+		);
+
+	// Invalid bind arg AND invalid main input, with throwServerError enabled.
+	const actualResult = await action(-1, { username: "ab" });
+
+	// The action should NOT throw — it should return a result with validationErrors.
+	expect(actualResult).not.toHaveProperty("serverError");
+	expect(actualResult).not.toHaveProperty("data");
+	expect(actualResult).toHaveProperty("validationErrors");
 	expect((actualResult as any).validationErrors).toHaveProperty("username");
 });
