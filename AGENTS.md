@@ -26,7 +26,7 @@ next-safe-action is a TypeScript library for type-safe, validated Next.js Server
 | UI library | React | ^19 |
 | Monorepo orchestration | Turborepo | ^2.8.21 |
 | Bundler | tsdown (Rolldown + Oxc) | ^0.21.0 |
-| Test framework | Vitest | ^3.1.1 |
+| Test framework | Vitest | ^4.1.4 |
 | Formatter | Oxfmt | ^0.42.0 |
 | Linter | Oxlint (type-aware) | ^1.57.0 |
 | Validation | Zod ^4.3.6, Yup ^1.6.1 (Standard Schema v1) | - |
