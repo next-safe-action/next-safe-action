@@ -164,6 +164,57 @@ const { execute } = useAction(myAction, {
 
 See [Framework Errors](/docs/advanced/framework-errors) for advanced configuration.
 
+## Error precedence
+
+The action result is a discriminated union: at most one of `data`, `serverError`, and `validationErrors` is populated at a time. In most executions only one field is ever set, but a few compound scenarios can reach the final result-building step with multiple candidates:
+
+- Invalid bind args (wrapped as a server error) combined with invalid main input (validation errors).
+- Middleware that calls `await next()`, receives a result that already contains `validationErrors`, then throws afterwards (for example, a post-validation audit/cleanup step that fails).
+
+In these cases next-safe-action applies a fixed precedence when assembling the returned result:
+
+```
+validationErrors  >  serverError  >  data
+```
+
+The winning field fully describes the outcome; the lower-priority field is dropped from the returned object. For the example above where middleware throws after receiving validation errors, the client receives only the validation errors, and the thrown server-side error is not present in the result.
+
+### What still runs for dropped server errors
+
+The precedence rule only affects what appears in the **returned result**, not whether `handleServerError` executes:
+
+1. When middleware or server code throws, `handleServerError` is invoked immediately with the thrown error, regardless of any pre-existing `validationErrors`.
+2. Only after `handleServerError` has run does the result-building step apply precedence and decide which field to keep.
+
+This means logging, telemetry, Sentry integrations, and any other side effects you configure inside `handleServerError` always fire for thrown errors, even when the eventual result carries `validationErrors` instead of `serverError`. Treat `handleServerError` as the authoritative place for server-side observability; the returned result is the client-facing summary, not a full event log.
+
+### Interaction with `throwServerError`
+
+The `throwServerError` action-level flag is only consulted when no `validationErrors` are present. If the compound case produces both, the validation errors take precedence and `throwServerError` does not fire:
+
+```ts
+export const myAction = actionClient
+	.inputSchema(schema)
+	.use(async ({ next }) => {
+		const result = await next();
+		if (result.validationErrors) {
+			// This throw is caught, passed to `handleServerError`,
+			// and its return value is assigned to `middlewareResult.serverError`
+			// but the returned result still surfaces `validationErrors`.
+			throw new Error("audit cleanup failed");
+		}
+		return result;
+	})
+	.action(
+		async () => {
+			// ...
+		},
+		{ throwServerError: true } // NOT re-thrown in the compound case above
+	);
+```
+
+If you need to guarantee that an operational failure propagates even in compound cases, raise it from `handleServerError` yourself (for example by logging and then rethrowing in paths you want to hard-fail), or gate the post-`next()` side effects on `result.validationErrors === undefined` so they don't run when validation has already failed.
+
 ## Error handling summary
 
 | Error type | How it's produced | Where it appears | Safe for users? |

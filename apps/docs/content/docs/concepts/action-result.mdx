@@ -185,7 +185,7 @@ const { execute } = useAction(myAction, {
 See the [Type narrowing](/docs/guides/hooks#type-narrowing) section for more patterns.
 
 <Callout>
-**Precedence for edge cases.** In rare situations where the runtime could otherwise produce multiple populated fields (e.g. middleware calling `next()` twice after the action had already succeeded, or invalid bind args combined with invalid main input), next-safe-action applies a fixed precedence: `validationErrors` > `serverError` > `data`. The higher-priority state fully describes the outcome; lower-priority state is discarded. This keeps the discriminated union honest at runtime.
+**Precedence for edge cases.** In rare situations where the runtime could otherwise produce multiple populated fields (e.g. invalid bind args combined with invalid main input, or middleware that throws after `await next()` has already received a validation-error result), next-safe-action applies a fixed precedence: `validationErrors` > `serverError` > `data`. The higher-priority state fully describes the outcome; lower-priority state is discarded. This keeps the discriminated union honest at runtime. See [Error precedence](/docs/concepts/error-handling#error-precedence) for the exact behavior, including how `handleServerError` and `throwServerError` interact with this rule.
 </Callout>
 
 <Accordions>
