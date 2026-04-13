@@ -1,6 +1,6 @@
 {
 	"name": "@next-safe-action/adapter-tanstack-query",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"private": false,
 	"description": "TanStack Query mutation adapter for next-safe-action.",
 	"main": "./dist/index.mjs",
