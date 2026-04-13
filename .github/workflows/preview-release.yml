@@ -66,4 +66,4 @@ jobs:
       - run: pnpm run lint:lib
       - run: pnpm run test:lib
       - name: Publish preview packages
-        run: pnpm dlx pkg-pr-new publish './packages/*' --packageManager=pnpm --commentWithSha
+        run: pnpm dlx pkg-pr-new publish './packages/*' --no-template --packageManager=pnpm --pnpm
