@@ -295,7 +295,7 @@ export function actionBuilder<
 				})
 			);
 
-			await Promise.all(callbackPromises);
+			await Promise.all(callbackPromises.filter((p) => typeof p !== "undefined"));
 			throw frameworkErrorHandler.error;
 		}
 
@@ -387,7 +387,7 @@ export function actionBuilder<
 			})
 		);
 
-		await Promise.all(callbackPromises);
+		await Promise.all(callbackPromises.filter((p) => typeof p !== "undefined"));
 
 		return actionResult;
 	}
