@@ -23,7 +23,7 @@ catalog:
   tailwindcss: ^4
   tsdown: ^0.21.0
   typescript: ^6.0.2
-  vitest: ^3.1.1
+  vitest: ^4.1.4
   yup: ^1.6.1
   zod: ^4.3.6
 
