@@ -20,12 +20,14 @@ This downloads the skills into your project where AI agents can discover and use
 | Skill | Description |
 |---|---|
 | `safe-action-client` | Client creation, action definition, Standard Schema validation (Zod, Yup, Valibot), server error handling |
-| `safe-action-middleware` | Authentication, authorization, logging, rate limiting, context extension, `createMiddleware()` |
+| `safe-action-middleware` | Authentication, authorization, logging, rate limiting, context extension, `createMiddleware()`, `useValidated()` post-validation middleware |
 | `safe-action-hooks` | `useAction`, `useOptimisticAction`, status lifecycle, callbacks, `execute` vs `executeAsync` |
 | `safe-action-forms` | React Hook Form adapter, native form submission, file uploads, bind arguments with forms |
 | `safe-action-validation-errors` | `returnValidationErrors`, formatted vs flattened shapes, custom error shapes, `throwValidationErrors` |
 | `safe-action-advanced` | Bind arguments, metadata schemas, framework errors (redirect/notFound/forbidden/unauthorized), type utilities |
 | `safe-action-testing` | Vitest patterns for testing actions, middleware, hooks, validation errors, and framework errors |
+| `safe-action-better-auth` | Better Auth adapter: `betterAuth()` middleware, typed session context, custom `authorize` callbacks, `unauthorized()` handling |
+| `safe-action-tanstack-query` | TanStack Query adapter: `mutationOptions()`, `useMutation`, `ActionMutationError` handling, optimistic updates, query invalidation |
 
 ## How Skills Work
 
