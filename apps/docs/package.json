@@ -9,9 +9,9 @@
 		"lint": "tsc --noEmit && oxlint --type-aware ."
 	},
 	"dependencies": {
-		"fumadocs-core": "^16.6.8",
-		"fumadocs-mdx": "^14.2.9",
-		"fumadocs-ui": "^16.6.8",
+		"fumadocs-core": "^16.7.16",
+		"fumadocs-mdx": "^14.3.0",
+		"fumadocs-ui": "^16.7.16",
 		"motion": "^12",
 		"next": "catalog:",
 		"react": "catalog:",
@@ -22,10 +22,10 @@
 		"@types/node": "catalog:",
 		"@types/react": "catalog:",
 		"@types/react-dom": "catalog:",
-		"fumadocs-twoslash": "^3.1.14",
+		"fumadocs-twoslash": "^3.2.0",
 		"oxlint": "catalog:",
 		"tailwindcss": "catalog:",
-		"twoslash": "^0.3.6",
+		"twoslash": "^0.3.8",
 		"typescript": "catalog:"
 	}
 }
