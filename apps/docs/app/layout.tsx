@@ -1,5 +1,6 @@
 import { RootProvider } from "fumadocs-ui/provider/next";
 import type { Metadata } from "next";
+import PlausibleProvider from "next-plausible";
 import { Inter } from "next/font/google";
 import type { ReactNode } from "react";
 import "./global.css";
@@ -31,11 +32,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
 	return (
 		<html lang="en" className={inter.variable} suppressHydrationWarning>
-			<head>
-				<script defer data-domain="next-safe-action.dev" src="https://plausible.theedoran.xyz/js/script.js" />
-			</head>
 			<body className="flex min-h-screen flex-col">
-				<RootProvider>{children}</RootProvider>
+				<PlausibleProvider>
+					<RootProvider>{children}</RootProvider>
+				</PlausibleProvider>
 			</body>
 		</html>
 	);

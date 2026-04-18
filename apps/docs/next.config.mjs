@@ -1,4 +1,5 @@
 import { createMDX } from "fumadocs-mdx/next";
+import { withPlausibleProxy } from "next-plausible";
 
 const withMDX = createMDX();
 
@@ -113,4 +114,7 @@ const config = {
 	},
 };
 
-export default withMDX(config);
+export default withPlausibleProxy({
+	src: process.env.PLAUSIBLE_SCRIPT_URL,
+	scriptPath: process.env.PLAUSIBLE_SCRIPT_PATH,
+})(withMDX(config));
