@@ -4,8 +4,12 @@
 	"tasks": {
 		"build": {
 			"dependsOn": ["^build"],
-			"outputs": [".next/**", "!.next/cache/**", "dist/**", "build/**"],
-			"env": ["SPONSORS_GITHUB_TOKEN"]
+			"outputs": [".next/**", "!.next/cache/**", "dist/**", "build/**"]
+		},
+		"@apps/docs#build": {
+			"dependsOn": ["^build"],
+			"outputs": [".next/**", "!.next/cache/**"],
+			"env": ["SPONSORS_GITHUB_TOKEN", "PLAUSIBLE_SCRIPT_URL", "PLAUSIBLE_SCRIPT_PATH"]
 		},
 		"test": {
 			"dependsOn": ["^build"]
