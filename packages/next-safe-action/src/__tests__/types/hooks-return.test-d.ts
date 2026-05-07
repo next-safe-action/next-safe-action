@@ -140,9 +140,7 @@ test("onSettled hook callback receives optional navigationKind", () => {
 	// `navigationKind` is optional because non-navigation outcomes omit it.
 	// The "other" member is emitted by `FrameworkErrorHandler.getNavigationKind`
 	// as a fallback for unrecognized digests, so it must stay in the union.
-	expectTypeOf<NavArg>().toEqualTypeOf<
-		"redirect" | "notFound" | "forbidden" | "unauthorized" | "other" | undefined
-	>();
+	expectTypeOf<NavArg>().toEqualTypeOf<"redirect" | "notFound" | "forbidden" | "unauthorized" | "other" | undefined>();
 });
 
 test("onError hook callback's error parameter exposes thrownError: Error | undefined", () => {

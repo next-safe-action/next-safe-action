@@ -13,21 +13,20 @@ catalog:
   "@types/react-dom": ^19
   deepmerge-ts: ^7.1.5
   jsdom: ^26
-  next: ^16.2.3
-  oxfmt: ^0.45.0
-  oxlint: ^1.60.0
+  next: ^16.2.6
+  oxfmt: ^0.48.0
+  oxlint: ^1.63.0
   oxlint-tsgolint: ^0.20.0
   react: ^19
   react-dom: ^19
   react-hook-form: ^7.54.2
   tailwindcss: ^4
   tsdown: ^0.21.0
-  typescript: ^6.0.2
+  typescript: ^6.0.3
   vitest: ^4.1.4
   yup: ^1.6.1
   zod: ^4.3.6
-
-onlyBuiltDependencies:
-  - esbuild
-  - msw
-  - sharp
+allowBuilds:
+  esbuild: true
+  msw: true
+  sharp: true
