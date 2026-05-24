@@ -193,7 +193,7 @@ test("deep merge arrays across use() and useValidated()", async () => {
 
 	const actualResult = await action({ role: "admin" });
 
-	// Arrays are concatenated by deepmerge-ts.
+	// Arrays are concatenated by the deep-merge.
 	expect(actualResult).toStrictEqual({
 		data: {
 			scopes: ["read:self", "write:all", "delete:all"],

@@ -30,9 +30,6 @@ catalogs:
     '@types/react-dom':
       specifier: ^19
       version: 19.2.3
-    deepmerge-ts:
-      specifier: ^7.1.5
-      version: 7.1.5
     jsdom:
       specifier: ^26
       version: 26.1.0
@@ -379,10 +376,6 @@ importers:
         version: 4.4.3
 
   packages/next-safe-action:
-    dependencies:
-      deepmerge-ts:
-        specifier: 'catalog:'
-        version: 7.1.5
     devDependencies:
       '@testing-library/dom':
         specifier: 'catalog:'
@@ -3139,10 +3132,6 @@ packages:
   deep-extend@0.6.0:
     resolution: {integrity: sha512-LOHxIOaPYdHlJRtCQfDIVZtfw/ufM8+rVj649RIHzcm/vGwQRXFt6OPqIFWsm2XEMrNIEtWR64sY1LEKD2vAOA==}
     engines: {node: '>=4.0.0'}
-
-  deepmerge-ts@7.1.5:
-    resolution: {integrity: sha512-HOJkrhaYsweh+W+e74Yn7YStZOilkoPb6fycpwNLKzSPtruFs48nYis0zy5yJz1+ktUhHxoRDJ27RQAWLIJVJw==}
-    engines: {node: '>=16.0.0'}
 
   deepmerge@4.3.1:
     resolution: {integrity: sha512-3sUqbMEc77XqpdNO7FRyRog+eW3ph+GYCbj+rK+uYyRMuwsVy0rMiVtPn+QJlKFvWP/1PYpapqYn0Me2knFn+A==}
@@ -8006,8 +7995,6 @@ snapshots:
   dedent@1.7.2: {}
 
   deep-extend@0.6.0: {}
-
-  deepmerge-ts@7.1.5: {}
 
   deepmerge@4.3.1: {}
 
