@@ -1,5 +1,11 @@
 # next-safe-action
 
+## 8.5.3
+
+### Patch Changes
+
+- [#450](https://github.com/next-safe-action/next-safe-action/pull/450) [`edf9dd6`](https://github.com/next-safe-action/next-safe-action/commit/edf9dd628027324166cfc9815689086f738cdb39) Thanks [@TheEdoRan](https://github.com/TheEdoRan)! - Remove the `deepmerge-ts` runtime dependency by inlining the small subset of deep-merge logic the library actually uses into an internal `deep-merge.ts`. Behavior is unchanged (records merged recursively, arrays concatenated, Sets/Maps combined, otherwise last value wins, with a `__proto__` pollution guard), and the package now ships with zero runtime dependencies.
+
 ## 8.5.2
 
 ### Patch Changes
