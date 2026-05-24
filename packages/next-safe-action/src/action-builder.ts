@@ -1,5 +1,5 @@
-import { deepmerge } from "deepmerge-ts";
 import type {} from "zod";
+import { deepmerge } from "./deep-merge";
 import type {
 	ValidationErrorsFormat,
 	MiddlewareResult,

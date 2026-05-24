@@ -69,9 +69,6 @@
 	"engines": {
 		"node": ">=18.17"
 	},
-	"dependencies": {
-		"deepmerge-ts": "catalog:"
-	},
 	"devDependencies": {
 		"@testing-library/dom": "catalog:",
 		"@testing-library/react": "catalog:",

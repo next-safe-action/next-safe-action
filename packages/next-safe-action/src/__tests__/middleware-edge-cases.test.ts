@@ -174,7 +174,7 @@ test("deep merge concatenates arrays in context", async () => {
 
 	const actualResult = await action();
 
-	// deepmerge-ts concatenates arrays by default.
+	// The deep-merge concatenates arrays by default.
 	expect(actualResult).toStrictEqual({
 		data: {
 			tags: ["auth", "logging"],

@@ -77,6 +77,7 @@ The library has three entry points: `next-safe-action` (server), `next-safe-acti
 **Server-side core:**
 - `safe-action-client.ts`: `SafeActionClient` class with chainable methods: `use()` (middleware), `metadata()`, `inputSchema()`, `outputSchema()`, `bindArgsSchema()`, `action()`, `stateAction()`
 - `action-builder.ts`: core execution engine: runs the middleware stack, validates input/output via Standard Schema, handles errors
+- `deep-merge.ts`: dependency-free `deepmerge()` used to merge middleware context objects (inlined from `deepmerge-ts` to keep the package free of runtime dependencies)
 - `middleware.ts`: `createMiddleware()` for standalone middleware definitions
 - `validation-errors.ts`: error formatting and flattening utilities
 - `utils.ts`: utility constants (`DEFAULT_SERVER_ERROR_MESSAGE`) and helpers
