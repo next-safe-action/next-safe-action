@@ -96,6 +96,10 @@
 		"type": "git",
 		"url": "https://github.com/next-safe-action/next-safe-action.git"
 	},
+	"bugs": {
+		"url": "https://github.com/next-safe-action/next-safe-action/issues"
+	},
+	"homepage": "https://next-safe-action.dev",
 	"publishConfig": {
 		"access": "public"
 	}
