@@ -1,5 +1,11 @@
 # next-safe-action
 
+## 8.5.4
+
+### Patch Changes
+
+- [#455](https://github.com/next-safe-action/next-safe-action/pull/455) [`8ffa7f5`](https://github.com/next-safe-action/next-safe-action/commit/8ffa7f5338bd74270758c9857f3fb2e4a1c75cdf) Thanks [@LouisCuvelier](https://github.com/LouisCuvelier)! - Fix hook callbacks re-firing when a page is restored from the Next.js router bfcache (React `<Activity>`, enabled by `cacheComponents`): `onExecute`/`onSuccess`/`onError`/`onSettled`/`onNavigation` now fire once per action execution instead of replaying on every restore.
+
 ## 8.5.3
 
 ### Patch Changes
