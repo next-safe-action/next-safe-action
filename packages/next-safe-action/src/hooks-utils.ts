@@ -87,8 +87,40 @@ export const useActionCallbacks = <ServerError, Schema extends StandardSchemaV1 
 	const onSettled = useCallbackRef(cb?.onSettled);
 	const onNavigation = useCallbackRef(cb?.onNavigation);
 
+	// Snapshot of the execution state the callbacks last fired for. Every
+	// execution replaces these values with fresh identities (`setResult`,
+	// `setClientInput`, ...), so an effect re-run where all of them are
+	// identical to the snapshot is a replay of already-handled state — e.g.
+	// React `<Activity>` restoring a page from the Next.js router bfcache
+	// (state preserved, effects re-fired) — never a new status transition.
+	// Kept in a ref because refs survive the `<Activity>` hide/show cycle.
+	const lastHandledRef = React.useRef<{
+		status: HookActionStatus;
+		result: SafeActionResult<ServerError, Schema, ShapedErrors, Data>;
+		input: InferInputOrDefault<Schema, undefined>;
+		navigationError: Error | null;
+		thrownError: Error | null;
+	} | null>(null);
+
 	// Execute hook callbacks as non-visual side effects.
 	React.useEffect(() => {
+		const last = lastHandledRef.current;
+
+		// Fire callbacks once per execution: skip replays of an
+		// already-handled execution state (see `lastHandledRef` above).
+		if (
+			last &&
+			last.status === status &&
+			last.result === result &&
+			last.input === input &&
+			last.navigationError === navigationError &&
+			last.thrownError === thrownError
+		) {
+			return;
+		}
+
+		lastHandledRef.current = { status, result, input, navigationError, thrownError };
+
 		const executeCallbacks = async () => {
 			switch (status) {
 				case "executing":
