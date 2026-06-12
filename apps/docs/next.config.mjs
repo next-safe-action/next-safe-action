@@ -8,6 +8,14 @@ const config = {
 	experimental: {
 		turbopackFileSystemCacheForDev: true,
 	},
+	async rewrites() {
+		return [
+			{
+				source: "/docs/:path*.md",
+				destination: "/llms.mdx/docs/:path*",
+			},
+		];
+	},
 	async redirects() {
 		return [
 			{
