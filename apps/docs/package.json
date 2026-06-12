@@ -12,6 +12,7 @@
 		"fumadocs-core": "^16.7.16",
 		"fumadocs-mdx": "^14.3.0",
 		"fumadocs-ui": "^16.7.16",
+		"lucide-react": "^1.14.0",
 		"motion": "^12",
 		"next": "catalog:",
 		"next-plausible": "^4.0.0",
@@ -25,6 +26,7 @@
 		"@types/react-dom": "catalog:",
 		"fumadocs-twoslash": "^3.2.0",
 		"oxlint": "catalog:",
+		"oxlint-tsgolint": "catalog:",
 		"tailwindcss": "catalog:",
 		"twoslash": "^0.3.8",
 		"typescript": "catalog:"
