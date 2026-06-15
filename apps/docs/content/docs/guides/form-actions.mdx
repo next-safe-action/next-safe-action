@@ -279,7 +279,6 @@ import type { SafeActionResult } from "next-safe-action";
 
 declare module "react" {
 	interface DO_NOT_USE_OR_YOU_WILL_BE_FIRED_EXPERIMENTAL_FORM_ACTIONS {
-		// oxlint-disable-next-line no-explicit-any
 		nextSafeActionFn: (...args: any[]) => Promise<SafeActionResult<any, any, any, any>>;
 	}
 }
@@ -292,7 +291,7 @@ With this declaration in scope, the action passes type checking when used direct
 ```
 
 <Callout type="warn">
-**This opts you into an unstable React interface.** As the name shouts, `DO_NOT_USE_OR_YOU_WILL_BE_FIRED_EXPERIMENTAL_FORM_ACTIONS` is an internal, experimental React type with no stability guarantee — its shape (or name) can change between React versions, which would break this augmentation. next-safe-action does **not** apply this augmentation for you, precisely so you opt in knowingly and keep that risk in your own codebase. If you'd rather not depend on an experimental interface, use `useStateAction` or React's `useActionState` (see the tabs above), which keep the action behind a stable hook API.
+**This opts you into an unstable React interface.** As the name shouts, `DO_NOT_USE_OR_YOU_WILL_BE_FIRED_EXPERIMENTAL_FORM_ACTIONS` is an internal, experimental React type with no stability guarantee. Its shape (or name) can change between React versions, which would break this augmentation. next-safe-action does **not** apply this augmentation for you, precisely so you opt in knowingly and keep that risk in your own codebase. If you'd rather not depend on an experimental interface, use `useStateAction` or React's `useActionState` (see the tabs above), which keep the action behind a stable hook API.
 </Callout>
 
 ## What's next?
