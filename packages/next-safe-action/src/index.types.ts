@@ -9,6 +9,18 @@ import type {
 import type { MaybePromise, Prettify } from "./utils.types";
 import type { HandleValidationErrorsShapeFn, ValidationErrors } from "./validation-errors.types";
 
+// Augment React's form action extension point so that `SafeActionFn` and
+// `SafeStateActionFn` (which return `Promise<SafeActionResult>` instead of
+// `Promise<void>`) are accepted by the `<form action={...}>` prop without
+// requiring a manual wrapper.  The `DO_NOT_USE_OR_YOU_WILL_BE_FIRED_EXPERIMENTAL_FORM_ACTIONS`
+// interface is the React-blessed escape hatch for server-action libraries.
+// See: https://github.com/DefinitelyTyped/DefinitelyTyped/blob/main/types/react/index.d.ts
+declare module "react" {
+	interface DO_NOT_USE_OR_YOU_WILL_BE_FIRED_EXPERIMENTAL_FORM_ACTIONS {
+		nextSafeActionFn: (...args: any[]) => Promise<SafeActionResult<any, any, any, any>>;
+	}
+}
+
 /**
  * Type of the default validation errors shape passed to `createSafeActionClient` via `defaultValidationErrorsShape`
  * property.
