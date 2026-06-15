@@ -1,6 +1,11 @@
 import { expect, test } from "vitest";
 import { z } from "zod";
-import { createSafeActionClient, flattenValidationErrors, returnValidationErrors } from "..";
+import {
+	createSafeActionClient,
+	DEFAULT_SERVER_ERROR_MESSAGE,
+	flattenValidationErrors,
+	returnValidationErrors,
+} from "..";
 
 // Simulates a domain-layer error class (e.g. a unique constraint violation).
 class FieldError extends Error {
@@ -9,6 +14,22 @@ class FieldError extends Error {
 		public readonly description: string
 	) {
 		super(description);
+	}
+}
+
+// Simulates what Next.js does to an error thrown inside a `'use cache'` scope
+// (with `cacheComponents` enabled): the error crosses the RSC/Flight boundary,
+// which preserves only `message` and `digest` while dropping the class prototype
+// and every other own property (so `instanceof` and custom fields are lost). We
+// reproduce that faithfully by re-throwing a plain `Error` carrying just those
+// two fields, exactly as the cache caller would receive. See issue #452.
+function throwAsThroughUseCacheBoundary(fn: () => never): never {
+	try {
+		fn();
+	} catch (e) {
+		const stripped = new Error((e as Error).message);
+		(stripped as { digest?: string }).digest = (e as { digest?: string }).digest;
+		throw stripped;
 	}
 }
 
@@ -186,6 +207,122 @@ test("action returns data when returnValidationErrors condition is not met", asy
 
 	const result = await action({ username: "gooduser" });
 	expect(result).toStrictEqual({ data: { allowed: true } });
+});
+
+// --- `use cache` boundary tests (regression for issue #452) ---
+
+// When `returnValidationErrors` is thrown inside a `'use cache'` scope, the
+// `ActionServerValidationError` instance is serialized across the RSC boundary
+// and the action engine receives a plain `Error` (no instance, no
+// `validationErrors` property). It must still be recognized as a validation
+// error via the `digest` channel and returned as `validationErrors`, not as a
+// generic `DEFAULT_SERVER_ERROR_MESSAGE` server error.
+test("returnValidationErrors thrown across a 'use cache' boundary returns validationErrors, not a server error", async () => {
+	const dac = createSafeActionClient();
+	const action = dac.inputSchema(schema).action(async () => {
+		throwAsThroughUseCacheBoundary(() => returnValidationErrors(schema, { username: { _errors: ["already_taken"] } }));
+		return { ok: true };
+	});
+
+	const result = await action({ username: "test" });
+	expect(result).toStrictEqual({
+		validationErrors: { username: { _errors: ["already_taken"] } },
+	});
+});
+
+test("returnValidationErrors degraded across a 'use cache' boundary is recognized when thrown from a middleware", async () => {
+	const dac = createSafeActionClient();
+	const action = dac
+		.use(async () => {
+			throwAsThroughUseCacheBoundary(() =>
+				returnValidationErrors(schema, { username: { _errors: ["from_middleware"] } })
+			);
+		})
+		.inputSchema(schema)
+		.action(async () => ({ ok: true }));
+
+	const result = await action({ username: "test" });
+	expect(result).toStrictEqual({
+		validationErrors: { username: { _errors: ["from_middleware"] } },
+	});
+});
+
+test("returnValidationErrors degraded across a 'use cache' boundary is recognized even when handleServerError rethrows", async () => {
+	// `ac` is configured with handleServerError that rethrows. The digest detection must run
+	// before the server-error guard, exactly like the in-memory instance path.
+	const action = ac.inputSchema(schema).action(async () => {
+		throwAsThroughUseCacheBoundary(() => returnValidationErrors(schema, { username: { _errors: ["already_taken"] } }));
+		return { ok: true };
+	});
+
+	const result = await action({ username: "test" });
+	expect(result).toStrictEqual({
+		validationErrors: { username: { _errors: ["already_taken"] } },
+	});
+});
+
+test("returnValidationErrors degraded across a 'use cache' boundary honors a custom validation errors shape (flattened)", async () => {
+	const action = createSafeActionClient()
+		.inputSchema(schema, {
+			handleValidationErrorsShape: async (ve) => flattenValidationErrors(ve),
+		})
+		.action(async () => {
+			throwAsThroughUseCacheBoundary(() =>
+				returnValidationErrors(schema, {
+					_errors: ["root_error"],
+					username: { _errors: ["field_error"] },
+				})
+			);
+			return { ok: true };
+		});
+
+	const result = await action({ username: "test" });
+	expect(result).toStrictEqual({
+		validationErrors: {
+			formErrors: ["root_error"],
+			fieldErrors: { username: ["field_error"] },
+		},
+	});
+});
+
+test("validation messages with delimiters and special characters survive the digest round-trip", async () => {
+	const dac = createSafeActionClient();
+	const tricky = 'has; a "quote", a\nnewline and unicode 日本語 \\ /';
+	const action = dac.inputSchema(schema).action(async () => {
+		throwAsThroughUseCacheBoundary(() => returnValidationErrors(schema, { username: { _errors: [tricky] } }));
+		return { ok: true };
+	});
+
+	const result = await action({ username: "test" });
+	expect(result).toStrictEqual({
+		validationErrors: { username: { _errors: [tricky] } },
+	});
+});
+
+test("a genuine server error carrying a Next.js-generated digest is NOT swallowed as validation errors", async () => {
+	const dac = createSafeActionClient();
+	const action = dac.inputSchema(schema).action(async () => {
+		// Simulates a real crash inside `'use cache'`: Next.js attaches a hash digest unrelated
+		// to our marker. It must surface as a server error, not be misread as validation errors.
+		const err = new Error("database is down");
+		(err as { digest?: string }).digest = "1234567890";
+		throw err;
+	});
+
+	const result = await action({ username: "test" });
+	expect(result).toStrictEqual({ serverError: DEFAULT_SERVER_ERROR_MESSAGE });
+});
+
+test("a malformed validation digest falls through to server error handling instead of crashing", async () => {
+	const dac = createSafeActionClient();
+	const action = dac.inputSchema(schema).action(async () => {
+		const err = new Error("Server Action server validation error(s) occurred");
+		(err as { digest?: string }).digest = "NEXT_SAFE_ACTION_SERVER_VALIDATION_ERROR;{not valid json";
+		throw err;
+	});
+
+	const result = await action({ username: "test" });
+	expect(result).toStrictEqual({ serverError: DEFAULT_SERVER_ERROR_MESSAGE });
 });
 
 // --- defaultValidationErrorsShape tests ---

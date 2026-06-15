@@ -59,14 +59,51 @@ export const buildValidationErrors = <Schema extends StandardSchemaV1 | undefine
 	return ve as ValidationErrors<Schema>;
 };
 
+// Marker prefixing the `digest` of an `ActionServerValidationError`. When the error is thrown inside
+// a Next.js `'use cache'` scope (`cacheComponents` enabled), the RSC/Flight boundary serializes it and
+// the action engine receives a plain `Error` that lost its prototype and the `validationErrors`
+// property: only `message` and `digest` survive (and the message is redacted in production). Encoding
+// the payload in the `digest` (the one channel Next.js preserves verbatim, see `create-error-handler`)
+// lets the engine still recognize it as a validation error. This mirrors how Next.js's own framework
+// errors (redirect, notFound) are detected by their `digest` after crossing the boundary. See #452.
+const SERVER_VALIDATION_ERROR_DIGEST = "NEXT_SAFE_ACTION_SERVER_VALIDATION_ERROR";
+
 // This class is internally used to throw validation errors in action's server code function, using
 // `returnValidationErrors`.
 export class ActionServerValidationError<Schema extends StandardSchemaV1> extends Error {
 	public validationErrors: ValidationErrors<Schema>;
+	public digest: string;
 	constructor(validationErrors: ValidationErrors<Schema>) {
 		super("Server Action server validation error(s) occurred");
 		this.validationErrors = validationErrors;
+		this.digest = `${SERVER_VALIDATION_ERROR_DIGEST};${JSON.stringify(validationErrors)}`;
 	}
+}
+
+// Recovers the validation errors payload from an error thrown via `returnValidationErrors`. We always
+// read it back out of the `digest`, never from the `instanceof`/`validationErrors` instance property:
+// the constructor encodes the payload into the `digest` unconditionally, so the same channel is present
+// both for the in-memory instance (no `'use cache'`) and for the degraded plain `Error` that survives
+// the RSC/Flight boundary (only `message` + `digest` make it across). Reading this single channel makes
+// the behavior identical with and without `cacheComponents` by construction. Returns `undefined` for any
+// other error, so it falls through to regular server error handling. Note: the JSON round-trip is lossy
+// for the uncommon case of symbol or numeric validation keys (the validation shape normally has string
+// keys).
+export function extractServerValidationErrors(e: unknown): ValidationErrors<any> | undefined {
+	if (typeof e === "object" && e !== null && "digest" in e && typeof e.digest === "string") {
+		// Split on the first `;` only, since the JSON payload itself may contain `;`.
+		const sep = e.digest.indexOf(";");
+		if (sep !== -1 && e.digest.slice(0, sep) === SERVER_VALIDATION_ERROR_DIGEST) {
+			try {
+				return JSON.parse(e.digest.slice(sep + 1)) as ValidationErrors<any>;
+			} catch {
+				// Malformed payload: fall through to server error handling instead of crashing.
+				return undefined;
+			}
+		}
+	}
+
+	return undefined;
 }
 
 // This class is internally used to throw validation errors in action's server code function, using
