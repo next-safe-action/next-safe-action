@@ -261,6 +261,40 @@ export default function LoginForm() {
 - **Use `useStateAction`** when you need previous result access (`prevResult` in server code), you're building forms with rich callbacks and status tracking, or you want the `<form action={formAction}>` pattern with full DX.
 - **Use `useActionState` directly** when you need no-JS progressive enhancement, or you want the simplest possible form setup and don't need lifecycle callbacks.
 
+## Passing an action directly to the `action` prop
+
+If you try to pass a plain action (created with `.action()`) straight into `<form action={...}>`, TypeScript rejects it:
+
+```tsx title="src/app/login.tsx"
+<form action={loginAction}>
+//          ^ Type 'SafeActionFn<...>' is not assignable to type 'string | ((formData: FormData) => void | Promise<void>)'.
+```
+
+This happens because React validates the `action` prop against an internal, **experimental** interface named `DO_NOT_USE_OR_YOU_WILL_BE_FIRED_EXPERIMENTAL_FORM_ACTIONS`. Out of the box that interface doesn't know about a `SafeActionFn`, so the action's `Promise<SafeActionResult<...>>` return type isn't recognized as a valid form action.
+
+If you want to pass an action to the `action` prop without going through a hook (`useStateAction`, `useActionState`) or casting at the call site, you can teach React's types about it by augmenting that interface in your own application code:
+
+```ts title="src/types/react.d.ts"
+import type { SafeActionResult } from "next-safe-action";
+
+declare module "react" {
+	interface DO_NOT_USE_OR_YOU_WILL_BE_FIRED_EXPERIMENTAL_FORM_ACTIONS {
+		// oxlint-disable-next-line no-explicit-any
+		nextSafeActionFn: (...args: any[]) => Promise<SafeActionResult<any, any, any, any>>;
+	}
+}
+```
+
+With this declaration in scope, the action passes type checking when used directly:
+
+```tsx title="src/app/login.tsx"
+<form action={loginAction}>{/* ... */}</form>
+```
+
+<Callout type="warn">
+**This opts you into an unstable React interface.** As the name shouts, `DO_NOT_USE_OR_YOU_WILL_BE_FIRED_EXPERIMENTAL_FORM_ACTIONS` is an internal, experimental React type with no stability guarantee — its shape (or name) can change between React versions, which would break this augmentation. next-safe-action does **not** apply this augmentation for you, precisely so you opt in knowingly and keep that risk in your own codebase. If you'd rather not depend on an experimental interface, use `useStateAction` or React's `useActionState` (see the tabs above), which keep the action behind a stable hook API.
+</Callout>
+
 ## What's next?
 
 <Cards>
