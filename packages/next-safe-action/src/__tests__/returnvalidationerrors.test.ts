@@ -325,6 +325,54 @@ test("a malformed validation digest falls through to server error handling inste
 	expect(result).toStrictEqual({ serverError: DEFAULT_SERVER_ERROR_MESSAGE });
 });
 
+// --- digest payload hardening (defense-in-depth) ---
+
+test("a hostile `__proto__` key in a recovered validation payload does not pollute Object.prototype", async () => {
+	const dac = createSafeActionClient();
+	// An own `__proto__` key is only constructible via `JSON.parse`. It simulates a payload that
+	// attacker-influenced data could place into `returnValidationErrors` and that then round-trips
+	// through the digest channel.
+	const hostile = JSON.parse('{"__proto__":{"polluted_digest":"x"},"username":{"_errors":["taken"]}}');
+
+	const action = dac.inputSchema(schema).action(async () => {
+		throwAsThroughUseCacheBoundary(() => returnValidationErrors(schema, hostile));
+		return { ok: true };
+	});
+
+	expect(({} as Record<string, unknown>).polluted_digest).toBeUndefined();
+
+	try {
+		const result = await action({ username: "test" });
+
+		// The legit field survives, and the global prototype is untouched.
+		expect(
+			(result as { validationErrors?: { username?: { _errors: string[] } } }).validationErrors?.username?._errors
+		).toStrictEqual(["taken"]);
+		expect(({} as Record<string, unknown>).polluted_digest).toBeUndefined();
+	} finally {
+		delete (Object.prototype as Record<string, unknown>).polluted_digest;
+	}
+});
+
+test("returnValidationErrors with a non-JSON-serializable payload fails clearly instead of silently", async () => {
+	const dac = createSafeActionClient();
+	// Circular reference: `JSON.stringify` cannot encode this onto the digest.
+	const circular: Record<string, unknown> = { username: { _errors: ["x"] } };
+	circular.self = circular;
+
+	// Thrown directly, the constructor surfaces a clear, recognizable error.
+	expect(() => returnValidationErrors(schema, circular as never)).toThrow(/serializ/i);
+
+	// Inside an action it must degrade to a server error, never crash the runtime.
+	const action = dac.inputSchema(schema).action(async () => {
+		returnValidationErrors(schema, circular as never);
+		return { ok: true };
+	});
+
+	const result = await action({ username: "test" });
+	expect(result).toStrictEqual({ serverError: DEFAULT_SERVER_ERROR_MESSAGE });
+});
+
 // --- defaultValidationErrorsShape tests ---
 
 test("action with errors set via `returnValidationErrors` gives back an object with correct `validationErrors` (default formatted shape)", async () => {
