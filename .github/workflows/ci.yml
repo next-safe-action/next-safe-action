@@ -42,6 +42,7 @@ jobs:
       - run: pnpm run test:lib
 
   check-changesets:
+    if: github.head_ref != 'changeset-release/main'
     runs-on: ubuntu-latest
     steps:
       - name: Harden runner
