@@ -1,5 +1,13 @@
 # next-safe-action
 
+## 8.5.5
+
+### Patch Changes
+
+- [#461](https://github.com/next-safe-action/next-safe-action/pull/461) [`77a81bb`](https://github.com/next-safe-action/next-safe-action/commit/77a81bb2bebb79ec1a62fa07b83b24e412609d7a) Thanks [@TheEdoRan](https://github.com/TheEdoRan)! - Harden validation-error building against prototype pollution. `buildValidationErrors` walks the (potentially client-controlled) Standard Schema issue paths to build the nested errors object: with a `record`/catchall schema, an input like `{"constructor":{"prototype":{...}}}` produced an issue path that walked the prototype chain and wrote to `Object.prototype`. Paths are now traversed with `Object.hasOwn` and written with own-property descriptors, so hostile keys (`__proto__`, `constructor`, `prototype`) are stored as plain own properties and can never reach the global prototype. As defense-in-depth, `flattenValidationErrors` assigns field keys the same safe way, the validation payload recovered from the error `digest` is parsed with a `__proto__`-stripping reviver, and `returnValidationErrors` now throws a clear error when given a non-JSON-serializable payload instead of leaking a raw `TypeError`.
+
+- [#461](https://github.com/next-safe-action/next-safe-action/pull/461) [`77a81bb`](https://github.com/next-safe-action/next-safe-action/commit/77a81bb2bebb79ec1a62fa07b83b24e412609d7a) Thanks [@TheEdoRan](https://github.com/TheEdoRan)! - Fix `returnValidationErrors` being reported as a generic server error when called inside a Next.js `'use cache'` scope (`cacheComponents` enabled). Crossing the RSC boundary strips the thrown error's class identity, so the `instanceof` check failed and the client received `DEFAULT_SERVER_ERROR_MESSAGE` instead of the validation errors. The errors are now encoded on the error `digest` (the only channel Next.js preserves across the boundary, the same mechanism used to detect `redirect`/`notFound`) and correctly returned as `validationErrors`, matching the behavior when `cacheComponents` is disabled.
+
 ## 8.5.4
 
 ### Patch Changes
