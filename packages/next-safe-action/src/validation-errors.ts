@@ -88,11 +88,9 @@ const SERVER_VALIDATION_ERROR_DIGEST = "NEXT_SAFE_ACTION_SERVER_VALIDATION_ERROR
 // This class is internally used to throw validation errors in action's server code function, using
 // `returnValidationErrors`.
 export class ActionServerValidationError<Schema extends StandardSchemaV1> extends Error {
-	public validationErrors: ValidationErrors<Schema>;
 	public digest: string;
 	constructor(validationErrors: ValidationErrors<Schema>) {
 		super("Server Action server validation error(s) occurred");
-		this.validationErrors = validationErrors;
 
 		// The payload is encoded onto the `digest` so it can survive the `'use cache'` RSC boundary, which
 		// means it must be JSON-serializable. Fail loudly with a clear message instead of letting a raw
