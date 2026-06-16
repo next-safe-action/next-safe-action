@@ -25,9 +25,9 @@ import {
 	ActionBindArgsValidationError,
 	ActionMetadataValidationError,
 	ActionOutputDataValidationError,
-	ActionServerValidationError,
 	ActionValidationError,
 	buildValidationErrors,
+	extractServerValidationErrors,
 } from "./validation-errors";
 import type { ValidationErrors } from "./validation-errors.types";
 
@@ -212,14 +212,16 @@ export function actionBuilder<
 		middlewareResult: MiddlewareResult<ServerError, object>,
 		serverErrorHandled: { value: boolean }
 	) {
-		// ActionServerValidationError: treat as if schema validation failed.
+		// `returnValidationErrors`: treat as if schema validation failed. `extractServerValidationErrors`
+		// reads the validation payload from the error `digest`, which is present both on the in-memory
+		// `ActionServerValidationError` instance and on the degraded plain `Error` it becomes after crossing
+		// a `'use cache'` boundary (see #452).
 		// This check must come before the serverErrorHandled guard so middleware catch blocks
 		// using `returnValidationErrors` work even when handleServerError is configured to rethrow.
-		if (e instanceof ActionServerValidationError) {
-			const ve = e.validationErrors as ValidationErrors<InputSchema>;
-
+		const serverValidationErrors = extractServerValidationErrors(e) as ValidationErrors<InputSchema> | undefined;
+		if (typeof serverValidationErrors !== "undefined") {
 			middlewareResult.validationErrors = await Promise.resolve(
-				args.handleValidationErrorsShape(ve, {
+				args.handleValidationErrorsShape(serverValidationErrors, {
 					clientInput: mainClientInput,
 					bindArgsClientInputs,
 					ctx: currentCtx as Ctx,

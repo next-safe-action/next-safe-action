@@ -12,6 +12,17 @@ const getIssueMessage = (issue: IssueWithUnionErrors): string[] => {
 	return [issue.message];
 };
 
+// Assigns `value` as a plain own, enumerable, writable property of `obj` without ever triggering an
+// inherited setter. In particular this neutralizes the `__proto__` accessor: a plain `obj.__proto__ = x`
+// would reassign the object's prototype, whereas this stores a regular own `"__proto__"` data property.
+// Combined with `Object.hasOwn` lookups (instead of truthy `obj[key]` checks, which follow inherited
+// members like `constructor`/`prototype`), it makes building errors objects from untrusted key paths
+// safe against prototype pollution. Validation issue paths can contain client-controlled segments (e.g.
+// a `z.record` whose keys come from user input), so those keys must never reach `Object.prototype`.
+const setOwnProperty = (obj: Record<PropertyKey, unknown>, key: PropertyKey, value: unknown) => {
+	Object.defineProperty(obj, key, { value, writable: true, enumerable: true, configurable: true });
+};
+
 // This function is used internally to build the validation errors object from a list of validation issues.
 export const buildValidationErrors = <Schema extends StandardSchemaV1 | undefined>(
 	issues: readonly IssueWithUnionErrors[]
@@ -33,12 +44,14 @@ export const buildValidationErrors = <Schema extends StandardSchemaV1 | undefine
 		// Reference to errors object.
 		let ref = ve;
 
-		// Set object for the path, if it doesn't exist.
+		// Set object for the path, if it doesn't exist. We use `Object.hasOwn` (not `!ref[k]`) so that
+		// inherited members like `constructor`/`prototype` are never followed, and `setOwnProperty` so that
+		// a `__proto__` segment cannot reassign the prototype. See the helper's comment and #452.
 		for (let i = 0; i < path.length - 1; i++) {
 			const k = getKey(path[i]!);
 
-			if (!ref[k]) {
-				ref[k] = {};
+			if (!Object.hasOwn(ref, k)) {
+				setOwnProperty(ref, k, {});
 			}
 
 			ref = ref[k];
@@ -50,23 +63,79 @@ export const buildValidationErrors = <Schema extends StandardSchemaV1 | undefine
 		const issueMessage = getIssueMessage(issue);
 
 		// Set error for the current path. If `_errors` array exists, add the message to it.
-		const existing = ref[key] ? structuredClone(ref[key]) : {};
-		ref[key] = existing._errors
-			? { ...existing, _errors: [...existing._errors, ...issueMessage] }
-			: { ...existing, _errors: [...issueMessage] };
+		const existing = Object.hasOwn(ref, key) ? structuredClone(ref[key]) : {};
+		setOwnProperty(
+			ref,
+			key,
+			existing._errors
+				? { ...existing, _errors: [...existing._errors, ...issueMessage] }
+				: { ...existing, _errors: [...issueMessage] }
+		);
 	}
 
 	return ve as ValidationErrors<Schema>;
 };
 
+// Marker prefixing the `digest` of an `ActionServerValidationError`. When the error is thrown inside
+// a Next.js `'use cache'` scope (`cacheComponents` enabled), the RSC/Flight boundary serializes it and
+// the action engine receives a plain `Error` that lost its prototype and the `validationErrors`
+// property: only `message` and `digest` survive (and the message is redacted in production). Encoding
+// the payload in the `digest` (the one channel Next.js preserves verbatim, see `create-error-handler`)
+// lets the engine still recognize it as a validation error. This mirrors how Next.js's own framework
+// errors (redirect, notFound) are detected by their `digest` after crossing the boundary. See #452.
+const SERVER_VALIDATION_ERROR_DIGEST = "NEXT_SAFE_ACTION_SERVER_VALIDATION_ERROR";
+
 // This class is internally used to throw validation errors in action's server code function, using
 // `returnValidationErrors`.
 export class ActionServerValidationError<Schema extends StandardSchemaV1> extends Error {
-	public validationErrors: ValidationErrors<Schema>;
+	public digest: string;
 	constructor(validationErrors: ValidationErrors<Schema>) {
 		super("Server Action server validation error(s) occurred");
-		this.validationErrors = validationErrors;
+
+		// The payload is encoded onto the `digest` so it can survive the `'use cache'` RSC boundary, which
+		// means it must be JSON-serializable. Fail loudly with a clear message instead of letting a raw
+		// `TypeError: Converting circular structure to JSON` leak from the constructor.
+		let encoded: string;
+		try {
+			encoded = JSON.stringify(validationErrors);
+		} catch {
+			throw new TypeError(
+				"The validation errors object passed to `returnValidationErrors` must be JSON-serializable (no circular references, BigInts, functions, etc.)."
+			);
+		}
+
+		this.digest = `${SERVER_VALIDATION_ERROR_DIGEST};${encoded}`;
 	}
+}
+
+// Recovers the validation errors payload from an error thrown via `returnValidationErrors`. We always
+// read it back out of the `digest`, never from the `instanceof`/`validationErrors` instance property:
+// the constructor encodes the payload into the `digest` unconditionally, so the same channel is present
+// both for the in-memory instance (no `'use cache'`) and for the degraded plain `Error` that survives
+// the RSC/Flight boundary (only `message` + `digest` make it across). Reading this single channel makes
+// the behavior identical with and without `cacheComponents` by construction. Returns `undefined` for any
+// other error, so it falls through to regular server error handling. Note: the JSON round-trip is lossy
+// for the uncommon case of symbol or numeric validation keys (the validation shape normally has string
+// keys). The `__proto__` reviver is defense-in-depth: `JSON.parse` already stores `__proto__` as a plain
+// own property (it does not pollute the global prototype), but dropping it keeps a hostile key out of the
+// recovered object entirely.
+export function extractServerValidationErrors(e: unknown): ValidationErrors<any> | undefined {
+	if (typeof e === "object" && e !== null && "digest" in e && typeof e.digest === "string") {
+		// Split on the first `;` only, since the JSON payload itself may contain `;`.
+		const sep = e.digest.indexOf(";");
+		if (sep !== -1 && e.digest.slice(0, sep) === SERVER_VALIDATION_ERROR_DIGEST) {
+			try {
+				return JSON.parse(e.digest.slice(sep + 1), (key, value) =>
+					key === "__proto__" ? undefined : value
+				) as ValidationErrors<any>;
+			} catch {
+				// Malformed payload: fall through to server error handling instead of crashing.
+				return undefined;
+			}
+		}
+	}
+
+	return undefined;
 }
 
 // This class is internally used to throw validation errors in action's server code function, using
@@ -131,8 +200,10 @@ export function flattenValidationErrors<VE extends ValidationErrors<any>>(valida
 		if (key === "_errors" && Array.isArray(value)) {
 			flattened.formErrors = [...value];
 		} else {
-			if ("_errors" in value) {
-				flattened.fieldErrors[key as keyof Omit<VE, "_errors">] = [...value._errors];
+			if (value !== null && typeof value === "object" && "_errors" in value) {
+				// `setOwnProperty` so a hostile `__proto__` field key (possible when the input is a recovered
+				// digest payload) is stored as a plain own property instead of reassigning the prototype.
+				setOwnProperty(flattened.fieldErrors, key, [...value._errors]);
 			}
 		}
 	}

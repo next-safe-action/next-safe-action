@@ -8,7 +8,7 @@ import {
 	formatValidationErrors,
 	returnValidationErrors,
 } from "..";
-import { ActionOutputDataValidationError } from "../validation-errors";
+import { ActionOutputDataValidationError, buildValidationErrors } from "../validation-errors";
 
 // Default client tests.
 
@@ -642,4 +642,88 @@ test("action with validation errors and overridden `throwValidationErrors` set t
 	};
 
 	expect(actualResult).toStrictEqual(expectedResult);
+});
+
+// --- Prototype pollution regression tests ---
+//
+// Standard Schema issue paths can contain client-controlled segments (e.g. a `z.record`
+// whose object keys come from user input). `buildValidationErrors` walks those paths to
+// build the nested errors object, so a hostile path like ["constructor", "prototype", X]
+// or ["__proto__", X] must never reach `Object.prototype`.
+
+test("buildValidationErrors does not pollute Object.prototype via a constructor/prototype path", () => {
+	expect(({} as Record<string, unknown>).polluted_via_ctor).toBeUndefined();
+
+	try {
+		buildValidationErrors([{ path: ["constructor", "prototype", "polluted_via_ctor"], message: "x" }] as never);
+
+		// The hostile key must be stored as a plain own property, not written to the global prototype.
+		expect(({} as Record<string, unknown>).polluted_via_ctor).toBeUndefined();
+	} finally {
+		delete (Object.prototype as Record<string, unknown>).polluted_via_ctor;
+	}
+});
+
+test("buildValidationErrors does not pollute Object.prototype via a __proto__ path", () => {
+	expect(({} as Record<string, unknown>).polluted_via_proto).toBeUndefined();
+
+	try {
+		buildValidationErrors([{ path: ["__proto__", "polluted_via_proto"], message: "x" }] as never);
+
+		expect(({} as Record<string, unknown>).polluted_via_proto).toBeUndefined();
+	} finally {
+		delete (Object.prototype as Record<string, unknown>).polluted_via_proto;
+	}
+});
+
+test("action with a record schema cannot pollute Object.prototype through hostile input keys", async () => {
+	// A nested record schema where every object key comes from client input. The malicious
+	// payload walks the prototype chain; the final (failing) leaf key is what would be written.
+	const schema = z.record(z.string(), z.record(z.string(), z.record(z.string(), z.string())));
+
+	const action = dac.inputSchema(schema).action(async () => ({ ok: true }));
+
+	expect(({} as Record<string, unknown>).polluted_e2e).toBeUndefined();
+
+	try {
+		// `__proto__` would set the prototype, so we use own-property syntax via JSON.parse.
+		const malicious = JSON.parse('{"constructor":{"prototype":{"polluted_e2e":123}}}');
+		const result = await action(malicious);
+
+		// Must be reported as validation errors, and must NOT have polluted the global prototype.
+		expect("validationErrors" in result).toBe(true);
+		expect(({} as Record<string, unknown>).polluted_e2e).toBeUndefined();
+	} finally {
+		delete (Object.prototype as Record<string, unknown>).polluted_e2e;
+	}
+});
+
+test("buildValidationErrors still represents a field literally named 'constructor' faithfully", () => {
+	const ve = buildValidationErrors([{ path: ["constructor"], message: "bad" }] as never) as Record<
+		string,
+		{ _errors: string[] }
+	>;
+
+	// The field is preserved as an own property carrying its errors (no data loss from the fix).
+	expect(Object.hasOwn(ve, "constructor")).toBe(true);
+	const ctorField = Object.entries(ve).find(([k]) => k === "constructor")?.[1];
+	expect(ctorField?._errors).toStrictEqual(["bad"]);
+});
+
+test("flattenValidationErrors does not pollute via a hostile __proto__ key and still flattens normal fields", () => {
+	expect(({} as Record<string, unknown>).polluted_flatten).toBeUndefined();
+
+	try {
+		// Own `__proto__` key (only constructible via JSON.parse), as could arrive from a
+		// degraded validation payload recovered from the digest.
+		const hostile = JSON.parse('{"__proto__":{"_errors":["polluted_flatten"]},"username":{"_errors":["taken"]}}');
+
+		const flattened = flattenValidationErrors(hostile);
+
+		expect(({} as Record<string, unknown>).polluted_flatten).toBeUndefined();
+		expect(Array.isArray(Object.getPrototypeOf(flattened.fieldErrors))).toBe(false);
+		expect(flattened.fieldErrors.username).toStrictEqual(["taken"]);
+	} finally {
+		delete (Object.prototype as Record<string, unknown>).polluted_flatten;
+	}
 });
