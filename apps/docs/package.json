@@ -9,10 +9,10 @@
 		"lint": "tsc --noEmit && oxlint --type-aware ."
 	},
 	"dependencies": {
-		"fumadocs-core": "^16.7.16",
-		"fumadocs-mdx": "^14.3.0",
-		"fumadocs-ui": "^16.7.16",
-		"lucide-react": "^1.14.0",
+		"fumadocs-core": "^16.10.3",
+		"fumadocs-mdx": "^15.0.12",
+		"fumadocs-ui": "^16.10.3",
+		"lucide-react": "^1.18.0",
 		"motion": "^12",
 		"next": "catalog:",
 		"next-plausible": "^4.0.0",

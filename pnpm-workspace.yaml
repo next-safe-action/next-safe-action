@@ -3,8 +3,8 @@ packages:
   - apps/*
 
 catalog:
-  "@hookform/resolvers": ^5.0.0
-  "@tanstack/react-query": ^5.80.7
+  "@hookform/resolvers": ^5.4.0
+  "@tanstack/react-query": ^5.101.0
   "@tailwindcss/postcss": ^4
   "@testing-library/dom": ^10
   "@testing-library/react": ^16
@@ -12,20 +12,61 @@ catalog:
   "@types/react": ^19
   "@types/react-dom": ^19
   jsdom: ^26
-  next: ^16.2.6
-  oxfmt: ^0.48.0
-  oxlint: ^1.63.0
-  oxlint-tsgolint: ^0.20.0
+  next: ^16.2.9
+  oxfmt: ^0.55.0
+  oxlint: ^1.70.0
+  oxlint-tsgolint: ^0.23.0
   react: ^19
   react-dom: ^19
-  react-hook-form: ^7.54.2
+  react-hook-form: ^7.79.0
   tailwindcss: ^4
-  tsdown: ^0.21.0
+  tsdown: ^0.22.2
   typescript: ^6.0.3
-  vitest: ^4.1.4
-  yup: ^1.6.1
-  zod: ^4.3.6
+  vitest: ^4.1.9
+  yup: ^1.7.1
+  zod: ^4.4.3
 allowBuilds:
   esbuild: true
   msw: true
   sharp: true
+minimumReleaseAgeExclude:
+  - '@oxfmt/binding-android-arm-eabi@0.55.0'
+  - '@oxfmt/binding-android-arm64@0.55.0'
+  - '@oxfmt/binding-darwin-arm64@0.55.0'
+  - '@oxfmt/binding-darwin-x64@0.55.0'
+  - '@oxfmt/binding-freebsd-x64@0.55.0'
+  - '@oxfmt/binding-linux-arm-gnueabihf@0.55.0'
+  - '@oxfmt/binding-linux-arm-musleabihf@0.55.0'
+  - '@oxfmt/binding-linux-arm64-gnu@0.55.0'
+  - '@oxfmt/binding-linux-arm64-musl@0.55.0'
+  - '@oxfmt/binding-linux-ppc64-gnu@0.55.0'
+  - '@oxfmt/binding-linux-riscv64-gnu@0.55.0'
+  - '@oxfmt/binding-linux-riscv64-musl@0.55.0'
+  - '@oxfmt/binding-linux-s390x-gnu@0.55.0'
+  - '@oxfmt/binding-linux-x64-gnu@0.55.0'
+  - '@oxfmt/binding-linux-x64-musl@0.55.0'
+  - '@oxfmt/binding-openharmony-arm64@0.55.0'
+  - '@oxfmt/binding-win32-arm64-msvc@0.55.0'
+  - '@oxfmt/binding-win32-ia32-msvc@0.55.0'
+  - '@oxfmt/binding-win32-x64-msvc@0.55.0'
+  - '@oxlint/binding-android-arm-eabi@1.70.0'
+  - '@oxlint/binding-android-arm64@1.70.0'
+  - '@oxlint/binding-darwin-arm64@1.70.0'
+  - '@oxlint/binding-darwin-x64@1.70.0'
+  - '@oxlint/binding-freebsd-x64@1.70.0'
+  - '@oxlint/binding-linux-arm-gnueabihf@1.70.0'
+  - '@oxlint/binding-linux-arm-musleabihf@1.70.0'
+  - '@oxlint/binding-linux-arm64-gnu@1.70.0'
+  - '@oxlint/binding-linux-arm64-musl@1.70.0'
+  - '@oxlint/binding-linux-ppc64-gnu@1.70.0'
+  - '@oxlint/binding-linux-riscv64-gnu@1.70.0'
+  - '@oxlint/binding-linux-riscv64-musl@1.70.0'
+  - '@oxlint/binding-linux-s390x-gnu@1.70.0'
+  - '@oxlint/binding-linux-x64-gnu@1.70.0'
+  - '@oxlint/binding-linux-x64-musl@1.70.0'
+  - '@oxlint/binding-openharmony-arm64@1.70.0'
+  - '@oxlint/binding-win32-arm64-msvc@1.70.0'
+  - '@oxlint/binding-win32-ia32-msvc@1.70.0'
+  - '@oxlint/binding-win32-x64-msvc@1.70.0'
+  - oxfmt@0.55.0
+  - oxlint@1.70.0
