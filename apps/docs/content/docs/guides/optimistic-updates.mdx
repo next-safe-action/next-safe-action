@@ -5,6 +5,10 @@ description: Update the UI instantly while the server processes your action.
 
 The `useOptimisticAction` hook lets you update the UI **immediately** when the user performs an action, without waiting for the server response. If the server confirms the change, the optimistic state is replaced by the real data. If the server fails, the state reverts automatically.
 
+<Callout>
+`useOptimisticAction` is last-write-wins: when two executions overlap, the newer response wins and the older is discarded. That is correct for *replace* semantics. If changes must accumulate, so that a second write builds on the result of the first, use [`useOptimisticStateAction`](/docs/guides/coordinating-mutations) instead.
+</Callout>
+
 ## How it works
 
 1. User triggers the action (e.g., clicks "Add Todo")

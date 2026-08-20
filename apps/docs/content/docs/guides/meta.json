@@ -1,4 +1,4 @@
 {
 	"title": "Guides",
-	"pages": ["middleware", "executing-actions", "hooks", "form-actions", "optimistic-updates"]
+	"pages": ["middleware", "executing-actions", "hooks", "form-actions", "optimistic-updates", "coordinating-mutations"]
 }

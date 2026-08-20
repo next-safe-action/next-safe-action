@@ -45,6 +45,12 @@ const pages = [
 		icon: SparklesIcon,
 	},
 	{
+		title: "Coordinating Mutations",
+		description: "useOptimisticStateAction queues overlapping writes",
+		href: "/coordinated-mutations",
+		icon: SparklesIcon,
+	},
+	{
 		title: "Form Integration",
 		description: "Stateful forms, file uploads, bind arguments",
 		href: "/forms",

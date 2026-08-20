@@ -89,10 +89,12 @@ The library has three entry points: `next-safe-action` (server), `next-safe-acti
 - `next/errors/`: `FrameworkErrorHandler` class with handlers for redirect, router, bailout-to-CSR, dynamic-usage, postpone, and HTTP access fallback (404/403/401) errors
 
 **Client-side hooks:**
-- `hooks.ts`: `useAction` and `useOptimisticAction` hooks for calling server actions from client components
-- `hooks-shared.ts`: base hook logic (`useActionBase`) shared by `useAction` and `useOptimisticAction`
+- `hooks.ts`: all four client hooks: `useAction`, `useOptimisticAction`, `useStateAction`, and `useOptimisticStateAction`
+- `hooks-shared.ts`: base hook logic (`useActionBase`) shared by `useAction` and `useOptimisticAction`, including the `onTransitionStart` seam that lets the optimistic hook dispatch inside the action's transition
 - `hooks-utils.ts`: shared hook utilities (`getActionStatus`, `getActionShorthandStatusObject`, `useActionCallbacks`)
-- `stateful-hooks.ts`: `useStateAction` hook wrapping React's `useActionState`
+- `stateful-hooks.ts`: backward-compat re-export of `useStateAction`; the implementation lives in `hooks.ts`
+- `useStateActionInternal` (private, in `hooks.ts`): shared implementation behind `useStateAction` and `useOptimisticStateAction`, wrapping React's `useActionState`. Owns the stateful path's concurrency invariants (FIFO resolver queue, reset generations, ambient-transition double-apply, pending-flag masking) and exposes them through optional `strategies` seams (`onTransitionStart`, `resolvePrevResult`, `onDispatchSettled`, `onReset`, `suppressCallbacks`). Extend via those seams rather than by copying the hook.
+- `useOptimisticStateAction` keeps confirmed **domain** state separate from the `SafeActionResult` envelope: the envelope is a discriminated union, so `result.data` is `undefined` on every error branch. Two distinct "last confirmed" values are tracked on purpose, one derived from the committed result (what the user sees, advances only when the queue drains, so payloads can't double-apply) and one advanced at dispatch time (what the server gets as `prevResult`).
 
 **Type system:**
 - `index.types.ts`: core types with full generic inference for schemas, middleware context, and action results

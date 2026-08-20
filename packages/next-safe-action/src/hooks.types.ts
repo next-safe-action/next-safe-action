@@ -248,6 +248,26 @@ export type UseStateActionHookReturn<
 };
 
 /**
+ * Type of the return object of the `useOptimisticStateAction` hook.
+ *
+ * Extends `UseStateActionHookReturn` with `optimisticState`. TypeScript distributes the
+ * intersection over the union, preserving the discriminated union narrowing.
+ *
+ * `State` is the confirmed domain state, which is independent of the action's `Data`. When the
+ * action returns data, that data must be the full next `State`.
+ */
+export type UseOptimisticStateActionHookReturn<
+	ServerError,
+	Schema extends StandardSchemaV1 | undefined,
+	ShapedErrors,
+	Data,
+	State,
+	InitR extends SafeActionResult<ServerError, Schema, ShapedErrors, Data> = HookIdleResult,
+> = UseStateActionHookReturn<ServerError, Schema, ShapedErrors, Data, InitR> & {
+	optimisticState: State;
+};
+
+/**
  * Type of the return object of the `useAction` hook.
  */
 export type InferUseActionHookReturn<T extends Function> =

@@ -1,0 +1,195 @@
+---
+title: Coordinating mutations
+description: Queue overlapping writes and keep the UI instant with useOptimisticStateAction.
+---
+
+`useOptimisticAction` is **last-write-wins**: when two executions overlap, the newer response is
+kept and the older one is discarded. That is the right behaviour for *replace* semantics, like
+saving a title.
+
+It is the wrong behaviour for *accumulate* semantics. If a user drags an item, then drags it again
+before the first save finishes, the second write must build on the result of the first. Dropping a
+response there loses information.
+
+`useOptimisticStateAction` is the optimistic hook for [stateful
+actions](/docs/define-actions/instance-methods#action--stateaction). It is built on React's
+`useActionState`, so dispatches are **queued**: each one waits for the previous to settle and
+receives its result as `prevResult`.
+
+<Callout>
+Pick by action kind, not by concurrency model. `.action()` pairs with `useOptimisticAction`,
+`.stateAction()` pairs with `useOptimisticStateAction`, exactly as `useAction` pairs with
+`useStateAction`.
+</Callout>
+
+## The model
+
+There is one idea to hold on to: **a confirmed base, folded with every in-flight change.**
+
+```
+optimisticState = updateFn(updateFn(confirmed, change1), change2)
+```
+
+Confirmed state is the more recent of:
+
+1. the action's successful `data`, and
+2. the `currentState` option.
+
+That single rule covers every arrangement. An action that returns the full next state owns the
+confirmed value. An action that returns nothing leaves `currentState` authoritative. And when a
+Server Component revalidates, the fresh `currentState` beats a stale client-side fold, which is
+what you want: the server is the source of truth.
+
+## Reduced state
+
+The action returns the full next state, and the same reducer runs on the client and the server.
+
+<Steps>
+<Step>
+
+### Share the reducer
+
+```ts title="src/features/layout/reducer.ts"
+export type LayoutChange =
+	| { type: "rename"; id: string; name: string }
+	| { type: "move"; id: string; toGroup: string; toIndex: number };
+
+export function layoutReducer(groups: Group[], change: LayoutChange): Group[] {
+	switch (change.type) {
+		case "rename":
+			return groups.map((g) => (g.id === change.id ? { ...g, name: change.name } : g));
+		case "move":
+			return moveChannel(groups, change);
+	}
+}
+```
+
+</Step>
+<Step>
+
+### Define the stateful action
+
+`prevResult.data` is always the last confirmed state. The hook substitutes it when a dispatch fails,
+so one rejected write cannot leave the rest of the queue without a base to build on.
+
+```ts title="src/app/actions.ts"
+"use server";
+
+export const saveLayout = actionClient
+	.inputSchema(layoutChangeSchema)
+	.stateAction(async ({ parsedInput }, { prevResult }) => {
+		const next = layoutReducer(prevResult.data!, parsedInput);
+		await db.layout.save(next);
+		return next;
+	});
+```
+
+</Step>
+<Step>
+
+### Use the hook
+
+```tsx title="src/app/channel-nav.tsx"
+"use client";
+
+import { useOptimisticStateAction } from "next-safe-action/hooks";
+
+export function ChannelNav({ groups }: { groups: Group[] }) {
+	const { optimisticState, execute, isPending } = useOptimisticStateAction(saveLayout, {
+		currentState: groups,
+		updateFn: layoutReducer,
+	});
+
+	return (
+		<nav aria-label="Channels" data-saving={isPending}>
+			{optimisticState.map((group) => (
+				<ChannelGroup key={group.id} group={group} onChange={execute} />
+			))}
+		</nav>
+	);
+}
+```
+
+</Step>
+</Steps>
+
+Every change renders immediately, saves run one after another, and a failed save converges back to
+the last confirmed layout with no reverse change to write.
+
+## Pending changes list
+
+When several components need the same in-flight changes, keep the confirmed data in Server
+Components and let the hook hold only the pending list. Use a constant base and an append reducer:
+
+```tsx title="src/providers/calendar-events-provider.tsx"
+"use client";
+
+const NO_PENDING: EventChange[] = [];
+
+export function CalendarEventsProvider({ children }: { children: React.ReactNode }) {
+	const { optimisticState: pendingChanges, execute } = useOptimisticStateAction(saveEventChange, {
+		currentState: NO_PENDING,
+		updateFn: (changes, change) => [...changes, change],
+	});
+
+	return (
+		<PendingChangesContext value={pendingChanges}>
+			<DispatchContext value={execute}>{children}</DispatchContext>
+		</PendingChangesContext>
+	);
+}
+
+// Consumers fold the pending changes over their own server data.
+export function useOptimisticEvents(events: CalendarEvent[]) {
+	return use(PendingChangesContext).reduce(eventChangeReducer, events);
+}
+```
+
+The action returns nothing, so confirmed state stays at the constant base and the list drains as the
+queue settles. No explicit rollback is needed: discarding the temporary state *is* the rollback.
+
+<Callout type="warn">
+This variant still needs `.stateAction()`, even though it ignores `prevResult`. Queueing comes from
+`useActionState`, which the stateful path uses.
+</Callout>
+
+## `currentState` is compared by identity
+
+Pass a stable reference. An inline literal (`currentState={[]}`) is a new value on every render, so
+confirmed state can never advance past it and the fold drains on every commit. Hoist it, or take it
+from props.
+
+```tsx
+const NO_PENDING: EventChange[] = [];        // hoisted, stable
+// not: currentState={[]}
+```
+
+## Callbacks fire per dispatch
+
+While a queue drains, React withholds `useActionState`'s commit until the last action settles, so
+`result` and `status` cannot report intermediate results. This hook therefore delivers
+`onExecute`, `onSuccess`, `onError`, `onSettled`, and `onNavigation` **per dispatch**, from the
+dispatch itself rather than from a render effect.
+
+```tsx
+useOptimisticStateAction(saveLayout, {
+	currentState: groups,
+	updateFn: layoutReducer,
+	onError: ({ error, input }) => toast.error(`Could not save ${input.id}`),
+});
+```
+
+The trade-off: these fire just **before** React commits, where the other hooks' callbacks fire
+after. Read state from the callback argument rather than from the previous render.
+
+## When to reach for a data library instead
+
+This pattern assumes confirmed data lives in Server Components and the optimistic layer disappears
+when the action finishes. If your data changes independently of the user, for example messages
+arriving over a socket, use TanStack Query or SWR instead.
+
+## Rollback is client-side only
+
+A rejected dispatch reverts the UI. It does not prove the server changed nothing: output validation
+runs after your server code returns, so a write can land and still surface an error. Durable
+correctness still needs transactions, idempotency keys, or authoritative revalidation.

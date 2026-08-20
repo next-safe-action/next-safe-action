@@ -258,7 +258,7 @@ export default function LoginForm() {
 | Best for | Interactive UI, programmatic triggers | Forms with callbacks and state | Forms that must work without JS |
 
 - **Use `useAction`** when you don't need previous result access, your triggers are programmatic (buttons, events), or you're building interactive UI that doesn't use `<form action={...}>`.
-- **Use `useStateAction`** when you need previous result access (`prevResult` in server code), you're building forms with rich callbacks and status tracking, or you want the `<form action={formAction}>` pattern with full DX.
+- **Use `useStateAction`** when you need previous result access (`prevResult` in server code), you're building forms with rich callbacks and status tracking, you want the `<form action={formAction}>` pattern with full DX, or you need overlapping writes queued rather than raced (see [Coordinating mutations](/docs/guides/coordinating-mutations)).
 - **Use `useActionState` directly** when you need no-JS progressive enhancement, or you want the simplest possible form setup and don't need lifecycle callbacks.
 
 ## Passing an action directly to the `action` prop

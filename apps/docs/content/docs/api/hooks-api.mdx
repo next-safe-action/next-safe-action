@@ -293,6 +293,96 @@ export function ProfileForm() {
 
 ---
 
+## `useOptimisticStateAction`
+
+Execute stateful actions with optimistic state that is coordinated across **overlapping** mutations. Unlike `useOptimisticAction`, which is last-write-wins, dispatches here are queued: each waits for the previous to settle and receives its result as `prevResult`.
+
+```ts
+import { useOptimisticStateAction } from "next-safe-action/hooks";
+
+const { execute, optimisticState, ... } = useOptimisticStateAction(safeActionFn, utils);
+```
+
+### Parameters
+
+<TypeTable
+	type={{
+		safeActionFn: {
+			description: "The stateful action function created with .stateAction().",
+			type: "SingleInputStateActionFn<ServerError, Schema, ShapedErrors, Data>",
+		},
+		"utils.currentState": {
+			description:
+				"The confirmed base state. Compared by identity, so it must be a stable reference. A fresh value (a revalidated Server Component payload) supersedes the client-side fold.",
+			type: "State",
+		},
+		"utils.updateFn": {
+			description: "Pure function that computes the optimistic state from the confirmed state and the input being sent.",
+			type: "(state: State, input: InferInput<Schema>) => State",
+		},
+		"utils.initResult": {
+			description: "Optional initial result before the first execution (defaults to {}). reset() restores it.",
+			type: "SafeActionResult",
+		},
+	}}
+/>
+
+The `utils` object also accepts all [HookBaseOptions](#hookbaseoptions) properties including `throwOnNavigation` and lifecycle callbacks.
+
+### Return object
+
+Same as [`useStateAction`](#return-object-2) plus:
+
+<TypeTable
+	type={{
+		optimisticState: {
+			description:
+				"The confirmed state folded with every in-flight change. Always defined: an error rolls back to the last confirmed value rather than to undefined.",
+			type: "State",
+		},
+	}}
+/>
+
+### Confirmed state
+
+Confirmed state is the more recent of the action's successful `data` and the `currentState` option. An action that returns the full next state owns the confirmed value; an action that returns nothing leaves `currentState` authoritative.
+
+`prevResult` handed to the server always carries a `data` branch: when a dispatch fails, the hook substitutes the last confirmed state, so one rejected write cannot leave the rest of the queue without a base.
+
+### Callbacks
+
+React withholds `useActionState`'s commit until the whole queue drains, so `result` and `status` cannot report intermediate results. Callbacks are therefore delivered **per dispatch**, from the dispatch itself rather than from a render effect, and fire just before React commits rather than after.
+
+### Example
+
+```tsx
+"use client";
+
+import { useOptimisticStateAction } from "next-safe-action/hooks";
+import { saveLayout } from "./actions";
+import { layoutReducer } from "./reducer";
+
+export function ChannelNav({ groups }: { groups: Group[] }) {
+	const { execute, optimisticState, isPending } = useOptimisticStateAction(saveLayout, {
+		currentState: groups,
+		updateFn: layoutReducer,
+		onError: ({ input }) => toast.error(`Could not save ${input.id}`),
+	});
+
+	return (
+		<nav aria-label="Channels" data-saving={isPending}>
+			{optimisticState.map((group) => (
+				<ChannelGroup key={group.id} group={group} onChange={execute} />
+			))}
+		</nav>
+	);
+}
+```
+
+See the [Coordinating mutations](/docs/guides/coordinating-mutations) guide for the full pattern.
+
+---
+
 ## `HookBaseOptions`
 
 Configuration and lifecycle callbacks for `useAction`, `useOptimisticAction`, and `useStateAction`. The available callbacks depend on the `throwOnNavigation` value:
@@ -379,6 +469,7 @@ type HookShorthandStatus = {
 
 - [Hooks guide](/docs/guides/hooks): practical guide with patterns and examples
 - [Optimistic updates](/docs/guides/optimistic-updates): `useOptimisticAction` in depth
+- [Coordinating mutations](/docs/guides/coordinating-mutations): queued optimistic updates with `useOptimisticStateAction`
 - [Framework navigation/errors](/docs/advanced/framework-errors): `onNavigation` and `hasNavigated` behavior
 - [Form actions](/docs/guides/form-actions): compare `useAction`, `useStateAction`, and React's `useActionState`
 - [Type utilities](/docs/api/type-utilities): `InferUseActionHookReturn` and related types
