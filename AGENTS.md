@@ -11,6 +11,7 @@ next-safe-action is a TypeScript library for type-safe, validated Next.js Server
 - **`packages/next-safe-action`**: the core library (source in `src/`, tests in `src/__tests__/`)
 - **`packages/adapter-react-hook-form`**: `@next-safe-action/adapter-react-hook-form` adapter for seamless react-hook-form integration
 - **`packages/adapter-tanstack-query`**: `@next-safe-action/adapter-tanstack-query` adapter for TanStack Query mutation integration
+- **`packages/adapter-routes`**: JSON mutation route handlers and optional OpenAPI 3.1 generation for selected actions
 - **`packages/adapter-better-auth`**: `@next-safe-action/adapter-better-auth` adapter for Better Auth session middleware integration
 - **`apps/playground`**: Next.js app for manual testing (Tailwind v4, shadcn/ui, Shiki code viewer)
 - **`apps/docs`**: Fumadocs documentation site (content in `content/docs/`, MDX)
@@ -75,13 +76,14 @@ All commands run from the repository root unless noted.
 
 ## Architecture
 
-The library has three entry points: `next-safe-action` (server), `next-safe-action/hooks`, and `next-safe-action/stateful-hooks` (client). The RHF adapter has two: `@next-safe-action/adapter-react-hook-form` and `@next-safe-action/adapter-react-hook-form/hooks`. The TanStack Query adapter has one: `@next-safe-action/adapter-tanstack-query`. The Better Auth adapter has one: `@next-safe-action/adapter-better-auth`.
+The library has three entry points: `next-safe-action` (server), `next-safe-action/hooks`, and `next-safe-action/stateful-hooks` (client). The RHF adapter has two: `@next-safe-action/adapter-react-hook-form` and `@next-safe-action/adapter-react-hook-form/hooks`. The TanStack Query adapter has one: `@next-safe-action/adapter-tanstack-query`. The Better Auth adapter has one: `@next-safe-action/adapter-better-auth`. The routes adapter has two: `@next-safe-action/adapter-routes` and its optional `/openapi` entry.
 
 **Server-side core:**
 - `safe-action-client.ts`: `SafeActionClient` class with chainable methods: `use()` (middleware), `metadata()`, `inputSchema()`, `outputSchema()`, `bindArgsSchema()`, `action()`, `stateAction()`
 - `action-builder.ts`: core execution engine: runs the middleware stack, validates input/output via Standard Schema, handles errors
 - `deep-merge.ts`: dependency-free `deepmerge()` used to merge middleware context objects (inlined from `deepmerge-ts` to keep the package free of runtime dependencies)
-- `middleware.ts`: `createMiddleware()` for standalone middleware definitions
+- `middleware.ts`: `createMiddleware()` for standalone middleware definitions. Its optional synchronous `onActionDefined` callback receives a frozen, read-only action description at definition time. Direct input schemas are retained separately from factories; callbacks never execute factories.
+- `inspectFrameworkError()`: narrow public inspector reusing the existing framework parsers for redirects, HTTP access statuses, and other control-flow signals.
 - `validation-errors.ts`: error formatting and flattening utilities
 - `server-error.ts`: `returnServerError()` for typed, expected server errors that bypass `handleServerError` (digest-encoded to survive `"use cache"` boundaries)
 - `utils.ts`: utility constants (`DEFAULT_SERVER_ERROR_MESSAGE`) and helpers
@@ -104,6 +106,10 @@ The library has three entry points: `next-safe-action` (server), `next-safe-acti
 - ESM-only output (`.mjs` + `.d.mts`) via tsdown
 - pnpm catalogs in `pnpm-workspace.yaml` centralize shared dependency versions
 - Turborepo orchestrates build/test/lint tasks with dependency-aware caching
+
+## Routes adapter
+
+The adapter exposes actions only when routes middleware, endpoint metadata, and explicit registration are all present. Versioned non-enumerable descriptors use `Symbol.for`, not a global registry. Route tables compile once and reject ambiguous templates. HTTP input uses bounded JSON reads and explicit origin checks (Origin against `X-Forwarded-Proto`/URL scheme plus `X-Forwarded-Host`/`Host`, since Next.js builds `request.url` from the configured hostname); application middleware owns authentication and authorization, and `stateSchema` validation plus `mapInput` run before the action's middleware stack. Sanitized 500 responses report their cause through the optional `onError` callback. The optional OpenAPI entry converts Standard JSON Schema resources without executing actions; each component is its own resource with a generated `$id`, so overrides must not use document-relative `#/components/` references. `requestBodyRequired` defaults to "an input schema exists", and `parameters` overrides are typed and checked against the path template. Production route and hook canaries live in `apps/playground/e2e/routes.spec.ts` and run in `pnpm run test:pg`.
 
 ## Testing
 

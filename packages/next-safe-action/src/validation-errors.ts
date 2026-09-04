@@ -127,6 +127,12 @@ export class ActionValidationError<ShapedErrors> extends Error {
 	}
 }
 
+// Cross-instance brand: lets adapters recognize thrown validation errors even when a duplicate copy of this
+// package is loaded, mirroring the `Symbol.for` protocol used for middleware declaration callbacks.
+Object.defineProperty(ActionValidationError.prototype, Symbol.for("next-safe-action.validation-error.v1"), {
+	value: true,
+});
+
 // This class is internally used to throw validation errors in action's server code function, using
 // `returnValidationErrors`.
 export class ActionBindArgsValidationError extends Error {

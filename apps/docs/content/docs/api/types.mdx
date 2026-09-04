@@ -140,6 +140,71 @@ This is intentionally a flat object rather than an intersection with `SafeAction
 
 ---
 
+### `MiddlewareOptions`
+
+The optional second argument of `createMiddleware().define()`.
+
+```ts
+type MiddlewareOptions = {
+	onActionDefined?: (definition: ActionDefinition) => void;
+};
+```
+
+The callback must be synchronous. See [Declaration callback](/docs/api/create-middleware#declaration-callback).
+
+---
+
+### `ActionDefinition`
+
+The shallow-frozen, read-only description passed to `onActionDefined` when an action is defined with `action()` or `stateAction()`.
+
+```ts
+type ActionDefinition = Readonly<{
+	action: (...args: any[]) => Promise<any>;
+	stateful: boolean;
+	metadata: unknown;
+	inputSchema: StandardSchemaV1 | undefined;
+	outputSchema: StandardSchemaV1 | undefined;
+	dynamicInputSchema: boolean;
+	bindArgsCount: number;
+}>;
+```
+
+<TypeTable
+	type={{
+		action: {
+			description: "The defined action function. Adapters can attach non-enumerable descriptors to it.",
+			type: "(...args: any[]) => Promise<any>",
+		},
+		stateful: {
+			description: "true for stateAction(), false for action().",
+			type: "boolean",
+		},
+		metadata: {
+			description: "The declared metadata value, before metadata schema validation. Validation runs on invocation.",
+			type: "unknown",
+		},
+		inputSchema: {
+			description: "The last input schema passed directly to inputSchema(). undefined when a factory function was used.",
+			type: "StandardSchemaV1 | undefined",
+		},
+		outputSchema: {
+			description: "The declared output schema, if any.",
+			type: "StandardSchemaV1 | undefined",
+		},
+		dynamicInputSchema: {
+			description: "true when the effective input schema comes from a factory function. Factories are never executed at definition time.",
+			type: "boolean",
+		},
+		bindArgsCount: {
+			description: "Number of bind argument schemas.",
+			type: "number",
+		},
+	}}
+/>
+
+---
+
 ## Server code types
 
 ### `ServerCodeFn`
