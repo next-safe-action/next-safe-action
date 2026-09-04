@@ -71,3 +71,6 @@ export const createSafeActionClient = <
 				: formatValidationErrors(ve),
 	});
 };
+
+export type { ActionDefinition, MiddlewareOptions } from "./middleware";
+export { inspectFrameworkError } from "./next/errors";

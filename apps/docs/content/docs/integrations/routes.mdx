@@ -1,0 +1,184 @@
+---
+title: Route handlers
+description: Expose selected safe actions as JSON endpoints with the route adapter.
+---
+
+## Installation
+
+```package-install
+next-safe-action @next-safe-action/adapter-routes
+```
+
+This adapter requires next-safe-action 8.8 or later. It adds no runtime dependency for routing or schema conversion.
+
+An action is exposed only when it uses `routesMiddleware`, has `metadata.endpoint`, and is in the handler's `actions` list. Other actions in that list are skipped. The same action can still be used with React hooks.
+
+## Define actions
+
+Keep your metadata schema. Add the exported `EndpointMetadata` type to it. The adapter checks endpoint configuration when the action is defined.
+
+```ts title="app/api/actions.ts"
+"use server";
+
+import { createSafeActionClient } from "next-safe-action";
+import { routesMiddleware, type EndpointMetadata } from "@next-safe-action/adapter-routes";
+import { z } from "zod";
+
+const client = createSafeActionClient({
+ defineMetadataSchema: () => z.object({
+  endpoint: z.custom<EndpointMetadata>().optional(),
+ }),
+ // Add your application's server-error handler here.
+}).use(routesMiddleware({ requireEndpoint: false, openapi: "opt-in" }));
+
+export const createUser = client
+ .metadata({ endpoint: { method: "POST", path: "/users", successStatus: 201 } })
+ .inputSchema(z.object({ name: z.string().min(1) }))
+ .outputSchema(z.object({ name: z.string() }))
+ .action(async ({ parsedInput }) => {
+  // Authenticate and authorize in application middleware before this operation.
+  return parsedInput;
+ });
+```
+
+```ts title="app/api/[[...path]]/route.ts"
+import { createRouteHandlers } from "@next-safe-action/adapter-routes";
+import { createUser } from "../actions";
+
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = createRouteHandlers({
+ actions: [createUser],
+});
+```
+
+Send JSON to `POST /api/users`. The response is `{"data":{"name":"Ada"}}`.
+
+## Paths and input
+
+Paths are relative to the catch-all parameter. Its name is `path` by default; set `pathParam` to use another name. Use `/` for the catch-all root. Templates support complete segments such as `/users/{id}`, not wildcards. Parameter names must be unique identifiers. Literal segments cannot contain URL escape sequences, query strings, or fragments.
+
+Concrete paths take priority over parameter paths, before method selection. Duplicate routes and overlapping templates without a clear priority fail when handlers are created. Missing paths return 404. A different method on a known path returns 405 with `Allow`. Next.js handles methods that the route file does not export.
+
+Normal actions receive the parsed JSON body unchanged. Empty bodies become `undefined`. Query values and path parameters are not merged into input.
+
+```ts
+const endpoint: EndpointMetadata = {
+ method: "PATCH",
+ path: "/users/{id}",
+ mapInput: async ({ input, params, request }) => ({
+  body: input,
+  id: params.id,
+  locale: new URL(request.url).searchParams.get("locale"),
+ }),
+};
+```
+
+The mapper's return value still passes through the action's input validation. It does not replace authentication or validation. Actions with bind-argument schemas and bound functions are rejected.
+
+## Stateful actions
+
+A stateful endpoint must provide `stateSchema`, a Standard Schema for supplied previous results.
+
+```ts
+const endpoint: EndpointMetadata = {
+ method: "POST",
+ path: "/counter",
+ stateSchema: z.object({ data: z.object({ count: z.number() }) }),
+};
+```
+
+Send this envelope:
+
+```json
+{
+ "input": { "amount": 1 },
+ "prevResult": { "data": { "count": 3 } }
+}
+```
+
+Omitted `prevResult` becomes `{}`. Supplied previous results are validated once, and schema transforms apply. Invalid envelopes or previous results return a 400 `httpError`. The mapper receives only `input`, after state validation. Previous results are untrusted client data, not stored server state. The adapter provides no session storage, replay protection, or concurrency control.
+
+## Responses and errors
+
+| Outcome | Status | Body |
+| --- | --- | --- |
+| Success | 200, or `successStatus` | Existing action result |
+| Input validation failure, returned or thrown | 400 | `{ validationErrors }` |
+| Returned server error | 500, or `serverErrorStatus(error)` | `{ serverError }` |
+| Adapter or unexpected failure | 4xx or 500 | `{ httpError: { code, message } }` |
+
+`successStatus` must be a 2xx status that permits a body, not 204 or 205. `serverErrorStatus` must return a 4xx or 5xx status. Set static response headers with `endpoint.headers`. Cache, JSON content type, content length, Vary, and CORS headers remain adapter-controlled. There is no full Response override.
+
+An empty result stays `{}`: it can mean void success or a middleware short-circuit. Unexpected throws, callback failures, invalid status mappings, and serialization failures are sanitized. Errors returned by your action's `handleServerError` are still returned as configured.
+
+Next.js access signals become 401, 403, or 404 errors. Redirects become 303 responses with `Location`. Other framework control-flow signals are rethrown.
+
+Responses use native JSON serialization, not React Flight. Dates become strings. Undefined object properties are omitted; undefined array entries and non-finite numbers become null. Maps and sets normally become empty objects. BigInt and circular values cause sanitized 500 errors. Use output schemas and JSON-compatible values to keep a stable HTTP contract.
+
+## Security and CORS
+
+- Nonempty bodies require `application/json` or an `application/*+json` content type.
+- The default body limit is 1 MiB. Set `maxBodyBytes` to change it. The limit is enforced while reading, including streams without Content-Length.
+- Responses use `Cache-Control: no-store`.
+- Supplied origins must match the request URL's origin or `allowedOrigins`. The literal origin `null` is rejected.
+- Requests without Origin are accepted. They still need application authentication and authorization.
+- `OPTIONS` is path-specific. It checks the requested method and headers. `allowedHeaders` defaults to `["content-type"]`.
+- Credentialed CORS requires `credentials: true`. Origins must be explicit, never wildcards.
+
+```ts
+createRouteHandlers({
+ actions: [createUser],
+ allowedOrigins: ["https://console.example.com"],
+ credentials: true,
+ allowedHeaders: ["content-type", "authorization"],
+ maxBodyBytes: 1024 * 1024,
+});
+```
+
+Keep authentication, authorization, rate limits, and any additional CSRF checks in application middleware. Server Action transport protections do not apply to these JSON endpoints. Do not trust forwarded host headers without a trusted proxy configuration.
+
+Calling an action through a route handler does not enable [updateTag](https://nextjs.org/docs/app/api-reference/functions/updateTag) or [refresh](https://nextjs.org/docs/app/api-reference/functions/refresh). Those functions require the Server Action execution context. Use route-compatible implementations.
+
+## Optional OpenAPI
+
+Import generation separately. It returns an OpenAPI 3.1 document; it does not publish a route or install Swagger UI.
+
+```ts
+import { generateOpenApiDocument } from "@next-safe-action/adapter-routes/openapi";
+
+const document = generateOpenApiDocument({
+ actions: [createUser],
+ info: { title: "Users", version: "1.0.0" },
+ servers: [{ url: "https://example.com/api" }],
+});
+```
+
+Only endpoints with `endpoint.openapi` appear. Set middleware `openapi: "required"` to require opt-in for each exposed action. Missing documentation schemas do not block HTTP execution.
+
+```ts
+routesMiddleware({
+ openapi: "required",
+ openapiDefaults: {
+  serverErrorSchema: { type: "string" },
+  validationErrorsSchema: { type: "object" },
+ },
+});
+
+const endpoint: EndpointMetadata = {
+ method: "POST",
+ path: "/users",
+ openapi: {
+  operationId: "createUser",
+  summary: "Create a user",
+ },
+};
+```
+
+Use schemas that describe your actual error shapes, not the example placeholders. Shared `serverErrorSchema` and `validationErrorsSchema` defaults can be overridden per endpoint. Both must be explicit because the core supports custom error shapes.
+
+The generator uses [Standard JSON Schema](https://standardschema.dev/json-schema) with the Draft 2020-12 target. It converts request and previous-result schemas on the input side and output schemas on the output side. If conversion is unavailable, provide `requestBodySchema`, `prevResultSchema`, or `outputSchema` overrides.
+
+Dynamic input factories cannot be documented. Missing output schemas or error schemas fail generation with the operation and schema identified. A mapper requires both an explicit `requestBodySchema` and `parameters` array, even when that array is empty. For stateful actions, the request-body override describes the complete HTTP envelope. Path parameters must be declared as required. A server-error status mapper requires an explicit `serverErrorStatuses` list.
+
+Operation IDs must be unique identifiers using letters, digits, and underscores, with no leading digit. Schemas remain separate components with stable resource identifiers. Their local references, recursive roots, `$defs`, nullable values, and boolean schemas are preserved. Absolute `$id` values are retained; duplicate resource IDs fail generation. Relative IDs resolve against the component's generated base. External references must remain resolvable by consumers. See [JSON Schema resource boundaries](https://json-schema.org/understanding-json-schema/structuring) and [OpenAPI Schema Objects](https://spec.openapis.org/oas/v3.1.1.html#schema-object).
+
+Generation does not run actions, middleware, input factories, mappers, state validators, or status callbacks. Standard JSON Schema converter methods do run.

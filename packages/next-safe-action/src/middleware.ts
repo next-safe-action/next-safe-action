@@ -1,4 +1,30 @@
 import type { MiddlewareFn, ValidatedMiddlewareFn } from "./index.types";
+import type { StandardSchemaV1 } from "./standard-schema";
+
+export type ActionDefinition = Readonly<{
+	action: (...args: any[]) => Promise<any>;
+	stateful: boolean;
+	metadata: unknown;
+	inputSchema: StandardSchemaV1 | undefined;
+	outputSchema: StandardSchemaV1 | undefined;
+	dynamicInputSchema: boolean;
+	bindArgsCount: number;
+}>;
+
+export type MiddlewareOptions = {
+	onActionDefined?: (definition: ActionDefinition) => void;
+};
+
+const definitionCallback = /* @__PURE__ */ Symbol.for("next-safe-action.onActionDefined.v1");
+
+export function notifyActionDefined(middleware: Function, definition: ActionDefinition) {
+	const callback = (middleware as unknown as Record<symbol, MiddlewareOptions["onActionDefined"]>)[definitionCallback];
+	const result: unknown = callback?.(definition);
+	if (result && typeof (result as PromiseLike<unknown>).then === "function") {
+		void Promise.resolve(result).catch(() => {});
+		throw new TypeError("onActionDefined must be synchronous");
+	}
+}
 
 /**
  * Creates a standalone middleware function. It accepts a generic object with optional `serverError`, `ctx` and `metadata`
@@ -15,8 +41,18 @@ export const createMiddleware = <BaseData extends { serverError?: any; ctx?: obj
 				BaseData extends { metadata: infer Metadata } ? Metadata : any,
 				BaseData extends { ctx: infer Ctx extends object } ? Ctx : object,
 				NextCtx
-			>
-		) => middlewareFn,
+			>,
+			options?: MiddlewareOptions
+		) => {
+			if (options?.onActionDefined?.constructor.name === "AsyncFunction") {
+				throw new TypeError("onActionDefined must be synchronous");
+			}
+			// Wrap only decorated middleware so reusing a function does not change another client.
+			if (!options?.onActionDefined) return middlewareFn;
+			const decorated: typeof middlewareFn = (args) => middlewareFn(args);
+			Object.defineProperty(decorated, definitionCallback, { value: options.onActionDefined });
+			return decorated;
+		},
 	};
 };
 

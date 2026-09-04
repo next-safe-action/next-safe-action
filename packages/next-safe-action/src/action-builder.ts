@@ -11,6 +11,7 @@ import type {
 	ServerCodeFn,
 	StatefulServerCodeFn,
 } from "./index.types";
+import { notifyActionDefined } from "./middleware";
 import { FrameworkErrorHandler } from "./next/errors";
 import { extractServerError } from "./server-error";
 import type {
@@ -456,7 +457,7 @@ export function actionBuilder<
 					PreValidationCtx
 				>
 			) => {
-				return async (...clientInputs: unknown[]) => {
+				const action = async (...clientInputs: unknown[]) => {
 					let currentCtx: object = {};
 					const middlewareResult: MiddlewareResult<ServerError, object> = { success: false };
 					type PrevResult = SafeActionResult<ServerError, InputSchema, ShapedErrors, Data>;
@@ -662,6 +663,17 @@ export function actionBuilder<
 						utils
 					);
 				};
+				const definition = Object.freeze({
+					action,
+					stateful: withState,
+					metadata: args.metadata,
+					inputSchema: args.staticInputSchema,
+					outputSchema: args.outputSchema,
+					dynamicInputSchema: !!args.inputSchemaFn && !args.staticInputSchema,
+					bindArgsCount: bindArgsSchemas.length,
+				});
+				for (const middleware of new Set(args.middlewareFns)) notifyActionDefined(middleware, definition);
+				return action;
 			},
 		};
 	}

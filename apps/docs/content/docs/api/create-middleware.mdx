@@ -21,7 +21,7 @@ function createMiddleware<
 		metadata?: any;
 	}
 >(): {
-	define: <NextCtx extends object>(middlewareFn: MiddlewareFn) => MiddlewareFn;
+	define: <NextCtx extends object>(middlewareFn: MiddlewareFn, options?: MiddlewareOptions) => MiddlewareFn;
 };
 ```
 
@@ -166,3 +166,23 @@ const broken = baseClient.use(adminGuard);
 - [Standalone middleware](/docs/advanced/standalone-middleware): guide with more patterns and use cases
 - [`.use()` method](/docs/api/safe-action-client#use): how standalone middleware is consumed by clients
 - [`createValidatedMiddleware()`](/docs/api/create-validated-middleware): standalone factory for post-validation middleware
+
+## Declaration callback
+
+Pass a synchronous `onActionDefined` callback as the second argument to `define`:
+
+```ts
+const middleware = createMiddleware().define(async ({ next }) => next(), {
+ onActionDefined(definition) {
+  if (definition.bindArgsCount > 0) {
+   throw new TypeError("Bind arguments are not supported by this middleware");
+  }
+ },
+});
+```
+
+The callback runs once for each completed action definition, not on invocation. It runs for both `action()` and `stateAction()`. Reusing the same middleware in a chain does not call its declaration callback twice.
+
+The exported `ActionDefinition` type contains `action`, `stateful`, `metadata`, `inputSchema`, `outputSchema`, `dynamicInputSchema`, and `bindArgsCount`. The description is shallow-frozen. It exposes no implementation, context, error handler, or middleware stack. Metadata is the declared, unparsed value. Schemas and metadata are references, not deep copies; do not modify them.
+
+Only direct input schemas are exposed. Dynamic factories are never called to discover schemas. Callback return values cannot replace the action. Configuration errors propagate during definition. Async callbacks and promise-returning callbacks are rejected. This callback does not change middleware context or action inference.

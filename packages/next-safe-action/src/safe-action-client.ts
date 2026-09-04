@@ -261,6 +261,7 @@ export class SafeActionClient<
 
 		return new SafeActionClient({
 			...this.#args,
+			staticInputSchema: isDirectStandardSchema ? inputSchema : undefined,
 			inputSchemaFn: (isInputSchemaFactoryFn
 				? async (clientInput?: unknown) => {
 						const prevSchema = await this.#args.inputSchemaFn?.(clientInput);
