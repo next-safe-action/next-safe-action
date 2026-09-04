@@ -181,8 +181,16 @@ const middleware = createMiddleware().define(async ({ next }) => next(), {
 });
 ```
 
-The callback runs once for each completed action definition, not on invocation. It runs for both `action()` and `stateAction()`. Reusing the same middleware in a chain does not call its declaration callback twice.
+The callback runs once for each completed action definition, not on invocation. It runs for both `action()` and `stateAction()`. Callbacks run in chain order, synchronously, before the action is returned to the caller.
 
-The exported `ActionDefinition` type contains `action`, `stateful`, `metadata`, `inputSchema`, `outputSchema`, `dynamicInputSchema`, and `bindArgsCount`. The description is shallow-frozen. It exposes no implementation, context, error handler, or middleware stack. Metadata is the declared, unparsed value. Schemas and metadata are references, not deep copies; do not modify them.
+Deduplication is by function identity. `define()` returns a new wrapper each time it receives an `onActionDefined` callback, so storing that wrapper and reusing it with `.use(mw).use(mw)` calls the callback once while the middleware still executes twice. Calling `define()` twice creates two wrappers and two notifications.
+
+The exported [`ActionDefinition`](/docs/api/types#actiondefinition) type contains `action`, `stateful`, `metadata`, `inputSchema`, `outputSchema`, `dynamicInputSchema`, and `bindArgsCount`. The description is shallow-frozen. It exposes no implementation, context, error handler, or middleware stack. Schemas and metadata are references, not deep copies; do not modify them.
+
+<Callout type="warn">
+`metadata` is the declared, unvalidated value. The metadata schema runs on invocation, not on definition, so a callback must validate whatever it reads from `metadata` itself.
+</Callout>
 
 Only direct input schemas are exposed. Dynamic factories are never called to discover schemas. Callback return values cannot replace the action. Configuration errors propagate during definition. Async callbacks and promise-returning callbacks are rejected. This callback does not change middleware context or action inference.
+
+This is a stable public API. The supported contract is: synchronous completion, one notification per completed definition per middleware function identity, chain ordering, and a shallow-frozen description.

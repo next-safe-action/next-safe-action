@@ -1,4 +1,4 @@
-import { createSafeActionClient, returnServerError } from "next-safe-action";
+import { ActionValidationError, createSafeActionClient, returnServerError } from "next-safe-action";
 import { expect, it, vi } from "vitest";
 import { z } from "zod";
 import { createRouteHandlers, routesMiddleware } from "../index";
@@ -316,4 +316,219 @@ it("preserves repeated response headers on thrown validation errors", async () =
 	expect(result.status).toBe(400);
 	expect(result.headers.getSetCookie()).toEqual(["a=1", "b=2"]);
 	expect(result.headers.get("x-example")).toBe("yes");
+});
+
+it("reflects allowed origins on success and error responses without implicit credentials", async () => {
+	const a = action({ method: "POST", path: "/users" });
+	const same = await call([a], "POST", undefined, "{}", {
+		"content-type": "application/json",
+		"origin": "https://app.test",
+	});
+	expect(same.status).toBe(200);
+	expect(same.headers.get("access-control-allow-origin")).toBe("https://app.test");
+	expect(same.headers.get("access-control-allow-credentials")).toBeNull();
+	const listed = await call(
+		[a],
+		"POST",
+		undefined,
+		"{",
+		{ "content-type": "application/json", "origin": "https://other.test" },
+		{ allowedOrigins: ["https://other.test"] }
+	);
+	expect(listed.status).toBe(400);
+	expect(listed.headers.get("access-control-allow-origin")).toBe("https://other.test");
+	expect(listed.headers.get("vary")).toBe("Origin");
+});
+
+it("matches origins against forwarded scheme and host, falling back to the request URL", async () => {
+	const run = vi.fn(async () => "ok");
+	const a = action({ method: "POST", path: "/users" }, run);
+	const origin = "https://app.example";
+	const send = (headers: Record<string, string>, options: Partial<RoutesOptions> = {}) =>
+		createRouteHandlers({ actions: [a], ...options }).POST(
+			// Next.js builds request.url from the configured hostname, not from the request.
+			new Request("http://localhost:3000/api/users", {
+				method: "POST",
+				body: "{}",
+				headers: { "content-type": "application/json", origin, ...headers },
+			}),
+			{ params: Promise.resolve({ path: ["users"] }) }
+		);
+	const ok = async (headers: Record<string, string>, options?: Partial<RoutesOptions>) =>
+		expect((await send(headers, options)).status).toBe(200);
+	const denied = async (headers: Record<string, string>) => expect((await send(headers)).status).toBe(403);
+	await ok({ "host": "APP.example", "x-forwarded-proto": "https" });
+	await ok({ "host": "app.example:443", "x-forwarded-proto": "https, http" });
+	await ok({ "host": "internal:3000", "x-forwarded-host": "app.example, proxy", "x-forwarded-proto": "https" });
+	await ok({ host: "internal:3000" }, { allowedOrigins: [origin] });
+	// Scheme must match: an http origin never counts as same-origin for an https deployment.
+	await denied({ "origin": "http://app.example", "host": "app.example", "x-forwarded-proto": "https" });
+	// Without a forwarded scheme, the request URL scheme applies.
+	await denied({ host: "app.example" });
+	await ok({ origin: "http://app.example", host: "app.example" });
+	// X-Forwarded-Host takes precedence over Host when present.
+	await denied({ "host": "app.example", "x-forwarded-host": "internal", "x-forwarded-proto": "https" });
+	await denied({ "host": "app.example:8443", "x-forwarded-proto": "https" });
+	await denied({ "host": "internal:3000", "x-forwarded-proto": "https" });
+	// The request URL host applies only when no Host header reached the handler.
+	await ok({ origin: "http://localhost:3000" });
+	await denied({ origin: "http://localhost:3000", host: "app.example" });
+	await denied({ origin: "not a url", host: "app.example" });
+	expect(run).toHaveBeenCalledTimes(6);
+});
+
+it("answers preflight for parameter paths and applies concrete-path priority to preflight", async () => {
+	const create = action({ method: "POST", path: "/users/{id}" });
+	const remove = action({ method: "DELETE", path: "/users/{id}" });
+	const me = action({ method: "PUT", path: "/users/me" });
+	const preflight = (path: string[], method: string) =>
+		call([create, remove, me], "OPTIONS", path, undefined, {
+			"origin": "https://app.test",
+			"access-control-request-method": method,
+		});
+	const parameter = await preflight(["users", "42"], "DELETE");
+	expect(parameter.status).toBe(204);
+	expect(parameter.headers.get("access-control-allow-methods")).toBe("POST, DELETE, OPTIONS");
+	expect((await preflight(["users", "me"], "POST")).status).toBe(405);
+	expect((await preflight(["users", "me"], "PUT")).status).toBe(204);
+	const wrong = await call([create, remove], "PUT", ["users", "42"]);
+	expect(wrong.headers.get("allow")).toBe("POST, DELETE, OPTIONS");
+});
+
+it("enforces the exact body limit, strict UTF-8 and JSON media types before running mappers or actions", async () => {
+	const mapInput = vi.fn(({ input }: { input: unknown }) => input);
+	const run = vi.fn(async (input: unknown) => input);
+	const a = action({ method: "POST", path: "/users", mapInput }, run);
+	const send = (body: BodyInit, type = "application/json", options: Partial<RoutesOptions> = {}) =>
+		createRouteHandlers({ actions: [a], ...options }).POST(
+			new Request("https://app.test/api/users", { method: "POST", body, headers: { "content-type": type } }),
+			{ params: Promise.resolve({ path: ["users"] }) }
+		);
+	expect((await send("1234", undefined, { maxBodyBytes: 4 })).status).toBe(200);
+	expect((await send("12345", undefined, { maxBodyBytes: 4 })).status).toBe(413);
+	expect(await (await send('"héllo"')).json()).toEqual({ data: "héllo" });
+	expect((await send(new Uint8Array([0x22, 0xff, 0x22]))).status).toBe(400);
+	expect((await send('{"a":1}', "application/vnd.api+json")).status).toBe(200);
+	expect(run).toHaveBeenCalledTimes(3);
+	run.mockClear();
+	mapInput.mockClear();
+	expect((await send("{}", "text/plain")).status).toBe(415);
+	expect((await send("a=1", "application/x-www-form-urlencoded")).status).toBe(415);
+	expect((await send("{}", "application/json", { maxBodyBytes: 1 })).status).toBe(413);
+	expect(mapInput).not.toHaveBeenCalled();
+	expect(run).not.toHaveBeenCalled();
+});
+
+it("keeps hostile keys as own properties and ignores method override headers", async () => {
+	const a = action({
+		method: "POST",
+		path: "/{__proto__}/{constructor}",
+		mapInput: ({ input, params }) => ({
+			input,
+			own: Object.hasOwn(params, "__proto__") && Object.hasOwn(params, "constructor"),
+			proto: Object.getPrototypeOf(params) === Object.prototype,
+		}),
+	});
+	const response = await call([a], "POST", ["a", "b"], '{"__proto__":{"polluted":true},"constructor":1}');
+	expect(await response.json()).toEqual({
+		data: { input: JSON.parse('{"__proto__":{"polluted":true},"constructor":1}'), own: true, proto: true },
+	});
+	expect(({} as { polluted?: boolean }).polluted).toBeUndefined();
+	const remove = action({ method: "DELETE", path: "/users" }, async () => "deleted");
+	const override = await call([remove], "POST", undefined, "{}", {
+		"content-type": "application/json",
+		"x-http-method-override": "DELETE",
+	});
+	expect(override.status).toBe(405);
+});
+
+it("keeps endpoint headers on redirects and access errors", async () => {
+	const headers = { "x-example": "yes" };
+	const redirect = action({ method: "POST", path: "/users", headers }, async () => {
+		throw Object.assign(new Error(), { digest: "NEXT_REDIRECT;replace;/next;307;" });
+	});
+	const denied = action({ method: "POST", path: "/users", headers }, async () => {
+		throw Object.assign(new Error(), { digest: "NEXT_HTTP_ERROR_FALLBACK;403" });
+	});
+	const moved = await call([redirect]);
+	expect(moved.status).toBe(303);
+	expect(moved.headers.get("x-example")).toBe("yes");
+	const forbidden = await call([denied]);
+	expect(forbidden.status).toBe(403);
+	expect(forbidden.headers.get("x-example")).toBe("yes");
+});
+
+it("reports the original cause of sanitized failures through onError only", async () => {
+	const endpoint: EndpointMetadata = { method: "POST", path: "/users" };
+	const causes: unknown[] = [];
+	const onError = vi.fn((error: unknown, _context: { request: Request }) => {
+		causes.push(error);
+	});
+	const secret = new Error("SECRET");
+	const cyclic: Record<string, unknown> = {};
+	cyclic.self = cyclic;
+	const sanitized = [
+		action({
+			...endpoint,
+			mapInput: () => {
+				throw secret;
+			},
+		}),
+		action({ ...endpoint, serverErrorStatus: () => 200 }, async () => {
+			throw new Error("boom");
+		}),
+		action(endpoint, async () => cyclic),
+		action(endpoint, async () => {
+			throw Object.assign(new Error(), { digest: "NEXT_REDIRECT;replace;/bad\nheader;307;" });
+		}),
+	];
+	for (const a of sanitized) {
+		const response = await call([a], "POST", undefined, "{}", undefined, { onError });
+		expect(response.status).toBe(500);
+		expect(await response.text()).not.toContain("SECRET");
+	}
+	expect(onError).toHaveBeenCalledTimes(4);
+	expect(causes[0]).toBe(secret);
+	expect(onError.mock.calls[0]![1]).toHaveProperty("request");
+	onError.mockClear();
+	const invalid = client
+		.metadata({ endpoint })
+		.inputSchema(z.string())
+		.action(async () => "ok", { throwValidationErrors: true });
+	expect((await call([invalid], "POST", undefined, "{}", undefined, { onError })).status).toBe(400);
+	expect((await call([action(endpoint)], "POST", undefined, "{", undefined, { onError })).status).toBe(400);
+	expect(onError).not.toHaveBeenCalled();
+	const throwing = await call([sanitized[2]!], "POST", undefined, "{}", undefined, {
+		onError: () => {
+			throw new Error("reporter");
+		},
+	});
+	expect(throwing.status).toBe(500);
+	expect(await throwing.json()).toEqual({ httpError: { code: "INTERNAL_ERROR", message: "Internal server error" } });
+	const rejection = vi.fn();
+	process.once("unhandledRejection", rejection);
+	const asyncThrowing = await call([sanitized[2]!], "POST", undefined, "{}", undefined, {
+		onError: async () => {
+			throw new Error("async reporter");
+		},
+	});
+	expect(asyncThrowing.status).toBe(500);
+	await new Promise((resolve) => setTimeout(resolve, 0));
+	expect(rejection).not.toHaveBeenCalled();
+	expect(() => createRouteHandlers({ actions: [], onError: 1 as unknown as () => void })).toThrow("onError");
+});
+
+it("recognizes thrown validation errors from a duplicate core instance", async () => {
+	vi.resetModules();
+	const duplicate = await import("next-safe-action");
+	expect(duplicate.ActionValidationError).not.toBe(ActionValidationError);
+	const a = duplicate
+		.createSafeActionClient({ defineMetadataSchema: () => z.object({ endpoint: z.custom<EndpointMetadata>() }) })
+		.use(routesMiddleware())
+		.metadata({ endpoint: { method: "POST", path: "/users" } })
+		.inputSchema(z.string())
+		.action(async () => "ok", { throwValidationErrors: true });
+	const response = await call([a]);
+	expect(response.status).toBe(400);
+	expect(await response.json()).toHaveProperty("validationErrors");
 });

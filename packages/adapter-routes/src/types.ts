@@ -7,15 +7,25 @@ export type OpenApiErrors = {
 	serverErrorSchema?: JsonSchema;
 	validationErrorsSchema?: JsonSchema;
 };
+export type OpenApiParameter = {
+	name: string;
+	in: "path" | "query" | "header" | "cookie";
+	required?: boolean;
+	description?: string;
+	schema: JsonSchema;
+	deprecated?: boolean;
+};
 export type EndpointOpenApi = OpenApiErrors & {
 	operationId: string;
 	summary?: string;
 	description?: string;
 	tags?: string[];
 	requestBodySchema?: JsonSchema;
+	/** Defaults to true when the action has an input schema or `requestBodySchema` is set. */
+	requestBodyRequired?: boolean;
 	outputSchema?: JsonSchema;
 	prevResultSchema?: JsonSchema;
-	parameters?: Record<string, unknown>[];
+	parameters?: OpenApiParameter[];
 	serverErrorStatuses?: number[];
 };
 export type EndpointMetadata = {
@@ -40,6 +50,8 @@ export type RoutesOptions = {
 	allowedOrigins?: readonly string[];
 	credentials?: boolean;
 	allowedHeaders?: readonly string[];
+	/** Receives the original error behind every sanitized 500 response. The response stays sanitized and is not delayed. */
+	onError?: (error: unknown, context: { request: Request }) => void | Promise<void>;
 };
 export type RouteContext = { params: Promise<Record<string, string | string[] | undefined>> };
 export type HttpError = { httpError: { code: string; message: string } };

@@ -1,10 +1,10 @@
-import { expectTypeOf, it } from "vitest";
+import { expectTypeOf, test } from "vitest";
 import { z } from "zod";
 import { useAction } from "../../hooks";
 import { createMiddleware, createSafeActionClient } from "../../index";
 import type { InferSafeActionFnResult } from "../../index";
 
-it("preserves middleware, metadata, schemas and hook inference", () => {
+test("preserves middleware, metadata, schemas and hook inference", () => {
 	const middleware = createMiddleware<{ metadata: { name: string } }>().define(
 		async ({ metadata, next }) => {
 			expectTypeOf(metadata.name).toEqualTypeOf<string>();

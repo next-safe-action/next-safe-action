@@ -1,6 +1,6 @@
 {
 	"name": "@next-safe-action/adapter-routes",
-	"version": "0.1.0",
+	"version": "0.0.0",
 	"private": false,
 	"description": "JSON route handlers and optional OpenAPI for next-safe-action.",
 	"main": "./dist/index.mjs",
@@ -45,9 +45,23 @@
 		"build": "tsdown"
 	},
 	"keywords": [
-		"next-safe-action",
+		"next",
 		"nextjs",
+		"react",
+		"rsc",
+		"react server components",
+		"mutation",
+		"action",
+		"actions",
+		"react actions",
+		"next actions",
+		"server actions",
+		"next-safe-action",
+		"next safe action",
+		"route handlers",
 		"routes",
+		"rest",
+		"json",
 		"openapi"
 	],
 	"author": "Edoardo Ranghieri",
@@ -68,7 +82,7 @@
 		"next-safe-action": ">= 8.8.0"
 	},
 	"engines": {
-		"node": ">=18.17"
+		"node": ">=18.18"
 	},
 	"repository": {
 		"type": "git",

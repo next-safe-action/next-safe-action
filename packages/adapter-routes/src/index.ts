@@ -55,6 +55,30 @@ async function readInput(request: Request, limit: number): Promise<unknown> {
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
+function headerValue(request: Request, name: string) {
+	return request.headers.get(name)?.split(",")[0]?.trim() || undefined;
+}
+// Same-origin detection follows Next.js Server Actions for the host (X-Forwarded-Host, then Host) and additionally
+// compares the scheme (X-Forwarded-Proto, then the request URL). Next.js builds `request.url` from the configured
+// hostname, not from the request, so its host is used only when no Host header reached the handler.
+function isSameOrigin(origin: string, request: Request): boolean {
+	const url = new URL(request.url);
+	const host = headerValue(request, "x-forwarded-host") ?? headerValue(request, "host") ?? url.host;
+	const scheme = headerValue(request, "x-forwarded-proto") ?? url.protocol.slice(0, -1);
+	try {
+		return new URL(origin).origin === new URL(scheme + "://" + host).origin;
+	} catch {
+		return false;
+	}
+}
+const validationErrorBrand = Symbol.for("next-safe-action.validation-error.v1");
+// Also matches errors thrown by a duplicate copy of the core package.
+function isValidationError(error: unknown): error is { validationErrors: unknown } {
+	return (
+		error instanceof ActionValidationError ||
+		(error instanceof Error && (error as unknown as Record<symbol, unknown>)[validationErrorBrand] === true)
+	);
+}
 export function createRouteHandlers(options: RoutesOptions) {
 	const table = routeTable(options.actions);
 	const limit = options.maxBodyBytes ?? 1024 * 1024;
@@ -65,6 +89,7 @@ export function createRouteHandlers(options: RoutesOptions) {
 			throw new TypeError("Allowed origins must be explicit origins");
 	}
 	const allowedHeaders = (options.allowedHeaders ?? ["content-type"]).map((header) => header.toLowerCase());
+	if (options.onError !== undefined && typeof options.onError !== "function") throw new TypeError("Invalid onError");
 	const handler = async (request: Request, context: RouteContext): Promise<Response> => {
 		const headers = new Headers({ "Cache-Control": "no-store", "Vary": "Origin" });
 		const json = (body: unknown, status: number) => {
@@ -74,10 +99,21 @@ export function createRouteHandlers(options: RoutesOptions) {
 		};
 		const error = (status: number, code: string, message: string) =>
 			json({ httpError: { code, message } } satisfies HttpError, status);
+		const internalError = (cause: unknown) => {
+			try {
+				const reported: unknown = options.onError?.(cause, { request });
+				// Reporting must never change or delay the response, so async reporters are not awaited.
+				if (reported && typeof (reported as PromiseLike<unknown>).then === "function")
+					void Promise.resolve(reported).catch(() => {});
+			} catch {
+				/* Reporting must never change the response. */
+			}
+			return error(500, "INTERNAL_ERROR", "Internal server error");
+		};
 		try {
 			const origin = request.headers.get("origin");
 			if (origin !== null) {
-				if (origin === "null" || (origin !== new URL(request.url).origin && !origins.has(origin)))
+				if (origin === "null" || (!origins.has(origin) && !isSameOrigin(origin, request)))
 					fail(403, "ORIGIN_NOT_ALLOWED", "Origin is not allowed");
 				headers.set("Access-Control-Allow-Origin", origin);
 				if (options.credentials) headers.set("Access-Control-Allow-Credentials", "true");
@@ -164,20 +200,20 @@ export function createRouteHandlers(options: RoutesOptions) {
 				try {
 					headers.set("Location", signal.destination);
 					return new Response(null, { status: 303, headers });
-				} catch {
-					return error(500, "INTERNAL_ERROR", "Internal server error");
+				} catch (invalid) {
+					return internalError(invalid);
 				}
 			}
 			if (signal?.kind === "access") return error(signal.status, "ACCESS_DENIED", "Access denied");
 			if (caught instanceof PreparationError) return error(caught.status, caught.code, caught.message);
-			if (caught instanceof ActionValidationError) {
+			if (isValidationError(caught)) {
 				try {
 					return json({ validationErrors: caught.validationErrors }, 400);
-				} catch {
-					/* Fall through to sanitized error. */
+				} catch (unserializable) {
+					return internalError(unserializable);
 				}
 			}
-			return error(500, "INTERNAL_ERROR", "Internal server error");
+			return internalError(caught);
 		}
 	};
 	return { POST: handler, PUT: handler, PATCH: handler, DELETE: handler, OPTIONS: handler };

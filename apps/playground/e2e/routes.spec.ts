@@ -33,3 +33,25 @@ test("client JavaScript excludes route descriptors and OpenAPI generation", asyn
 	}
 	expect((await request.get("/hooks")).ok()).toBe(true);
 });
+
+test("browser fetch with cookies and Origin succeeds while foreign origins and GET are rejected", async ({ page }) => {
+	await page.goto("/hooks");
+	const status = await page.evaluate(async () => {
+		const response = await fetch("/api/routes/counter", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ amount: 4 }),
+		});
+		return { status: response.status, body: await response.json() };
+	});
+	expect(status).toEqual({ status: 200, body: { data: { count: 4 } } });
+	const foreign = await page.request.post("/api/routes/counter", {
+		data: { amount: 1 },
+		headers: { origin: "https://evil.example" },
+	});
+	expect(foreign.status()).toBe(403);
+	expect(await foreign.json()).toEqual({ httpError: { code: "ORIGIN_NOT_ALLOWED", message: "Origin is not allowed" } });
+	expect((await page.request.get("/api/routes/counter")).status()).toBe(405);
+	const follow = await page.request.post("/api/routes/counter", { data: { amount: 1 } });
+	expect(await follow.json()).toEqual({ data: { count: 5 } });
+});

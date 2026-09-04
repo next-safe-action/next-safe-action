@@ -186,6 +186,28 @@ const actionClient = createSafeActionClient({
 });
 ```
 
+## Framework error utilities
+
+Next.js signals navigation and access control by throwing special errors (`redirect()`, `notFound()`, `forbidden()`, `unauthorized()`). The library re-throws them so the framework can handle them. These helpers let your own code, and adapters that call actions outside the Server Action transport, recognize them.
+
+### `isNavigationError()`
+
+```ts
+function isNavigationError(error: unknown): error is Error;
+```
+
+Returns `true` for every framework control-flow error: redirects, HTTP access fallbacks, bail-out to client-side rendering, dynamic usage, and postpone signals. Use it in `try/catch` blocks around action calls to re-throw framework signals instead of treating them as failures.
+
+### `inspectFrameworkError()`
+
+```ts
+function inspectFrameworkError(
+	error: unknown
+): { kind: "redirect"; destination: string } | { kind: "access"; status: number } | { kind: "other" } | undefined;
+```
+
+Classifies a framework error without handling it. `redirect` carries the destination URL, `access` carries the HTTP status (401, 403, or 404), and `other` covers the remaining control-flow signals. Returns `undefined` for anything that is not a framework error. The route adapter uses it to turn redirects into `303` responses and access errors into HTTP statuses, and to re-throw everything else.
+
 ## See also
 
 - [Error handling](/docs/concepts/error-handling): the complete error taxonomy

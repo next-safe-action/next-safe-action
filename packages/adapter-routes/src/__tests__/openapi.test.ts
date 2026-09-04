@@ -165,3 +165,155 @@ it("reports missing status and parameter contracts and duplicate schema resource
 		.action(async () => "ok");
 	expect(() => generateOpenApiDocument({ actions: [duplicate], info })).toThrow("duplicate schema resource");
 });
+
+it("documents request bodies as required when an input schema exists unless overridden", () => {
+	const operation = (a: Parameters<typeof generateOpenApiDocument>[0]["actions"][number]) =>
+		generateOpenApiDocument({ actions: [a], info }).paths["/users"]!.post as {
+			requestBody?: { required: boolean; content: Record<string, { schema: Record<string, unknown> }> };
+		};
+	const required = client
+		.metadata({ endpoint })
+		.inputSchema(z.object({ name: z.string() }))
+		.outputSchema(z.string())
+		.action(async () => "ok");
+	expect(operation(required).requestBody!.required).toBe(true);
+	const optional = client
+		.metadata({ endpoint: { ...endpoint, openapi: { operationId: "createUser", requestBodyRequired: false } } })
+		.inputSchema(z.string().optional())
+		.outputSchema(z.string())
+		.action(async () => "ok");
+	expect(operation(optional).requestBody!.required).toBe(false);
+	const none = client
+		.metadata({ endpoint })
+		.outputSchema(z.string())
+		.action(async () => "ok");
+	expect(operation(none).requestBody).toBeUndefined();
+	const state = client
+		.metadata({ endpoint: { ...endpoint, stateSchema: z.object({}) } })
+		.inputSchema(z.number())
+		.outputSchema(z.number())
+		.stateAction(async () => 1);
+	const envelope = operation(state).requestBody!;
+	expect(envelope.required).toBe(true);
+	expect(envelope.content["application/json"]!.schema.required).toEqual(["input"]);
+	const looseState = client
+		.metadata({ endpoint: { ...endpoint, stateSchema: z.object({}) } })
+		.outputSchema(z.number())
+		.stateAction(async () => 1);
+	const loose = operation(looseState).requestBody!;
+	expect(loose.required).toBe(true);
+	expect(loose.content["application/json"]!.schema.required).toBeUndefined();
+});
+
+it("rejects document-relative references inside overrides and defaults", () => {
+	const base = client.outputSchema(z.string());
+	const ref = { $ref: "#/components/schemas/createUser_Output" };
+	for (const openapi of [
+		{ operationId: "createUser", requestBodySchema: ref },
+		{ operationId: "createUser", outputSchema: { type: "object", properties: { nested: ref } } },
+		{ operationId: "createUser", serverErrorSchema: ref },
+	]) {
+		const a = base.metadata({ endpoint: { ...endpoint, openapi } }).action(async () => "ok");
+		expect(() => generateOpenApiDocument({ actions: [a], info })).toThrow("document-relative");
+	}
+	const encoded = base
+		.metadata({
+			endpoint: {
+				...endpoint,
+				openapi: { operationId: "createUser", requestBodySchema: { $ref: "#/%63omponents/schemas/X" } },
+			},
+		})
+		.action(async () => "ok");
+	expect(() => generateOpenApiDocument({ actions: [encoded], info })).toThrow("document-relative");
+	const defaults = createSafeActionClient({
+		defineMetadataSchema: () => z.object({ endpoint: z.custom<EndpointMetadata>() }),
+	})
+		.use(routesMiddleware({ openapiDefaults: { ...errors, validationErrorsSchema: ref } }))
+		.metadata({ endpoint })
+		.outputSchema(z.string())
+		.action(async () => "ok");
+	expect(() => generateOpenApiDocument({ actions: [defaults], info })).toThrow("createUser_ValidationErrors");
+	// Schema maps are inspected whatever the entry name, and $dynamicRef follows the same rules as $ref.
+	for (const requestBodySchema of [
+		{ type: "object", properties: { default: ref } },
+		{ $defs: { const: ref }, type: "object" },
+		{ $dynamicRef: "#/components/schemas/createUser_Output" },
+		{ $dynamicRef: "#/%63omponents/schemas/createUser_Output" },
+	]) {
+		const a = base
+			.metadata({ endpoint: { ...endpoint, openapi: { operationId: "createUser", requestBodySchema } } })
+			.action(async () => "ok");
+		expect(() => generateOpenApiDocument({ actions: [a], info })).toThrow("document-relative");
+	}
+	// A percent-encoded "#" belongs to a resource path, not to a fragment.
+	const resourcePath = base
+		.metadata({
+			endpoint: {
+				...endpoint,
+				openapi: { operationId: "createUser", requestBodySchema: { $ref: "%23/components/schemas/X" } },
+			},
+		})
+		.action(async () => "ok");
+	expect(() => generateOpenApiDocument({ actions: [resourcePath], info })).not.toThrow();
+	// Local references and instance data that merely looks like a reference stay valid.
+	const local = base
+		.metadata({
+			endpoint: {
+				...endpoint,
+				openapi: {
+					operationId: "createUser",
+					requestBodySchema: {
+						$ref: "#/$defs/x",
+						$defs: { x: { type: "object", examples: [ref], default: ref, const: ref, enum: [ref] } },
+					},
+				},
+			},
+		})
+		.action(async () => "ok");
+	expect(() => generateOpenApiDocument({ actions: [local], info })).not.toThrow();
+});
+
+it("validates parameter overrides against the template", () => {
+	const base = client.outputSchema(z.string());
+	const at = (path: string, parameters: unknown) =>
+		base
+			.metadata({
+				endpoint: { ...endpoint, path, openapi: { operationId: "p", parameters: parameters as never } },
+			})
+			.action(async () => "ok");
+	const id = { name: "id", in: "path", required: true, schema: { type: "string" } };
+	expect(() => generateOpenApiDocument({ actions: [at("/users/{id}", [id, id])], info })).toThrow(
+		"duplicate parameter"
+	);
+	expect(() => generateOpenApiDocument({ actions: [at("/users", [id])], info })).toThrow("not in the template");
+	expect(() => generateOpenApiDocument({ actions: [at("/users/{id}", [{ ...id, schema: undefined }])], info })).toThrow(
+		"requires schema"
+	);
+	expect(() => generateOpenApiDocument({ actions: [at("/users/{id}", [{ ...id, in: "body" }])], info })).toThrow(
+		"invalid parameter"
+	);
+	const query = { name: "locale", in: "query", schema: { type: "string" } };
+	const doc = generateOpenApiDocument({ actions: [at("/users/{id}", [id, query])], info });
+	expect((doc.paths["/users/{id}"]!.post as { parameters: unknown[] }).parameters).toEqual([id, query]);
+});
+
+it("keeps every error alternative when server errors map to 400", () => {
+	const a = client
+		.metadata({
+			endpoint: {
+				...endpoint,
+				serverErrorStatus: () => 400,
+				openapi: { operationId: "createUser", serverErrorStatuses: [400] },
+			},
+		})
+		.outputSchema(z.string())
+		.action(async () => "ok");
+	const responses = (
+		generateOpenApiDocument({ actions: [a], info }).paths["/users"]!.post as {
+			responses: Record<string, { content: Record<string, { schema: { anyOf: unknown[] } }> }>;
+		}
+	).responses;
+	expect(responses["400"]!.content["application/json"]!.schema.anyOf).toHaveLength(3);
+	// Sanitized adapter failures can always produce a 500 httpError.
+	expect(responses["500"]!.content["application/json"]!.schema).toEqual({ $ref: "#/components/schemas/HttpError" });
+});

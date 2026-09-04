@@ -1,10 +1,40 @@
 import { isParameter, routeTable } from "./definition";
-import type { JsonSchema, RoutesOptions, Schema } from "./types";
+import type { JsonSchema, OpenApiParameter, RoutesOptions, Schema } from "./types";
 
 export type OpenApiDocumentOptions = Pick<RoutesOptions, "actions"> & {
 	info: { title: string; version: string; description?: string };
 	servers?: { url: string; description?: string }[];
 };
+const locations: readonly OpenApiParameter["in"][] = ["path", "query", "header", "cookie"];
+// Keywords whose values are instance data, not subschemas.
+const dataKeywords = new Set(["const", "default", "enum", "example", "examples"]);
+// Keywords whose values are maps of arbitrary names to subschemas.
+const schemaMaps = new Set(["properties", "patternProperties", "$defs", "definitions", "dependentSchemas"]);
+/** True for a fragment-only reference into the OpenAPI document (`#/components/...`), percent-encoded or not. */
+function isDocumentRef(ref: string): boolean {
+	if (!ref.startsWith("#")) return false;
+	let fragment = ref.slice(1);
+	try {
+		fragment = decodeURIComponent(fragment);
+	} catch {
+		/* Keep the raw fragment. */
+	}
+	return fragment.startsWith("/components/");
+}
+/** Walks schema locations only: annotation data is skipped and schema-map entries are inspected whatever their name. */
+function hasDocumentRef(node: unknown, isSchemaMap = false): boolean {
+	if (Array.isArray(node)) return node.some((item) => hasDocumentRef(item));
+	if (!node || typeof node !== "object") return false;
+	for (const [key, value] of Object.entries(node)) {
+		if (isSchemaMap) {
+			if (hasDocumentRef(value)) return true;
+		} else if (dataKeywords.has(key)) continue;
+		else if ((key === "$ref" || key === "$dynamicRef") && typeof value === "string") {
+			if (isDocumentRef(value)) return true;
+		} else if (hasDocumentRef(value, schemaMaps.has(key))) return true;
+	}
+	return false;
+}
 
 function envelope(key: string, schema: JsonSchema): JsonSchema {
 	return { type: "object", required: [key], additionalProperties: false, properties: { [key]: schema } };
@@ -18,9 +48,15 @@ export function generateOpenApiDocument(options: OpenApiDocumentOptions) {
 	const paths: Record<string, Record<string, unknown>> = {};
 	const operationIds = new Set<string>();
 	const resourceIds = new Set<string>();
-	function component(name: string, schema: JsonSchema): JsonSchema {
+	function component(name: string, schema: JsonSchema, override = false): JsonSchema {
 		if (typeof schema !== "boolean" && (!schema || typeof schema !== "object" || Array.isArray(schema)))
 			throw new TypeError(name + ": invalid JSON Schema");
+		// Each component becomes its own resource with a generated $id, so a document-relative reference such as
+		// "#/components/schemas/X" would resolve inside that resource instead of the OpenAPI document.
+		if (override && hasDocumentRef(schema))
+			throw new TypeError(
+				name + ": document-relative $ref is not resolvable inside a component resource; inline the schema instead"
+			);
 		if (typeof schema === "boolean") schemas[name] = schema;
 		else {
 			const base = "https://next-safe-action.invalid/schemas/" + name;
@@ -51,7 +87,7 @@ export function generateOpenApiDocument(options: OpenApiDocumentOptions) {
 		side: "input" | "output",
 		override?: JsonSchema
 	): JsonSchema {
-		if (override !== undefined) return component(name, override);
+		if (override !== undefined) return component(name, override, true);
 		const standard:
 			| (Schema["~standard"] & {
 					jsonSchema?: Record<"input" | "output", (options: { target: string }) => Record<string, unknown>>;
@@ -79,11 +115,13 @@ export function generateOpenApiDocument(options: OpenApiDocumentOptions) {
 		if (errors.serverErrorSchema === undefined || errors.validationErrorsSchema === undefined)
 			throw new TypeError(id + ": explicit serverErrorSchema and validationErrorsSchema are required");
 		const output = convert(id + "_Output", definition.outputSchema, "output", config.outputSchema);
-		const serverError = component(id + "_ServerError", errors.serverErrorSchema);
-		const validation = component(id + "_ValidationErrors", errors.validationErrorsSchema);
+		const serverError = component(id + "_ServerError", errors.serverErrorSchema, true);
+		const validation = component(id + "_ValidationErrors", errors.validationErrorsSchema, true);
 		let request: JsonSchema | undefined;
-		if (config.requestBodySchema !== undefined) request = component(id + "_Request", config.requestBodySchema);
+		if (config.requestBodySchema !== undefined) request = component(id + "_Request", config.requestBodySchema, true);
 		else if (definition.inputSchema) request = convert(id + "_Input", definition.inputSchema, "input");
+		// Optionality cannot be inferred without running validators, so it defaults to "an input schema exists".
+		const inputRequired = config.requestBodyRequired ?? request !== undefined;
 		if (definition.stateful) {
 			const previous = convert(id + "_PrevResult", endpoint.stateSchema, "input", config.prevResultSchema);
 			// An override describes the complete HTTP envelope, not just its input field.
@@ -91,17 +129,29 @@ export function generateOpenApiDocument(options: OpenApiDocumentOptions) {
 				request = {
 					type: "object",
 					additionalProperties: false,
+					...(inputRequired ? { required: ["input"] } : {}),
 					properties: { input: request ?? true, prevResult: previous },
 				};
 		}
-		const parameters: Record<string, unknown>[] =
+		const templateParameters = route.segments.filter(isParameter).map((part) => part.slice(1, -1));
+		const parameters: OpenApiParameter[] =
 			config.parameters ??
-			route.segments
-				.filter(isParameter)
-				.map((part) => ({ name: part.slice(1, -1), in: "path", required: true, schema: { type: "string" } }));
-		for (const part of route.segments.filter(isParameter)) {
-			if (!parameters.some((p) => p.in === "path" && p.name === part.slice(1, -1) && p.required === true))
-				throw new TypeError(id + ": missing required path parameter " + part);
+			templateParameters.map((name) => ({ name, in: "path", required: true, schema: { type: "string" } }));
+		const seen = new Set<string>();
+		for (const parameter of parameters) {
+			if (!parameter || typeof parameter.name !== "string" || !locations.includes(parameter.in))
+				throw new TypeError(id + ": invalid parameter object");
+			if (parameter.schema === undefined)
+				throw new TypeError(id + ": parameter " + parameter.name + " requires schema");
+			const key = parameter.in + ":" + parameter.name;
+			if (seen.has(key)) throw new TypeError(id + ": duplicate parameter " + parameter.name);
+			seen.add(key);
+			if (parameter.in === "path" && !templateParameters.includes(parameter.name))
+				throw new TypeError(id + ": path parameter " + parameter.name + " is not in the template");
+		}
+		for (const name of templateParameters) {
+			if (!parameters.some((p) => p.in === "path" && p.name === name && p.required === true))
+				throw new TypeError(id + ": missing required path parameter {" + name + "}");
 		}
 		const responses: Record<string, ReturnType<typeof response> | Record<string, unknown>> = {};
 		responses[endpoint.successStatus ?? 200] = response(
@@ -136,7 +186,12 @@ export function generateOpenApiDocument(options: OpenApiDocumentOptions) {
 			parameters,
 			responses,
 			...(request !== undefined
-				? { requestBody: { required: definition.stateful, content: { "application/json": { schema: request } } } }
+				? {
+						requestBody: {
+							required: definition.stateful || inputRequired,
+							content: { "application/json": { schema: request } },
+						},
+					}
 				: {}),
 		};
 	}
