@@ -11,12 +11,15 @@ const client = createSafeActionClient({
 }).use(routesMiddleware({ openapiDefaults: errors }));
 const info = { title: "Example", version: "1" };
 const endpoint: EndpointMetadata = { method: "POST", path: "/users", openapi: { operationId: "createUser" } };
+const mapInput: EndpointMetadata["mapInput"] = ({ input }) => input;
 
 it("generates opt-in operations without executing actions or callbacks", () => {
 	const execution = vi.fn(async () => "value");
 	const mapping = vi.fn(({ input }) => input);
 	const a = client.metadata({ endpoint }).inputSchema(z.string()).outputSchema(z.string()).action(execution);
 	const hidden = client.metadata({ endpoint: { method: "PUT", path: "/users" } }).action(execution);
+	const unrouted = createSafeActionClient().action(execution);
+	expect(() => generateOpenApiDocument({ actions: [unrouted], info })).toThrow("has no route");
 	const mapped = client
 		.metadata({
 			endpoint: {
@@ -63,6 +66,15 @@ it("does not execute dynamic factories and identifies missing schemas", () => {
 		.outputSchema(z.string())
 		.action(async () => "ok");
 	expect(() => generateOpenApiDocument({ actions: [a], info })).toThrow("dynamic input");
+	const documented = client
+		.metadata({
+			endpoint: { ...endpoint, openapi: { operationId: "createUser", requestBodySchema: { type: "string" } } },
+		})
+		.inputSchema(factory)
+		.outputSchema(z.string())
+		.action(async () => "ok");
+	const schemas = generateOpenApiDocument({ actions: [documented], info }).components.schemas;
+	expect(schemas.createUser_Request).toEqual({ type: "string" });
 	expect(factory).not.toHaveBeenCalled();
 	const transformed = client
 		.metadata({ endpoint })
@@ -70,7 +82,7 @@ it("does not execute dynamic factories and identifies missing schemas", () => {
 		.action(async () => 1);
 	expect(() => generateOpenApiDocument({ actions: [transformed], info })).toThrow("createUser_Output");
 });
-it("keeps recursive roots, definitions, nullable and boolean schemas intact", () => {
+it("flattens recursive roots and definitions into components and keeps nullable and boolean schemas", () => {
 	const recursive = {
 		$defs: { node: { type: ["object", "null"], properties: { child: { $ref: "#/$defs/node" }, root: { $ref: "#" } } } },
 		$ref: "#/$defs/node",
@@ -84,9 +96,13 @@ it("keeps recursive roots, definitions, nullable and boolean schemas intact", ()
 		})
 		.action(async () => {});
 	const schemas = generateOpenApiDocument({ actions: [a], info }).components.schemas;
-	expect(schemas.recursive_Request).toEqual({
-		...recursive,
-		$id: "https://next-safe-action.invalid/schemas/recursive_Request",
+	expect(schemas.recursive_Request).toEqual({ $ref: "#/components/schemas/recursive_Request_node" });
+	expect(schemas.recursive_Request_node).toEqual({
+		type: ["object", "null"],
+		properties: {
+			child: { $ref: "#/components/schemas/recursive_Request_node" },
+			root: { $ref: "#/components/schemas/recursive_Request" },
+		},
 	});
 	expect(schemas.recursive_Output).toBe(true);
 });
@@ -129,7 +145,7 @@ it("uses Standard JSON Schema input/output sides and never validates schemas", (
 	expect(validate).not.toHaveBeenCalled();
 });
 
-it("preserves converted recursive schema references in their own resource", () => {
+it("rewrites converted recursive root references to their own component", () => {
 	const node: z.ZodType<{ children: unknown[] }> = z.object({ children: z.array(z.lazy(() => node)) });
 	const a = client
 		.metadata({ endpoint })
@@ -139,31 +155,58 @@ it("preserves converted recursive schema references in their own resource", () =
 	const schemas = generateOpenApiDocument({ actions: [a], info }).components.schemas;
 	const input = schemas.createUser_Input as Record<string, unknown>;
 	const output = schemas.createUser_Output as Record<string, unknown>;
-	expect(JSON.stringify(input)).toContain('"$ref":"#"');
-	expect(input.$id).not.toBe(output.$id);
+	expect(JSON.stringify(input)).toContain('"$ref":"#/components/schemas/createUser_Input"');
+	expect(JSON.stringify(output)).toContain('"$ref":"#/components/schemas/createUser_Output"');
+	expect(input).not.toHaveProperty("$schema");
 });
 
-it("reports missing status and parameter contracts and duplicate schema resources", () => {
+it("reports missing status and parameter contracts and duplicate schema components", () => {
 	const base = client.outputSchema(z.string());
 	const status = base.metadata({ endpoint: { ...endpoint, serverErrorStatus: () => 409 } }).action(async () => "ok");
 	expect(() => generateOpenApiDocument({ actions: [status], info })).toThrow("serverErrorStatuses");
 	const parameter = base
-		.metadata({ endpoint: { ...endpoint, path: "/users/{id}", openapi: { operationId: "parameter", parameters: [] } } })
+		.metadata({
+			endpoint: {
+				...endpoint,
+				path: "/users/{id}",
+				mapInput,
+				openapi: { operationId: "parameter", requestBodySchema: true, parameters: [] },
+			},
+		})
 		.action(async () => "ok");
-	expect(() => generateOpenApiDocument({ actions: [parameter], info })).toThrow("path parameter");
-	const duplicate = base
+	expect(() => generateOpenApiDocument({ actions: [parameter], info })).toThrow("missing required path parameter");
+	// Identical $id values no longer collide: $id is dropped when a schema is flattened into components.
+	const sharedId = base
 		.metadata({
 			endpoint: {
 				...endpoint,
 				openapi: {
-					operationId: "duplicate",
-					requestBodySchema: { $id: "https://example.test/shared" },
+					operationId: "shared",
+					requestBodySchema: { $id: "https://example.test/shared", $schema: "x" },
 					outputSchema: { $id: "https://example.test/shared" },
 				},
 			},
 		})
 		.action(async () => "ok");
-	expect(() => generateOpenApiDocument({ actions: [duplicate], info })).toThrow("duplicate schema resource");
+	expect(generateOpenApiDocument({ actions: [sharedId], info }).components.schemas.shared_Request).toEqual({});
+	// "$defs" keys are sanitized into component names, so distinct keys can still collide.
+	const sanitized = base
+		.metadata({
+			endpoint: { ...endpoint, openapi: { operationId: "a", requestBodySchema: { $defs: { "x y": {}, "x_y": {} } } } },
+		})
+		.action(async () => "ok");
+	expect(() => generateOpenApiDocument({ actions: [sanitized], info })).toThrow(
+		"a_Request_x_y: duplicate schema component"
+	);
+	const owner = base
+		.metadata({
+			endpoint: { ...endpoint, openapi: { operationId: "x", outputSchema: { $defs: { ServerError: {} } } } },
+		})
+		.action(async () => "ok");
+	const other = base
+		.metadata({ endpoint: { ...endpoint, path: "/other", openapi: { operationId: "x_Output" } } })
+		.action(async () => "ok");
+	expect(() => generateOpenApiDocument({ actions: [owner, other], info })).toThrow("duplicate schema component");
 });
 
 it("documents request bodies as required when an input schema exists unless overridden", () => {
@@ -205,72 +248,70 @@ it("documents request bodies as required when an input schema exists unless over
 	expect(loose.content["application/json"]!.schema.required).toBeUndefined();
 });
 
-it("rejects document-relative references inside overrides and defaults", () => {
+it("keeps document references and instance data, and rewrites local references in schema maps", () => {
 	const base = client.outputSchema(z.string());
 	const ref = { $ref: "#/components/schemas/createUser_Output" };
-	for (const openapi of [
-		{ operationId: "createUser", requestBodySchema: ref },
-		{ operationId: "createUser", outputSchema: { type: "object", properties: { nested: ref } } },
-		{ operationId: "createUser", serverErrorSchema: ref },
-	]) {
-		const a = base.metadata({ endpoint: { ...endpoint, openapi } }).action(async () => "ok");
-		expect(() => generateOpenApiDocument({ actions: [a], info })).toThrow("document-relative");
-	}
-	const encoded = base
-		.metadata({
-			endpoint: {
-				...endpoint,
-				openapi: { operationId: "createUser", requestBodySchema: { $ref: "#/%63omponents/schemas/X" } },
-			},
-		})
-		.action(async () => "ok");
-	expect(() => generateOpenApiDocument({ actions: [encoded], info })).toThrow("document-relative");
+	const schemasOf = (openapi: EndpointMetadata["openapi"], a = base) =>
+		generateOpenApiDocument({
+			actions: [a.metadata({ endpoint: { ...endpoint, openapi } }).action(async () => "ok")],
+			info,
+		}).components.schemas;
+	expect(schemasOf({ operationId: "createUser", requestBodySchema: ref }).createUser_Request).toEqual(ref);
+	const nested = { type: "object", properties: { nested: ref } };
+	expect(schemasOf({ operationId: "createUser", outputSchema: nested }).createUser_Output).toEqual(nested);
+	expect(schemasOf({ operationId: "createUser", serverErrorSchema: ref }).createUser_ServerError).toEqual(ref);
 	const defaults = createSafeActionClient({
 		defineMetadataSchema: () => z.object({ endpoint: z.custom<EndpointMetadata>() }),
 	})
 		.use(routesMiddleware({ openapiDefaults: { ...errors, validationErrorsSchema: ref } }))
-		.metadata({ endpoint })
-		.outputSchema(z.string())
-		.action(async () => "ok");
-	expect(() => generateOpenApiDocument({ actions: [defaults], info })).toThrow("createUser_ValidationErrors");
-	// Schema maps are inspected whatever the entry name, and $dynamicRef follows the same rules as $ref.
-	for (const requestBodySchema of [
-		{ type: "object", properties: { default: ref } },
-		{ $defs: { const: ref }, type: "object" },
-		{ $dynamicRef: "#/components/schemas/createUser_Output" },
-		{ $dynamicRef: "#/%63omponents/schemas/createUser_Output" },
-	]) {
-		const a = base
-			.metadata({ endpoint: { ...endpoint, openapi: { operationId: "createUser", requestBodySchema } } })
-			.action(async () => "ok");
-		expect(() => generateOpenApiDocument({ actions: [a], info })).toThrow("document-relative");
-	}
-	// A percent-encoded "#" belongs to a resource path, not to a fragment.
-	const resourcePath = base
-		.metadata({
-			endpoint: {
-				...endpoint,
-				openapi: { operationId: "createUser", requestBodySchema: { $ref: "%23/components/schemas/X" } },
+		.outputSchema(z.string());
+	const fromDefaults = schemasOf({ operationId: "createUser" }, defaults);
+	expect(fromDefaults.createUser_ValidationErrors).toEqual(ref);
+	// An explicit undefined falls back to the middleware defaults.
+	expect(
+		schemasOf({ operationId: "createUser", serverErrorSchema: undefined }, defaults).createUser_ServerError
+	).toEqual(errors.serverErrorSchema);
+	// Schema-map entries are schemas whatever their name, and $dynamicRef follows the same rules as $ref.
+	const request = schemasOf({
+		operationId: "createUser",
+		requestBodySchema: {
+			type: "object",
+			properties: { default: { $ref: "#" }, self: { $dynamicRef: "#/properties/default" } },
+			$defs: { const: ref },
+		},
+	});
+	expect(request.createUser_Request).toEqual({
+		type: "object",
+		properties: {
+			default: { $ref: "#/components/schemas/createUser_Request" },
+			self: { $dynamicRef: "#/components/schemas/createUser_Request/properties/default" },
+		},
+	});
+	expect(request.createUser_Request_const).toEqual(ref);
+	// Instance data that merely looks like a reference, and non-fragment references, are never rewritten.
+	const data = { $ref: "#/$defs/x" };
+	const local = schemasOf({
+		operationId: "createUser",
+		requestBodySchema: {
+			$ref: "#/$defs/x/properties/a",
+			$defs: {
+				x: { type: "object", examples: [data], default: data, const: data, enum: [data], example: data },
 			},
-		})
-		.action(async () => "ok");
-	expect(() => generateOpenApiDocument({ actions: [resourcePath], info })).not.toThrow();
-	// Local references and instance data that merely looks like a reference stay valid.
-	const local = base
-		.metadata({
-			endpoint: {
-				...endpoint,
-				openapi: {
-					operationId: "createUser",
-					requestBodySchema: {
-						$ref: "#/$defs/x",
-						$defs: { x: { type: "object", examples: [ref], default: ref, const: ref, enum: [ref] } },
-					},
-				},
-			},
-		})
-		.action(async () => "ok");
-	expect(() => generateOpenApiDocument({ actions: [local], info })).not.toThrow();
+			not: { $ref: "%23/components/schemas/X" },
+		},
+	});
+	expect(local.createUser_Request).toEqual({
+		$ref: "#/components/schemas/createUser_Request_x/properties/a",
+		not: { $ref: "%23/components/schemas/X" },
+	});
+	expect(local.createUser_Request_x).toEqual({
+		type: "object",
+		examples: [data],
+		default: data,
+		const: data,
+		enum: [data],
+		example: data,
+	});
 });
 
 it("validates parameter overrides against the template", () => {
@@ -278,7 +319,12 @@ it("validates parameter overrides against the template", () => {
 	const at = (path: string, parameters: unknown) =>
 		base
 			.metadata({
-				endpoint: { ...endpoint, path, openapi: { operationId: "p", parameters: parameters as never } },
+				endpoint: {
+					...endpoint,
+					path,
+					mapInput,
+					openapi: { operationId: "p", requestBodySchema: true, parameters: parameters as never },
+				},
 			})
 			.action(async () => "ok");
 	const id = { name: "id", in: "path", required: true, schema: { type: "string" } };
@@ -314,6 +360,51 @@ it("keeps every error alternative when server errors map to 400", () => {
 		}
 	).responses;
 	expect(responses["400"]!.content["application/json"]!.schema.anyOf).toHaveLength(3);
+	// Registered methods never produce 405, so operations do not document it.
+	expect(new Set(Object.keys(responses))).toEqual(
+		new Set(["200", "303", "400", "401", "403", "404", "413", "415", "500"])
+	);
 	// Sanitized adapter failures can always produce a 500 httpError.
 	expect(responses["500"]!.content["application/json"]!.schema).toEqual({ $ref: "#/components/schemas/HttpError" });
+});
+
+it("emits only document-resolvable references for recursive zod schemas with identified subschemas", () => {
+	const Tag = z.object({ name: z.string() }).meta({ id: "Tag" });
+	const Category = z.object({
+		name: z.string(),
+		tags: z.array(Tag),
+		get children() {
+			return z.array(Category);
+		},
+	});
+	const a = client
+		.metadata({ endpoint })
+		.inputSchema(Category)
+		.outputSchema(Category)
+		.action(async ({ parsedInput }) => parsedInput);
+	const document = generateOpenApiDocument({ actions: [a], info });
+	const refs: string[] = [];
+	const collect = (node: unknown): void => {
+		if (!node || typeof node !== "object") return;
+		for (const [key, value] of Object.entries(node)) {
+			if (key === "$ref" && typeof value === "string") refs.push(value);
+			else collect(value);
+		}
+	};
+	collect(document);
+	const resolve = (ref: string) =>
+		ref
+			.slice(2)
+			.split("/")
+			.map((token) => decodeURIComponent(token).replaceAll("~1", "/").replaceAll("~0", "~"))
+			.reduce<unknown>((node, token) => (node as Record<string, unknown> | undefined)?.[token], document);
+	expect(refs).toContain("#/components/schemas/createUser_Input");
+	expect(refs).toContain("#/components/schemas/createUser_Input_Tag");
+	for (const ref of refs) {
+		expect(ref.startsWith("#/")).toBe(true);
+		expect(resolve(ref), ref).toBeDefined();
+	}
+	const components = JSON.stringify(document.components);
+	expect(components).not.toContain('"$id"');
+	expect(components).not.toContain('"$defs"');
 });

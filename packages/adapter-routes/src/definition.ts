@@ -64,6 +64,10 @@ export function routesMiddleware<ServerError = any>(options: RoutesMiddlewareOpt
 				defaults: options.openapiDefaults ? { ...options.openapiDefaults } : undefined,
 				segments: segments(endpoint.path),
 			};
+			if (descriptor.segments.some(isParameter) && !endpoint.mapInput)
+				throw new TypeError("Path parameters require mapInput: " + endpoint.path);
+			if (Object.hasOwn(definition.action, descriptorKey))
+				throw new TypeError("routesMiddleware is used more than once in this action's chain");
 			Object.defineProperty(definition.action, descriptorKey, { value: Object.freeze(descriptor) });
 		},
 	});
@@ -74,7 +78,10 @@ export function routeTable(actions: RoutesOptions["actions"]): RouteDefinition[]
 	for (const action of actions) {
 		if (action.name.startsWith("bound ")) throw new TypeError("Bound actions cannot be registered");
 		const descriptor = (action as unknown as Record<symbol, RouteDefinition>)[descriptorKey];
-		if (!descriptor) continue;
+		if (!descriptor)
+			throw new TypeError(
+				"Action " + (action.name || "(anonymous)") + " has no route: use routesMiddleware and metadata.endpoint"
+			);
 		if (descriptor.version !== 1 || descriptor.definition.action !== action)
 			throw new TypeError("Invalid route action descriptor");
 		for (const existing of table) {

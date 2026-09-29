@@ -10,30 +10,14 @@ const locations: readonly OpenApiParameter["in"][] = ["path", "query", "header",
 const dataKeywords = new Set(["const", "default", "enum", "example", "examples"]);
 // Keywords whose values are maps of arbitrary names to subschemas.
 const schemaMaps = new Set(["properties", "patternProperties", "$defs", "definitions", "dependentSchemas"]);
-/** True for a fragment-only reference into the OpenAPI document (`#/components/...`), percent-encoded or not. */
-function isDocumentRef(ref: string): boolean {
-	if (!ref.startsWith("#")) return false;
-	let fragment = ref.slice(1);
+const componentKey = /[^A-Za-z0-9._-]/g;
+function unescapePointer(token: string): string {
 	try {
-		fragment = decodeURIComponent(fragment);
+		token = decodeURIComponent(token);
 	} catch {
-		/* Keep the raw fragment. */
+		/* Keep the raw token. */
 	}
-	return fragment.startsWith("/components/");
-}
-/** Walks schema locations only: annotation data is skipped and schema-map entries are inspected whatever their name. */
-function hasDocumentRef(node: unknown, isSchemaMap = false): boolean {
-	if (Array.isArray(node)) return node.some((item) => hasDocumentRef(item));
-	if (!node || typeof node !== "object") return false;
-	for (const [key, value] of Object.entries(node)) {
-		if (isSchemaMap) {
-			if (hasDocumentRef(value)) return true;
-		} else if (dataKeywords.has(key)) continue;
-		else if ((key === "$ref" || key === "$dynamicRef") && typeof value === "string") {
-			if (isDocumentRef(value)) return true;
-		} else if (hasDocumentRef(value, schemaMaps.has(key))) return true;
-	}
-	return false;
+	return token.replaceAll("~1", "/").replaceAll("~0", "~");
 }
 
 function envelope(key: string, schema: JsonSchema): JsonSchema {
@@ -47,26 +31,52 @@ export function generateOpenApiDocument(options: OpenApiDocumentOptions) {
 	const schemas: Record<string, JsonSchema> = {};
 	const paths: Record<string, Record<string, unknown>> = {};
 	const operationIds = new Set<string>();
-	const resourceIds = new Set<string>();
-	function component(name: string, schema: JsonSchema, override = false): JsonSchema {
+	function add(name: string, schema: JsonSchema) {
+		if (Object.hasOwn(schemas, name)) throw new TypeError(name + ": duplicate schema component");
+		schemas[name] = schema;
+	}
+	// Viewers such as Scalar and Redoc resolve references only against the OpenAPI document, so every generated
+	// schema is flattened into components: its "$defs" become sibling components and its local references
+	// ("#", "#/$defs/x", "#/properties/y") are rewritten to document references. "#/components/..." stays as is.
+	function component(name: string, schema: JsonSchema): JsonSchema {
 		if (typeof schema !== "boolean" && (!schema || typeof schema !== "object" || Array.isArray(schema)))
 			throw new TypeError(name + ": invalid JSON Schema");
-		// Each component becomes its own resource with a generated $id, so a document-relative reference such as
-		// "#/components/schemas/X" would resolve inside that resource instead of the OpenAPI document.
-		if (override && hasDocumentRef(schema))
-			throw new TypeError(
-				name + ": document-relative $ref is not resolvable inside a component resource; inline the schema instead"
-			);
-		if (typeof schema === "boolean") schemas[name] = schema;
-		else {
-			const base = "https://next-safe-action.invalid/schemas/" + name;
-			const id = typeof schema.$id === "string" ? new URL(schema.$id, base).href : base;
-			if (resourceIds.has(id)) throw new TypeError(name + ": duplicate schema resource identifier");
-			resourceIds.add(id);
-			// Each schema remains a complete resource. Local refs and $defs retain their root.
-			schemas[name] = { ...schema, $id: id };
+		const ref = { $ref: "#/components/schemas/" + name };
+		if (typeof schema === "boolean") {
+			add(name, schema);
+			return ref;
 		}
-		return { $ref: "#/components/schemas/" + name };
+		const { $id: _id, $schema: _dialect, $defs, ...root } = schema;
+		const defs = new Map<string, string>();
+		if ($defs && typeof $defs === "object")
+			for (const key of Object.keys($defs)) defs.set(key, name + "_" + key.replace(componentKey, "_"));
+		const localRef = (value: string) => {
+			const def = /^#\/\$defs\/([^/]+)(.*)$/.exec(value);
+			const target = def && defs.get(unescapePointer(def[1]!));
+			if (target) return "#/components/schemas/" + target + def[2];
+			return "#/components/schemas/" + name + value.slice(1);
+		};
+		const rewrite = (node: unknown, isSchemaMap = false): unknown => {
+			if (Array.isArray(node)) return node.map((item) => rewrite(item));
+			if (!node || typeof node !== "object") return node;
+			return Object.fromEntries(
+				Object.entries(node).map(([key, value]) => {
+					if (isSchemaMap) return [key, rewrite(value)];
+					if (dataKeywords.has(key)) return [key, value];
+					if (
+						(key === "$ref" || key === "$dynamicRef") &&
+						typeof value === "string" &&
+						(value === "#" || value.startsWith("#/")) &&
+						!unescapePointer(value).startsWith("#/components/")
+					)
+						return [key, localRef(value)];
+					return [key, rewrite(value, schemaMaps.has(key))];
+				})
+			);
+		};
+		add(name, rewrite(root) as JsonSchema);
+		for (const [key, target] of defs) add(target, rewrite(($defs as Record<string, unknown>)[key]) as JsonSchema);
+		return ref;
 	}
 	const httpError = component("HttpError", {
 		type: "object",
@@ -87,7 +97,7 @@ export function generateOpenApiDocument(options: OpenApiDocumentOptions) {
 		side: "input" | "output",
 		override?: JsonSchema
 	): JsonSchema {
-		if (override !== undefined) return component(name, override, true);
+		if (override !== undefined) return component(name, override);
 		const standard:
 			| (Schema["~standard"] & {
 					jsonSchema?: Record<"input" | "output", (options: { target: string }) => Record<string, unknown>>;
@@ -105,20 +115,24 @@ export function generateOpenApiDocument(options: OpenApiDocumentOptions) {
 		const config = endpoint.openapi;
 		if (!config) continue;
 		const id = config.operationId;
-		if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(id) || operationIds.has(id) || id === "HttpError")
+		if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(id) || operationIds.has(id))
 			throw new TypeError("Invalid or duplicate operationId: " + id);
 		operationIds.add(id);
-		if (definition.dynamicInputSchema) throw new TypeError(id + ": dynamic input schemas cannot be documented");
+		if (definition.dynamicInputSchema && config.requestBodySchema === undefined)
+			throw new TypeError(id + ": dynamic input schemas cannot be documented");
 		if (endpoint.mapInput && (config.requestBodySchema === undefined || config.parameters === undefined))
 			throw new TypeError(id + ": mapInput requires requestBodySchema and parameters");
-		const errors = { ...route.defaults, ...config };
+		const errors = {
+			serverErrorSchema: config.serverErrorSchema ?? route.defaults?.serverErrorSchema,
+			validationErrorsSchema: config.validationErrorsSchema ?? route.defaults?.validationErrorsSchema,
+		};
 		if (errors.serverErrorSchema === undefined || errors.validationErrorsSchema === undefined)
 			throw new TypeError(id + ": explicit serverErrorSchema and validationErrorsSchema are required");
 		const output = convert(id + "_Output", definition.outputSchema, "output", config.outputSchema);
-		const serverError = component(id + "_ServerError", errors.serverErrorSchema, true);
-		const validation = component(id + "_ValidationErrors", errors.validationErrorsSchema, true);
+		const serverError = component(id + "_ServerError", errors.serverErrorSchema);
+		const validation = component(id + "_ValidationErrors", errors.validationErrorsSchema);
 		let request: JsonSchema | undefined;
-		if (config.requestBodySchema !== undefined) request = component(id + "_Request", config.requestBodySchema, true);
+		if (config.requestBodySchema !== undefined) request = component(id + "_Request", config.requestBodySchema);
 		else if (definition.inputSchema) request = convert(id + "_Input", definition.inputSchema, "input");
 		// Optionality cannot be inferred without running validators, so it defaults to "an input schema exists".
 		const inputRequired = config.requestBodyRequired ?? request !== undefined;
@@ -134,9 +148,7 @@ export function generateOpenApiDocument(options: OpenApiDocumentOptions) {
 				};
 		}
 		const templateParameters = route.segments.filter(isParameter).map((part) => part.slice(1, -1));
-		const parameters: OpenApiParameter[] =
-			config.parameters ??
-			templateParameters.map((name) => ({ name, in: "path", required: true, schema: { type: "string" } }));
+		const parameters: OpenApiParameter[] = config.parameters ?? [];
 		const seen = new Set<string>();
 		for (const parameter of parameters) {
 			if (!parameter || typeof parameter.name !== "string" || !locations.includes(parameter.in))
@@ -158,8 +170,7 @@ export function generateOpenApiDocument(options: OpenApiDocumentOptions) {
 			"Action result, including void success or middleware short-circuit",
 			{ anyOf: [envelope("data", output), { type: "object", maxProperties: 0 }] }
 		);
-		for (const status of [400, 401, 403, 404, 405, 413, 415, 500])
-			responses[status] = response("HTTP error", httpError);
+		for (const status of [401, 403, 404, 413, 415, 500]) responses[status] = response("HTTP error", httpError);
 		responses[400] = response("Validation or HTTP error", {
 			anyOf: [envelope("validationErrors", validation), httpError],
 		});

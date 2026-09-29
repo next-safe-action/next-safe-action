@@ -17,7 +17,14 @@ class PreparationError extends Error {
 function fail(status: number, code: string, message: string): never {
 	throw new PreparationError(status, code, message);
 }
+function isJsonMediaType(mediaType: string) {
+	return mediaType === "application/json" || /^application\/[a-z0-9!#$&^_.+-]+\+json$/.test(mediaType);
+}
 async function readInput(request: Request, limit: number): Promise<unknown> {
+	// A declared media type is checked even for an empty body, so an empty cross-site form post cannot run an action.
+	const mediaType = request.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase();
+	if (mediaType !== undefined && !isJsonMediaType(mediaType))
+		fail(415, "UNSUPPORTED_MEDIA_TYPE", "A JSON content type is required");
 	const reader = request.body?.getReader();
 	if (!reader) return undefined;
 	let size = 0;
@@ -37,9 +44,7 @@ async function readInput(request: Request, limit: number): Promise<unknown> {
 		reader.releaseLock();
 	}
 	if (!size) return undefined;
-	const mediaType = request.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase();
-	if (mediaType !== "application/json" && !/^application\/[a-z0-9!#$&^_.+-]+\+json$/.test(mediaType ?? ""))
-		fail(415, "UNSUPPORTED_MEDIA_TYPE", "A JSON content type is required");
+	if (mediaType === undefined) fail(415, "UNSUPPORTED_MEDIA_TYPE", "A JSON content type is required");
 	const bytes = new Uint8Array(size);
 	let offset = 0;
 	for (const chunk of chunks) {
@@ -55,6 +60,10 @@ async function readInput(request: Request, limit: number): Promise<unknown> {
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
+// Next.js decodes catch-all segments after splitting, so "%2F" can put a slash inside a single parameter value.
+function isParameterValue(value: string | undefined) {
+	return !!value && value !== "." && value !== ".." && !value.includes("/");
+}
 function headerValue(request: Request, name: string) {
 	return request.headers.get(name)?.split(",")[0]?.trim() || undefined;
 }
@@ -66,7 +75,8 @@ function isSameOrigin(origin: string, request: Request): boolean {
 	const host = headerValue(request, "x-forwarded-host") ?? headerValue(request, "host") ?? url.host;
 	const scheme = headerValue(request, "x-forwarded-proto") ?? url.protocol.slice(0, -1);
 	try {
-		return new URL(origin).origin === new URL(scheme + "://" + host).origin;
+		const expected = new URL(scheme + "://" + host).origin;
+		return expected !== "null" && new URL(origin).origin === expected;
 	} catch {
 		return false;
 	}
@@ -79,6 +89,11 @@ function isValidationError(error: unknown): error is { validationErrors: unknown
 		(error instanceof Error && (error as unknown as Record<symbol, unknown>)[validationErrorBrand] === true)
 	);
 }
+const accessErrors: Record<number, [code: string, message: string]> = {
+	401: ["UNAUTHORIZED", "Unauthorized"],
+	403: ["FORBIDDEN", "Forbidden"],
+	404: ["NOT_FOUND", "Not found"],
+};
 export function createRouteHandlers(options: RoutesOptions) {
 	const table = routeTable(options.actions);
 	const limit = options.maxBodyBytes ?? 1024 * 1024;
@@ -94,7 +109,6 @@ export function createRouteHandlers(options: RoutesOptions) {
 		const headers = new Headers({ "Cache-Control": "no-store", "Vary": "Origin" });
 		const json = (body: unknown, status: number) => {
 			headers.set("Content-Type", "application/json");
-			headers.set("Cache-Control", "no-store");
 			return new Response(JSON.stringify(body), { status, headers });
 		};
 		const error = (status: number, code: string, message: string) =>
@@ -124,7 +138,8 @@ export function createRouteHandlers(options: RoutesOptions) {
 			const path = rawPath ?? [];
 			const matches = table.filter(
 				({ segments }) =>
-					segments.length === path.length && segments.every((part, i) => isParameter(part) || part === path[i])
+					segments.length === path.length &&
+					segments.every((part, i) => (isParameter(part) ? isParameterValue(path[i]) : part === path[i]))
 			);
 			const first = matches[0];
 			if (!first) return error(404, "NOT_FOUND", "Endpoint not found");
@@ -156,6 +171,7 @@ export function createRouteHandlers(options: RoutesOptions) {
 				headers.set("Allow", allow.join(", "));
 				return error(405, "METHOD_NOT_ALLOWED", "Method is not allowed");
 			}
+			const exposed: string[] = [];
 			new Headers(route.endpoint.headers).forEach((value, key) => {
 				if (
 					key !== "cache-control" &&
@@ -163,9 +179,14 @@ export function createRouteHandlers(options: RoutesOptions) {
 					key !== "content-length" &&
 					key !== "vary" &&
 					!key.startsWith("access-control-")
-				)
+				) {
 					headers.append(key, value);
+					exposed.push(key);
+				}
 			});
+			// Cross-origin callers can read the endpoint's custom headers.
+			if (exposed.length && headers.has("Access-Control-Allow-Origin"))
+				headers.set("Access-Control-Expose-Headers", [...new Set(exposed)].join(", "));
 			const params = Object.fromEntries(
 				route.segments.flatMap((part, i) => (isParameter(part) ? [[part.slice(1, -1), path[i]!]] : []))
 			);
@@ -204,7 +225,10 @@ export function createRouteHandlers(options: RoutesOptions) {
 					return internalError(invalid);
 				}
 			}
-			if (signal?.kind === "access") return error(signal.status, "ACCESS_DENIED", "Access denied");
+			if (signal?.kind === "access") {
+				const [code, message] = accessErrors[signal.status] ?? ["ACCESS_DENIED", "Access denied"];
+				return error(signal.status, code, message);
+			}
 			if (caught instanceof PreparationError) return error(caught.status, caught.code, caught.message);
 			if (isValidationError(caught)) {
 				try {

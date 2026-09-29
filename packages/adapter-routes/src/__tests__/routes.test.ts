@@ -32,10 +32,10 @@ async function call(
 		{ params: Promise.resolve({ path }) }
 	);
 }
-it.each(["POST", "PUT", "PATCH", "DELETE"] as const)("serves %s and skips ordinary actions", async (method) => {
-	const ordinary = createSafeActionClient().action(async () => "hidden");
+const passInput: EndpointMetadata["mapInput"] = ({ input }) => input;
+it.each(["POST", "PUT", "PATCH", "DELETE"] as const)("serves %s", async (method) => {
 	const response = await call(
-		[ordinary, action({ method, path: "/users", successStatus: 201 })],
+		[action({ method, path: "/users", successStatus: 201 })],
 		method,
 		undefined,
 		'{"name":"Ada"}'
@@ -60,11 +60,11 @@ it("matches concrete paths before parameters and supports mappings", async () =>
 	expect(wrong.headers.get("allow")).toBe("POST, OPTIONS");
 });
 it("rejects duplicates, ambiguous paths, unsupported configurations and bound actions", () => {
-	const a = action({ method: "POST", path: "/{id}/edit" });
+	const a = action({ method: "POST", path: "/{id}/edit", mapInput: passInput });
 	for (const b of [
 		a,
-		action({ method: "POST", path: "/{name}/edit" }),
-		action({ method: "PUT", path: "/users/{id}" }),
+		action({ method: "POST", path: "/{name}/edit", mapInput: passInput }),
+		action({ method: "PUT", path: "/users/{id}", mapInput: passInput }),
 	]) {
 		expect(() => createRouteHandlers({ actions: [a, b] })).toThrow(/ambiguous/);
 	}
@@ -76,7 +76,15 @@ it("rejects duplicates, ambiguous paths, unsupported configurations and bound ac
 			.action(async () => {})
 	).toThrow("bind");
 	expect(() => action({ method: "POST", path: "/x", successStatus: 204 })).toThrow("JSON body");
-	expect(() => action({ method: "POST", path: "/{id}/{id}" })).toThrow("parameter");
+	expect(() => action({ method: "POST", path: "/{id}/{id}", mapInput: passInput })).toThrow("Duplicate path parameter");
+	// Without mapInput, path parameters would be silently dropped from the action input.
+	expect(() => action({ method: "POST", path: "/users/{id}" })).toThrow("Path parameters require mapInput");
+	expect(() =>
+		client
+			.use(routesMiddleware())
+			.metadata({ endpoint: { method: "POST", path: "/x" } })
+			.action(async () => {})
+	).toThrow("more than once");
 	const required = createSafeActionClient().use(routesMiddleware({ requireEndpoint: true }));
 	expect(() => required.action(async () => {})).toThrow("required");
 });
@@ -85,7 +93,9 @@ it("rejects invalid JSON, non-JSON bodies and oversized streams", async () => {
 	expect((await call([a], "POST", undefined, "{")).status).toBe(400);
 	expect((await call([a], "POST", undefined, "{}", {})).status).toBe(415);
 	expect((await call([a], "POST", undefined, "12345", undefined, { maxBodyBytes: 4 })).status).toBe(413);
-	expect((await call([a], "POST", undefined, "", {})).status).toBe(200);
+	// A string body gets an implicit "text/plain" content type, which is rejected even when empty.
+	expect((await call([a], "POST", undefined, "", {})).status).toBe(415);
+	expect((await call([a], "POST", undefined, "")).status).toBe(200);
 	const cancel = vi.fn();
 	const stream = new ReadableStream({
 		start(controller) {
@@ -206,11 +216,17 @@ it("sanitizes callbacks and serialization errors, converts navigation and rethro
 		expect(response.status).toBe(500);
 		expect(await response.json()).toEqual({ httpError: { code: "INTERNAL_ERROR", message: "Internal server error" } });
 	}
-	for (const status of [401, 403, 404]) {
+	for (const [status, code, message] of [
+		[401, "UNAUTHORIZED", "Unauthorized"],
+		[403, "FORBIDDEN", "Forbidden"],
+		[404, "NOT_FOUND", "Not found"],
+	] as const) {
 		const a = action(endpoint, async () => {
 			throw Object.assign(new Error(), { digest: "NEXT_HTTP_ERROR_FALLBACK;" + status });
 		});
-		expect((await call([a])).status).toBe(status);
+		const response = await call([a]);
+		expect(response.status).toBe(status);
+		expect(await response.json()).toEqual({ httpError: { code, message } });
 	}
 	const redirect = action(endpoint, async () => {
 		throw Object.assign(new Error(), { digest: "NEXT_REDIRECT;replace;/next;a;307;" });
@@ -262,7 +278,8 @@ it("requires middleware, metadata and registration together", async () => {
 		.action(async () => "hidden");
 	const noMetadata = client.metadata({}).action(async () => "hidden");
 	const enabled = action({ method: "POST", path: "/users" });
-	expect((await call([ordinary, noMetadata])).status).toBe(404);
+	expect(() => createRouteHandlers({ actions: [ordinary] })).toThrow("has no route");
+	expect(() => createRouteHandlers({ actions: [noMetadata] })).toThrow("has no route");
 	expect((await call([])).status).toBe(404);
 	expect((await call([enabled])).status).toBe(200);
 	expect(Object.keys(enabled)).toEqual([]);
@@ -378,8 +395,8 @@ it("matches origins against forwarded scheme and host, falling back to the reque
 });
 
 it("answers preflight for parameter paths and applies concrete-path priority to preflight", async () => {
-	const create = action({ method: "POST", path: "/users/{id}" });
-	const remove = action({ method: "DELETE", path: "/users/{id}" });
+	const create = action({ method: "POST", path: "/users/{id}", mapInput: passInput });
+	const remove = action({ method: "DELETE", path: "/users/{id}", mapInput: passInput });
 	const me = action({ method: "PUT", path: "/users/me" });
 	const preflight = (path: string[], method: string) =>
 		call([create, remove, me], "OPTIONS", path, undefined, {
@@ -414,6 +431,8 @@ it("enforces the exact body limit, strict UTF-8 and JSON media types before runn
 	mapInput.mockClear();
 	expect((await send("{}", "text/plain")).status).toBe(415);
 	expect((await send("a=1", "application/x-www-form-urlencoded")).status).toBe(415);
+	// An empty cross-site form post must not run the action with undefined input.
+	expect((await send("", "application/x-www-form-urlencoded")).status).toBe(415);
 	expect((await send("{}", "application/json", { maxBodyBytes: 1 })).status).toBe(413);
 	expect(mapInput).not.toHaveBeenCalled();
 	expect(run).not.toHaveBeenCalled();
@@ -531,4 +550,48 @@ it("recognizes thrown validation errors from a duplicate core instance", async (
 	const response = await call([a]);
 	expect(response.status).toBe(400);
 	expect(await response.json()).toHaveProperty("validationErrors");
+});
+
+it("rejects path parameter values that are empty, dot segments or contain a slash", async () => {
+	const run = vi.fn(async (input: unknown) => input);
+	const a = action({ method: "POST", path: "/users/{id}", mapInput: ({ params }) => params.id }, run);
+	for (const id of ["", ".", "..", "a/b"]) expect((await call([a], "POST", ["users", id])).status).toBe(404);
+	expect(run).not.toHaveBeenCalled();
+	expect(await (await call([a], "POST", ["users", "a.b"])).json()).toEqual({ data: "a.b" });
+});
+
+it("never treats opaque origins as same-origin", async () => {
+	const run = vi.fn(async () => "ok");
+	const response = await call([action({ method: "POST", path: "/users" }, run)], "POST", undefined, "{}", {
+		"content-type": "application/json",
+		"origin": "chrome-extension://abc",
+		"host": "abc",
+		"x-forwarded-proto": "foo",
+	});
+	expect(response.status).toBe(403);
+	expect(run).not.toHaveBeenCalled();
+});
+
+it("exposes custom endpoint headers to allowed cross-origin callers only", async () => {
+	const a = action({
+		method: "POST",
+		path: "/users",
+		headers: [
+			["x-example", "yes"],
+			["x-other", "1"],
+			["x-other", "2"],
+			["cache-control", "public"],
+		],
+	});
+	const cors = await call([a], "POST", undefined, "{}", {
+		"content-type": "application/json",
+		"origin": "https://app.test",
+	});
+	expect(cors.headers.get("access-control-expose-headers")).toBe("x-example, x-other");
+	expect((await call([a])).headers.get("access-control-expose-headers")).toBeNull();
+	const plain = await call([action({ method: "POST", path: "/users" })], "POST", undefined, "{}", {
+		"content-type": "application/json",
+		"origin": "https://app.test",
+	});
+	expect(plain.headers.get("access-control-expose-headers")).toBeNull();
 });
