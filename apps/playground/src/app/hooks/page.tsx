@@ -3,7 +3,6 @@ import { readAndHighlightFile } from "@/lib/shiki";
 import { FormActionStatusDemo } from "./_components/form-action-status-demo";
 import { HookDemo } from "./_components/hook-demo";
 import { InitResultDemo } from "./_components/init-result-demo";
-import { RouteActionDemo } from "./_components/route-action-demo";
 import { StateUpdateDemo } from "./_components/state-update-demo";
 import { StatelessFormDemo } from "./_components/stateless-form-demo";
 
@@ -25,7 +24,6 @@ export default async function HooksPage() {
 			/>
 			<div className="space-y-6">
 				<HookDemo source={deleteUserSource} />
-				<RouteActionDemo />
 				<InitResultDemo source={initResultSource} />
 				<StatelessFormDemo source={statelessFormSource} />
 				<FormActionStatusDemo source={formActionStatusSource} />
