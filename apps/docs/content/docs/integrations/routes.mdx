@@ -1,7 +1,15 @@
 ---
 title: Route handlers
-description: Expose selected safe actions as JSON endpoints with the route adapter.
+description: Expose selected safe actions as JSON API endpoints and generate an OpenAPI 3.1 document for Swagger UI or other viewers.
 ---
+
+The `@next-safe-action/adapter-routes` adapter exposes selected actions as JSON endpoints through a single Next.js catch-all Route Handler. The same validated action keeps working with the React hooks, and external clients (scripts, mobile apps, other services) can call it over HTTP. An optional entry point generates an OpenAPI 3.1 document from your schemas, so you can publish interactive API docs.
+
+<Callout title="Requirements">
+- next-safe-action >= 8.8.0
+- Next.js >= 15.1.0 (App Router)
+- The adapter has no runtime dependencies.
+</Callout>
 
 ## Installation
 
@@ -9,222 +17,633 @@ description: Expose selected safe actions as JSON endpoints with the route adapt
 next-safe-action @next-safe-action/adapter-routes
 ```
 
-This adapter requires next-safe-action 8.8 or later. It adds no runtime dependency for routing or schema conversion.
+## Quick start
 
-An action is exposed only when it uses `routesMiddleware`, has `metadata.endpoint`, and is in the handler's `actions` list. Other actions in that list are skipped. The same action can still be used with React hooks.
+<Steps>
+<Step>
 
-## Define actions
+### Add the routes middleware to your client
 
-Keep your metadata schema. Add the exported `EndpointMetadata` type to it. The adapter checks endpoint configuration when the action is defined.
+Add `routesMiddleware()` and a metadata schema that accepts the `endpoint` key:
 
-```ts title="app/api/actions.ts"
-"use server";
-
+```ts title="src/lib/safe-action.ts"
 import { createSafeActionClient } from "next-safe-action";
 import { routesMiddleware, type EndpointMetadata } from "@next-safe-action/adapter-routes";
 import { z } from "zod";
 
-const client = createSafeActionClient({
- defineMetadataSchema: () => z.object({
-  endpoint: z.custom<EndpointMetadata>().optional(),
- }),
- // Add your application's server-error handler here.
-}).use(routesMiddleware({ requireEndpoint: false, openapi: "opt-in" }));
-
-export const createUser = client
- .metadata({ endpoint: { method: "POST", path: "/users", successStatus: 201 } })
- .inputSchema(z.object({ name: z.string().min(1) }))
- .outputSchema(z.object({ name: z.string() }))
- .action(async ({ parsedInput }) => {
-  // Authenticate and authorize in application middleware before this operation.
-  return parsedInput;
- });
+export const apiClient = createSafeActionClient({
+	defineMetadataSchema: () => z.object({ endpoint: z.custom<EndpointMetadata>().optional() }),
+}).use(routesMiddleware());
 ```
 
-```ts title="app/api/[[...path]]/route.ts"
+</Step>
+<Step>
+
+### Declare an endpoint on the action
+
+```ts title="src/app/actions.ts"
+"use server";
+
+import { z } from "zod";
+import { apiClient } from "@/lib/safe-action";
+
+export const createUser = apiClient
+	.metadata({ endpoint: { method: "POST", path: "/users", successStatus: 201 } })
+	.inputSchema(z.object({ name: z.string().min(1) }))
+	.outputSchema(z.object({ id: z.string(), name: z.string() }))
+	.action(async ({ parsedInput }) => {
+		return { id: crypto.randomUUID(), name: parsedInput.name };
+	});
+```
+
+The adapter checks the endpoint configuration when the action is defined, so a bad method, path, or status fails at startup, not on the first request.
+
+</Step>
+<Step>
+
+### Create the catch-all route
+
+List the exposed actions in their own module, so the catch-all route and the [OpenAPI route](#3-serve-the-document) share one list. Next.js rejects extra exports from a `route.ts` file, so the list cannot live there.
+
+```ts title="src/lib/route-actions.ts"
+import { createUser } from "@/app/actions";
+
+export const routeActions = [createUser];
+```
+
+```ts title="src/app/api/[[...path]]/route.ts"
 import { createRouteHandlers } from "@next-safe-action/adapter-routes";
-import { createUser } from "../actions";
+import { routeActions } from "@/lib/route-actions";
 
 export const { POST, PUT, PATCH, DELETE, OPTIONS } = createRouteHandlers({
- actions: [createUser],
+	actions: routeActions,
 });
 ```
 
-Send JSON to `POST /api/users`. The response is `{"data":{"name":"Ada"}}`.
+Endpoint paths are relative to the catch-all folder, so `/users` is served at `/api/users`. Use an optional catch-all (`[[...path]]`) so that an endpoint with path `/` can match the folder root.
 
-## Paths and input
+</Step>
+<Step>
 
-Paths are relative to the catch-all parameter. Its name is `path` by default; set `pathParam` to use another name. Use `/` for the catch-all root. Templates support complete segments such as `/users/{id}`, not wildcards. Parameter names must be unique identifiers. Literal segments cannot contain URL escape sequences, query strings, or fragments.
+### Call it
 
-Concrete paths take priority over parameter paths, before method selection. Duplicate routes and overlapping templates without a clear priority fail when handlers are created. Missing paths return 404. A different method on a known path returns 405 with `Allow`. Next.js handles methods that the route file does not export.
+<Tabs items={["curl", "fetch"]}>
+<Tab value="curl">
 
-Normal actions receive the parsed JSON body unchanged. Empty bodies become `undefined`. Query values and path parameters are not merged into input.
-
-```ts
-const endpoint: EndpointMetadata = {
- method: "PATCH",
- path: "/users/{id}",
- mapInput: async ({ input, params, request }) => ({
-  body: input,
-  id: params.id,
-  locale: new URL(request.url).searchParams.get("locale"),
- }),
-};
+```sh
+curl -i -X POST http://localhost:3000/api/users \
+	-H "Content-Type: application/json" \
+	-d '{"name":"Ada"}'
+# HTTP/1.1 201 Created
+# {"data":{"id":"5f0c...","name":"Ada"}}
 ```
 
-The mapper's return value still passes through the action's input validation. It does not replace authentication or validation. Actions with bind-argument schemas and bound functions are rejected.
+</Tab>
+<Tab value="fetch">
 
-<Callout type="warn" title="Execution order">
-`stateSchema` validation and `mapInput` run before the action is called, so before every middleware in the action's chain, including your authentication middleware. Treat their input as unauthenticated: keep them pure, do no database work in them, and do not let their outcome reveal anything to anonymous callers. If preprocessing must be protected, authenticate in the Route Handler before delegating to the adapter handlers.
-</Callout>
+```ts
+const response = await fetch("/api/users", {
+	method: "POST",
+	headers: { "Content-Type": "application/json" },
+	body: JSON.stringify({ name: "Ada" }),
+});
+
+const result = await response.json(); // { data: { id: "5f0c...", name: "Ada" } }
+```
+
+</Tab>
+</Tabs>
+
+The response body is the normal [action result](/docs/concepts/action-result). Invalid input returns `400` with `{ validationErrors }`.
+
+</Step>
+</Steps>
+
+An action is exposed only when all three conditions are true: it uses `routesMiddleware`, it declares `metadata.endpoint`, and it is in the `actions` list of `createRouteHandlers`. There is no global registry, so an action that you do not list is never reachable over HTTP. An action in the list without `routesMiddleware` or `metadata.endpoint` throws when `createRouteHandlers` or `generateOpenApiDocument` runs, and so does a chain that uses `routesMiddleware` twice.
+
+## Paths and routing
+
+- A path starts with `/` and has no trailing slash. Use `/` for the catch-all root.
+- Parameters are complete segments with unique identifier names, for example `/users/{id}`. Wildcards, `%` escapes, `?`, `#`, `.`, and `..` segments are rejected.
+- A path with parameters requires [`mapInput`](#input-and-mapinput), because parameters reach the action only through it. The definition throws otherwise.
+- A parameter value that is empty, `.`, `..`, or contains an encoded slash (`%2F`) does not match, so the request gets `404`.
+- Concrete segments win over parameters, and this happens before the method is selected. If `POST /users/me` and `DELETE /users/{id}` both exist, `DELETE /users/me` returns `405`: it does not fall through to `/users/{id}`.
+- Duplicate endpoints, and overlapping templates where neither is more concrete (`/a/{x}` and `/{y}/b`), throw when `createRouteHandlers` runs.
+- An unknown path returns `404`. A known path with a different method returns `405` with an `Allow` header.
+- Methods that the route file does not export, such as `GET`, are answered by Next.js with its own `405`, outside the adapter's JSON format.
+- If your catch-all folder has another name, for example `[[...slug]]`, set `pathParam: "slug"`. It must match the folder name.
+
+## Input and `mapInput`
+
+By default, the parsed JSON body is the action input, unchanged. An empty body becomes `undefined`. Path parameters and query values are **not** added to the input: use `mapInput` for them (it is required when the path has parameters).
+
+Use `mapInput` to build the input from the body, the path parameters, and the request:
+
+```ts title="src/app/actions.ts"
+export const updateUser = apiClient
+	.metadata({
+		endpoint: {
+			method: "PATCH",
+			path: "/users/{id}",
+			// Spread the body first, so the path parameter always wins.
+			mapInput: ({ input, params, request }) => ({
+				...(input as object),
+				id: params.id,
+				notify: new URL(request.url).searchParams.get("notify") === "true",
+			}),
+		},
+	})
+	.inputSchema(z.object({ id: z.uuid(), name: z.string().min(1), notify: z.boolean() }))
+	.action(async ({ parsedInput }) => {
+		// ...
+	});
+```
+
+The value that `mapInput` returns still goes through the action's input validation. `mapInput` can be async.
+
+Actions with bind argument schemas (`bindArgsSchemas`) throw when they are defined, and bound functions (`action.bind(...)`) throw when they are registered.
 
 ## Stateful actions
 
-A stateful endpoint must provide `stateSchema`, a Standard Schema for supplied previous results.
+An action defined with `stateAction()` must also declare `stateSchema`, a Standard Schema for the previous result that the client sends back:
 
-<Callout type="warn">
-`prevResult` is untrusted client data. `stateSchema` checks its shape only, never its authenticity, freshness, or authorization. Never derive server state, permissions, or identifiers from it that the action would not otherwise verify. `stateSchema` applies to HTTP requests only; the Server Action transport passes previous results straight from React.
-</Callout>
-
-```ts
-const endpoint: EndpointMetadata = {
- method: "POST",
- path: "/counter",
- stateSchema: z.object({ data: z.object({ count: z.number() }) }),
-};
+```ts title="src/app/actions.ts"
+export const addToCounter = apiClient
+	.metadata({
+		endpoint: {
+			method: "POST",
+			path: "/counter",
+			stateSchema: z.object({ data: z.object({ count: z.number() }).optional() }),
+		},
+	})
+	.inputSchema(z.object({ amount: z.number().int() }))
+	.stateAction(async ({ parsedInput }, { prevResult }) => {
+		return { count: (prevResult.data?.count ?? 0) + parsedInput.amount };
+	});
 ```
 
-Send this envelope:
+The request body is an envelope with only `input` and `prevResult` keys:
 
 ```json
-{
- "input": { "amount": 1 },
- "prevResult": { "data": { "count": 3 } }
-}
+{ "input": { "amount": 1 }, "prevResult": { "data": { "count": 3 } } }
 ```
 
-Omitted `prevResult` becomes `{}`. Supplied previous results are validated once, and schema transforms apply. Invalid envelopes or previous results return a 400 `httpError`. The mapper receives only `input`, after state validation. Previous results are untrusted client data, not stored server state. The adapter provides no session storage, replay protection, or concurrency control.
+- The body must be a JSON object, so send at least `{}`. Other keys are rejected.
+- A missing `prevResult` becomes `{}`. A present one is validated once with `stateSchema`, and schema transforms apply.
+- An invalid envelope or previous result returns `400` with the `INVALID_STATE` code.
+- `mapInput` receives only `input`, after the state validation.
+
+<Callout type="warn">
+`prevResult` is untrusted client data. `stateSchema` checks its shape, not its authenticity or freshness. Never derive permissions, identifiers, or server state from it that the action does not verify again. The adapter provides no session storage, replay protection, or concurrency control. `stateSchema` applies only to HTTP requests: the Server Action transport passes previous results straight from React.
+</Callout>
 
 ## Responses and errors
 
 | Outcome | Status | Body |
 | --- | --- | --- |
-| Success | 200, or `successStatus` | Existing action result |
-| Input validation failure, returned or thrown | 400 | `{ validationErrors }` |
-| Returned server error | 500, or `serverErrorStatus(error)` | `{ serverError }` |
-| Adapter or unexpected failure | 4xx or 500 | `{ httpError: { code, message } }` |
+| Success | `200`, or `successStatus` | `{ data }`, or `{}` for a void action or a middleware that did not call `next()` |
+| Input validation failure (returned or thrown) | `400` | `{ validationErrors }` |
+| Server error returned by the action | `500`, or `serverErrorStatus(serverError)` | `{ serverError }` |
+| `redirect()` | `303` | Empty, with a `Location` header |
+| `unauthorized()`, `forbidden()`, `notFound()` | `401`, `403`, `404` | `{ httpError }` |
+| Adapter failure | `4xx` or `500` | `{ httpError: { code, message } }` |
 
-`successStatus` must be a 2xx status that permits a body, not 204 or 205. `serverErrorStatus` must return a 4xx or 5xx status. Set static response headers with `endpoint.headers`. Cache, JSON content type, content length, Vary, and CORS headers remain adapter-controlled. There is no full Response override.
+The adapter error codes are:
 
-An empty result stays `{}`: it can mean void success or a middleware short-circuit. Unexpected throws, callback failures, invalid status mappings, and serialization failures are sanitized. Errors returned by your action's `handleServerError` are still returned as configured.
+| Status | Code | Cause |
+| --- | --- | --- |
+| `400` | `INVALID_JSON` | The body is not valid UTF-8 JSON. |
+| `400` | `INVALID_STATE` | Invalid stateful envelope or previous result. |
+| `400` | `INVALID_PATH` | The `pathParam` segment is not a catch-all array. |
+| `401` | `UNAUTHORIZED` | The action or its middleware called `unauthorized()`. |
+| `403` | `FORBIDDEN` | The action or its middleware called `forbidden()`. |
+| `403` | `ORIGIN_NOT_ALLOWED` | See [Origin check](#origin-check). |
+| `403` | `HEADERS_NOT_ALLOWED` | A preflight asked for a header that is not in `allowedHeaders`. |
+| `404` | `NOT_FOUND` | No endpoint matches the path, or the action or its middleware called `notFound()`. |
+| `405` | `METHOD_NOT_ALLOWED` | The path exists, but not for this method. |
+| `413` | `BODY_TOO_LARGE` | The body is larger than `maxBodyBytes`. |
+| `415` | `UNSUPPORTED_MEDIA_TYPE` | A `Content-Type` that is not JSON, or a non-empty body without `Content-Type`. |
+| `500` | `INTERNAL_ERROR` | Any unexpected failure (sanitized). |
 
-Sanitized failures do not necessarily reach `handleServerError`, because mappers, state validators, status mappers, and serialization run outside the action. Pass `onError` to receive the original error for logging. The response stays a generic 500 whatever the callback does, and a throwing callback is ignored.
+### Status codes for server errors
 
-```ts
-createRouteHandlers({
- actions: [createUser],
- onError: (error, { request }) => logger.error({ url: request.url, error }),
-});
-```
-
-Next.js access signals become 401, 403, or 404 errors. Redirects become 303 responses with `Location`. Other framework control-flow signals are rethrown. Methods that the route file does not export, such as `GET` and `HEAD`, are answered by Next.js with its own 405 response, outside the adapter's JSON contract.
-
-Responses use native JSON serialization, not React Flight. Dates become strings. Undefined object properties are omitted; undefined array entries and non-finite numbers become null. Maps and sets normally become empty objects. BigInt and circular values cause sanitized 500 errors. Use output schemas and JSON-compatible values to keep a stable HTTP contract.
-
-## Security and CORS
-
-- Nonempty bodies require `application/json` or an `application/*+json` content type.
-- The default body limit is 1 MiB. Set `maxBodyBytes` to change it. The limit is enforced while reading, including streams without Content-Length.
-- Responses use `Cache-Control: no-store`.
-- Supplied origins must be same-origin or listed in `allowedOrigins`. The literal origin `null` is rejected.
-- Requests without Origin are accepted. They still need application authentication and authorization.
-- Same-origin detection compares `Origin` with the scheme and host of the request as the proxy reports them: `X-Forwarded-Proto` then the request URL scheme, and `X-Forwarded-Host` then `Host`, like Next.js Server Actions. The `request.url` host is used only when no `Host` header reached the handler, because Next.js builds that URL from the configured hostname. Behind a TLS-terminating proxy that does not set `X-Forwarded-Proto`, or that rewrites `Host` without `X-Forwarded-Host`, browser requests fail closed with 403: list the public origin in `allowedOrigins`. Make sure your proxy overwrites, not forwards, client-supplied `X-Forwarded-*` headers.
-- `OPTIONS` is path-specific. It checks the requested method and headers. `allowedHeaders` defaults to `["content-type"]`.
-- Credentialed CORS requires `credentials: true`. Origins must be explicit, never wildcards.
+Map the `serverError` value (the output of your `handleServerError`, or a value from [`returnServerError()`](/docs/api/error-classes)) to a status with `serverErrorStatus`. It must return a `4xx` or `5xx` status:
 
 ```ts
-createRouteHandlers({
- actions: [createUser],
- allowedOrigins: ["https://console.example.com"],
- credentials: true,
- allowedHeaders: ["content-type", "authorization"],
- maxBodyBytes: 1024 * 1024,
-});
-```
-
-Keep authentication, authorization, rate limits, and any additional CSRF checks in application middleware. Server Action transport protections do not apply to these JSON endpoints. Do not trust forwarded host headers without a trusted proxy configuration.
-
-Calling an action through a route handler does not enable [updateTag](https://nextjs.org/docs/app/api-reference/functions/updateTag) or [refresh](https://nextjs.org/docs/app/api-reference/functions/refresh). Those functions require the Server Action execution context. Use route-compatible implementations.
-
-## Optional OpenAPI
-
-Import generation separately. It returns an OpenAPI 3.1 document; it does not publish a route or install Swagger UI.
-
-Only endpoints with `endpoint.openapi` appear. Set middleware `openapi: "required"` to require opt-in for each exposed action. Missing documentation schemas do not block HTTP execution. The complete flow has three steps: declare shared error schemas on the middleware, add `openapi` to each endpoint, then generate.
-
-```ts title="app/api/actions.ts"
-"use server";
-
-import { createSafeActionClient } from "next-safe-action";
-import { routesMiddleware, type EndpointMetadata } from "@next-safe-action/adapter-routes";
-import { z } from "zod";
-
-const client = createSafeActionClient({
- defineMetadataSchema: () => z.object({ endpoint: z.custom<EndpointMetadata>().optional() }),
-}).use(
- routesMiddleware({
-  openapi: "required",
-  openapiDefaults: {
-   // Describe your real handleServerError and validation error shapes here.
-   serverErrorSchema: { type: "string" },
-   validationErrorsSchema: { type: "object" },
-  },
- })
-);
-
-export const createUser = client
- .metadata({
-  endpoint: {
-   method: "POST",
-   path: "/users",
-   successStatus: 201,
-   openapi: { operationId: "createUser", summary: "Create a user", tags: ["users"] },
-  },
- })
- .inputSchema(z.object({ name: z.string().min(1) }))
- .outputSchema(z.object({ name: z.string() }))
- .action(async ({ parsedInput }) => parsedInput);
-```
-
-```ts title="app/api/openapi.json/route.ts"
-import { generateOpenApiDocument } from "@next-safe-action/adapter-routes/openapi";
-import { createUser } from "../actions";
-
-export function GET() {
- return Response.json(
-  generateOpenApiDocument({
-   actions: [createUser],
-   info: { title: "Users", version: "1.0.0" },
-   servers: [{ url: "https://example.com/api" }],
-  })
- );
+endpoint: {
+	method: "POST",
+	path: "/usernames",
+	serverErrorStatus: (error) => (error === "Username taken" ? 409 : 500),
 }
 ```
 
-Use schemas that describe your actual error shapes, not the example placeholders. Shared `serverErrorSchema` and `validationErrorsSchema` defaults can be overridden per endpoint. Both must be explicit because the core supports custom error shapes.
+`successStatus` must be a `2xx` status that allows a body, so `204` and `205` are rejected. Use `endpoint.headers` to add static response headers. On CORS responses, the adapter also lists them in `Access-Control-Expose-Headers`, so cross-origin callers can read them. The adapter always controls `Cache-Control` (`no-store`), `Content-Type`, `Content-Length`, `Vary`, and the `Access-Control-*` headers.
 
-The generator uses [Standard JSON Schema](https://standardschema.dev/json-schema) with the Draft 2020-12 target. It converts request and previous-result schemas on the input side and output schemas on the output side. If conversion is unavailable, provide `requestBodySchema`, `prevResultSchema`, or `outputSchema` overrides.
+### Unexpected errors and `onError`
 
-Dynamic input factories cannot be documented. Missing output schemas or error schemas fail generation with the operation and schema identified. A mapper requires both an explicit `requestBodySchema` and `parameters` array, even when that array is empty. For stateful actions, the request-body override describes the complete HTTP envelope. A server-error status mapper requires an explicit `serverErrorStatuses` list.
+Unexpected throws, `mapInput` and `serverErrorStatus` failures, invalid status values, and values that JSON cannot serialize (such as `BigInt` or circular objects) become a generic `500 INTERNAL_ERROR`. Some of these happen outside the action, so they do not reach `handleServerError`. Pass `onError` to log the original error:
 
-The request body is documented as required whenever the action has an input schema or a `requestBodySchema` override, and generated stateful envelopes then require their `input` field. Optionality cannot be inferred without running validators, so set `requestBodyRequired: false` for actions whose input may be omitted. Stateful envelopes are always required, and a `requestBodySchema` override of an envelope controls its own field requirements.
+```ts
+createRouteHandlers({
+	actions: [createUser],
+	onError: (error, { request }) => console.error("Route action failed", request.url, error),
+});
+```
 
-`parameters` overrides use a checked subset of the OpenAPI Parameter Object: `name`, `in` (`path`, `query`, `header`, or `cookie`), `required`, `description`, `schema`, and `deprecated`. Every entry needs a `schema`. Duplicate `(name, in)` pairs, path parameters not present in the template, and template parameters not declared as required fail generation.
+The response stays a generic `500`. The adapter does not wait for an async `onError`, and ignores errors that it throws.
 
-Operation IDs must be unique identifiers using letters, digits, and underscores, with no leading digit. Schemas remain separate components with stable resource identifiers. Their local references, recursive roots, `$defs`, nullable values, and boolean schemas are preserved. Absolute `$id` values are retained; duplicate resource IDs fail generation. Relative IDs resolve against the component's generated base. External references must remain resolvable by consumers. See [JSON Schema resource boundaries](https://json-schema.org/understanding-json-schema/structuring) and [OpenAPI Schema Objects](https://spec.openapis.org/oas/v3.1.1.html#schema-object).
+### JSON serialization
 
-<Callout>
-Because every component is its own resource with a generated `$id`, a document-relative reference such as `{ "$ref": "#/components/schemas/createUser_Output" }` inside an override would resolve against that resource, not the OpenAPI document. Generation rejects such overrides, including percent-encoded variants: inline the schema, or use an absolute `$ref` to a resource that declares that URI as its `$id`. Instance data under `const`, `default`, `enum`, and `examples` is not inspected. Resource boundaries are part of the OpenAPI 3.1 specification, but not every consumer implements them. Check that your tooling resolves `$id` and `$ref: "#"` before relying on recursive schemas.
+Responses use `JSON.stringify`, not React Flight: `Date` values become strings, `Map` and `Set` become `{}`, and `undefined` properties are omitted. Use an output schema and JSON-compatible values to keep a stable HTTP contract.
+
+`updateTag()` and `refresh()` from `next/cache` work only inside a Server Action, so they do not work when the action runs through a route handler. Use `revalidateTag()` or `revalidatePath()` in actions that you expose.
+
+## Security
+
+These endpoints are public HTTP APIs. The built-in protections of the Server Action transport do not apply to them.
+
+### Authentication belongs in middleware
+
+The adapter does no authentication, authorization, or rate limiting. Add them as middleware on the client, like for any other action. `unauthorized()` and `forbidden()` (which require the [`authInterrupts`](https://nextjs.org/docs/app/api-reference/config/next-config-js/authInterrupts) option) become `401` and `403` responses:
+
+```ts title="src/lib/safe-action.ts"
+import { unauthorized } from "next/navigation";
+
+export const apiClient = createSafeActionClient({
+	defineMetadataSchema: () => z.object({ endpoint: z.custom<EndpointMetadata>().optional() }),
+})
+	.use(routesMiddleware())
+	.use(async ({ next }) => {
+		const session = await getSession(); // Reads a cookie or the Authorization header.
+		if (!session) unauthorized();
+		return next({ ctx: { session } });
+	});
+```
+
+<Callout type="warn" title="Execution order">
+`stateSchema` validation and `mapInput` run **before** the action is called, so before every middleware of the action, including authentication. Treat their input as unauthenticated: keep them pure, do no database work in them, and make sure their result cannot tell anonymous callers anything. If this work must be protected, authenticate in the route file before you call the adapter handlers.
 </Callout>
 
-Generation does not run actions, middleware, input factories, mappers, state validators, or status callbacks. Standard JSON Schema converter methods do run.
+### Origin check
+
+Browsers send an `Origin` header with every `POST`, `PUT`, `PATCH`, and `DELETE` request. When a request has one, the adapter accepts it only if it is the same origin as the app, or if it is listed in `allowedOrigins`. The literal origin `null` is always rejected. Requests without `Origin` (curl, server-to-server calls) are accepted, and your authentication middleware must handle them.
+
+Like Next.js Server Actions, the same-origin check compares `Origin` with the scheme from `X-Forwarded-Proto` (or the request URL) and the host from `X-Forwarded-Host` (or `Host`). If your proxy terminates TLS without `X-Forwarded-Proto`, or rewrites `Host` without `X-Forwarded-Host`, browser requests fail with `403`: add your public origin to `allowedOrigins`. Make sure your proxy overwrites client-supplied `X-Forwarded-*` headers.
+
+### Request bodies
+
+- A `Content-Type` must be `application/json` or `application/*+json`, even for an empty body, so an empty cross-site form post cannot run an action. An empty body without `Content-Type` is accepted, and a non-empty body requires one.
+- The default body limit is 1 MiB. Set `maxBodyBytes` to change it. The limit also applies to streamed bodies without `Content-Length`.
+- Invalid UTF-8 and invalid JSON return `400`.
+
+### CORS
+
+To call the endpoints from a browser on another origin, list that origin. `OPTIONS` preflights are answered per path, and check the requested method and headers:
+
+```ts title="src/app/api/[[...path]]/route.ts"
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = createRouteHandlers({
+	actions: routeActions,
+	allowedOrigins: ["https://console.example.com"],
+	credentials: true, // Allow cookies on cross-origin requests.
+	allowedHeaders: ["content-type", "authorization"],
+});
+```
+
+`credentials` controls only whether a cross-origin caller can **read** the response. It does not stop the browser from sending cookies with simple requests from an allowed origin, so cookie authentication must not depend on it.
+
+Each entry of `allowedOrigins` must be an exact origin (scheme, host, and port if not the default, with no path or trailing slash). Wildcards are not supported. Invalid entries throw when `createRouteHandlers` runs.
+
+## OpenAPI
+
+The `@next-safe-action/adapter-routes/openapi` entry point generates an OpenAPI 3.1 document from your actions. It does not run actions, middleware, input schema factories, `mapInput`, `stateSchema`, or `serverErrorStatus`. You serve the document from a route and point any OpenAPI viewer at it.
+
+### 1. Describe your error shapes
+
+The core lets you customize the server error and validation error shapes, so the generator cannot guess them. Declare them once on the middleware:
+
+```ts title="src/lib/safe-action.ts"
+export const apiClient = createSafeActionClient({
+	defineMetadataSchema: () => z.object({ endpoint: z.custom<EndpointMetadata>().optional() }),
+}).use(
+	routesMiddleware({
+		openapi: "required", // Every endpoint on this client must declare `openapi`.
+		openapiDefaults: {
+			// Describe your real handleServerError output and validation errors format.
+			serverErrorSchema: { type: "string" },
+			validationErrorsSchema: { type: "object" },
+		},
+	})
+);
+```
+
+### 2. Opt endpoints in
+
+Only endpoints with an `openapi` object are documented:
+
+```ts title="src/app/actions.ts"
+export const createUser = apiClient
+	.metadata({
+		endpoint: {
+			method: "POST",
+			path: "/users",
+			successStatus: 201,
+			openapi: { operationId: "createUser", summary: "Create a user", tags: ["users"] },
+		},
+	})
+	.inputSchema(z.object({ name: z.string().min(1) }))
+	.outputSchema(z.object({ id: z.string(), name: z.string() }))
+	.action(async ({ parsedInput }) => ({ id: crypto.randomUUID(), name: parsedInput.name }));
+```
+
+### 3. Serve the document
+
+```ts title="src/app/api/openapi.json/route.ts"
+import { generateOpenApiDocument } from "@next-safe-action/adapter-routes/openapi";
+import { routeActions } from "@/lib/route-actions";
+
+// Generated once, when the module loads, so configuration errors surface early.
+const document = generateOpenApiDocument({
+	actions: routeActions,
+	info: { title: "My API", version: "1.0.0" },
+	// Endpoint paths are relative to the catch-all folder, so the server URL includes it.
+	servers: [{ url: "/api" }],
+});
+
+export function GET() {
+	return Response.json(document);
+}
+```
+
+A static route such as `/api/openapi.json` takes priority over the catch-all, so do not declare an endpoint with the same path. The document lists every documented endpoint: protect the route if your API is private.
+
+### 4. Add a viewer
+
+Any OpenAPI 3.1 viewer can read the document. This route loads [Scalar](https://scalar.com) from jsDelivr, pinned to an exact version with Subresource Integrity, so it needs no npm package:
+
+```ts title="src/app/api/docs/route.ts"
+const html = `<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>API reference</title>
+	</head>
+	<body>
+		<div id="app"></div>
+		<script
+			src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.72.1/dist/browser/standalone.js"
+			integrity="sha384-U11tb2XnKvmwt8RlTvnwUnYgrN+ur4Xyh9htLhjajWNR/Oyl5AX5DEz00qRmlrmK"
+			crossorigin="anonymous"
+		></script>
+		<script>
+			Scalar.createApiReference("#app", { url: "/api/openapi.json" });
+		</script>
+	</body>
+</html>`;
+
+export function GET() {
+	return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8" } });
+}
+```
+
+Open `/api/docs`. Its test requests are same-origin, so the origin check accepts them. When you change the version, update the `integrity` hash too. If your app sets a Content Security Policy, allow the CDN or install the viewer from npm (`@scalar/api-reference`) and serve it yourself. Swagger UI (`swagger-ui-dist`) and Redoc work with the same document URL.
+
+### Schema conversion
+
+The generator reads JSON Schema from your Standard Schema validators through [Standard JSON Schema](https://standardschema.dev/json-schema) (`~standard.jsonSchema`, available from Zod 4.2), with the Draft 2020-12 target. The input schema and `stateSchema` are converted on the input side, and the output schema on the output side. When a validator cannot be converted, or the action has no output schema, pass a JSON Schema override in `openapi`: `requestBodySchema`, `prevResultSchema`, or `outputSchema`.
+
+Generation throws a `TypeError` that names the operation when:
+
+- The action has no output schema and no `outputSchema` override. For a void action, pass `outputSchema: false`.
+- The server error or validation errors schema is missing from both `openapiDefaults` and the endpoint.
+- The action uses an input schema factory and has no `requestBodySchema`.
+- The endpoint uses `mapInput` without both `requestBodySchema` and `parameters` (an empty array is valid). The generator cannot know the shape that `mapInput` accepts.
+- The endpoint uses `serverErrorStatus` without a non-empty `serverErrorStatuses` list. List every status that the mapper can return, including `500` if it can fall back to it.
+- The `operationId` is duplicated, or is not an identifier (letters, digits, and underscores, with no leading digit).
+- Two schemas get the same component name (see [Components](#components)).
+
+For a `mapInput` endpoint, describe the HTTP request yourself:
+
+```ts
+openapi: {
+	operationId: "updateUser",
+	requestBodySchema: { type: "object", required: ["name"], properties: { name: { type: "string" } } },
+	parameters: [
+		{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } },
+		{ name: "notify", in: "query", schema: { type: "boolean" } },
+	],
+}
+```
+
+### Request body and parameters
+
+- The request body is documented as required when the action has an input schema or a `requestBodySchema`. Optionality cannot be detected without running the validator, so set `requestBodyRequired: false` for input that can be omitted.
+- For stateful actions, the generated body is the `{ input, prevResult }` envelope, and it is always required. A `requestBodySchema` override describes the complete envelope.
+- `parameters` documents the path, query, header, and cookie parameters that `mapInput` reads. Each entry needs a `schema`, `(name, in)` pairs must be unique, path parameters must exist in the template, and every template parameter must be listed with `required: true`.
+
+### Components
+
+Every schema becomes a component in `components.schemas`: `createUser_Input`, `createUser_Output`, `createUser_ServerError`, and so on, plus a shared `HttpError`. The generator flattens each schema so that viewers resolve every reference against the document:
+
+- `$id` and `$schema` are removed.
+- Each `$defs` entry becomes its own component named `<component>_<key>`, for example `createUser_Input_Address`. Zod emits `$defs` for recursive schemas and for schemas registered with `.meta({ id })`.
+- Local references (`#`, `#/$defs/...`) are rewritten to `#/components/schemas/...`.
+
+Overrides can use document references such as `{ "$ref": "#/components/schemas/createUser_Output" }`: they are kept unchanged.
+
+## API reference
+
+### `routesMiddleware(options?)`
+
+<TypeTable
+	type={{
+		requireEndpoint: {
+			description: "Throw when an action defined with this client has no metadata.endpoint. Use it for a client that is dedicated to API endpoints.",
+			type: "boolean",
+			default: "false",
+		},
+		openapi: {
+			description: 'With "required", every endpoint on this client must declare endpoint.openapi, or the definition throws.',
+			type: '"opt-in" | "required"',
+			default: '"opt-in"',
+		},
+		openapiDefaults: {
+			description: "Default serverErrorSchema and validationErrorsSchema for every documented endpoint. An endpoint's openapi object overrides them.",
+			type: "{ serverErrorSchema?: JsonSchema; validationErrorsSchema?: JsonSchema }",
+		},
+	}}
+/>
+
+### `EndpointMetadata`
+
+<TypeTable
+	type={{
+		method: {
+			description: "HTTP method.",
+			type: '"POST" | "PUT" | "PATCH" | "DELETE"',
+			required: true,
+		},
+		path: {
+			description: "Path template relative to the catch-all folder, for example /users/{id}.",
+			type: "string",
+			required: true,
+		},
+		mapInput: {
+			description: "Builds the action input from the parsed body, the path parameters, and the request. Required when the path has parameters. Runs before middleware.",
+			type: "(args: { input: unknown; params: Readonly<Record<string, string>>; request: Request }) => unknown",
+		},
+		stateSchema: {
+			description: "Standard Schema for prevResult. Required for stateAction(). Runs before middleware.",
+			type: "StandardSchemaV1",
+		},
+		successStatus: {
+			description: "Success status. A 2xx status other than 204 and 205.",
+			type: "number",
+			default: "200",
+		},
+		headers: {
+			description: "Static headers added to every response of this endpoint.",
+			type: "HeadersInit",
+		},
+		serverErrorStatus: {
+			description: "Maps a returned serverError to a 4xx or 5xx status.",
+			type: "(error: unknown) => number",
+			default: "() => 500",
+		},
+		openapi: {
+			description: "Opts the endpoint into OpenAPI generation. See EndpointOpenApi.",
+			type: "EndpointOpenApi",
+		},
+	}}
+/>
+
+### `EndpointOpenApi`
+
+<TypeTable
+	type={{
+		operationId: {
+			description: "Unique identifier (letters, digits, underscores). Also the prefix of the component names.",
+			type: "string",
+			required: true,
+		},
+		summary: { description: "Operation summary.", type: "string" },
+		description: { description: "Operation description.", type: "string" },
+		tags: { description: "Operation tags.", type: "string[]" },
+		outputSchema: {
+			description: "JSON Schema for data. Overrides the converted output schema.",
+			type: "JsonSchema",
+		},
+		requestBodySchema: {
+			description: "JSON Schema for the complete request body. Overrides the converted input schema. Required with mapInput or an input schema factory.",
+			type: "JsonSchema",
+		},
+		requestBodyRequired: {
+			description: "Whether the request body is required.",
+			type: "boolean",
+			default: "true when there is an input schema or requestBodySchema",
+		},
+		prevResultSchema: {
+			description: "JSON Schema for prevResult. Overrides the converted stateSchema.",
+			type: "JsonSchema",
+		},
+		parameters: {
+			description: "The path, query, header, and cookie parameters. Required with mapInput.",
+			type: "OpenApiParameter[]",
+		},
+		serverErrorStatuses: {
+			description: "Every status that serverErrorStatus can return, including 500 if it can. Required with serverErrorStatus.",
+			type: "number[]",
+		},
+		serverErrorSchema: {
+			description: "JSON Schema for serverError. When set, overrides openapiDefaults.",
+			type: "JsonSchema",
+		},
+		validationErrorsSchema: {
+			description: "JSON Schema for validationErrors. When set, overrides openapiDefaults.",
+			type: "JsonSchema",
+		},
+	}}
+/>
+
+`OpenApiParameter` is `{ name, in: "path" | "query" | "header" | "cookie", schema, required?, description?, deprecated? }`, and `JsonSchema` is `boolean | Record<string, unknown>`.
+
+### `createRouteHandlers(options)`
+
+Returns `{ POST, PUT, PATCH, DELETE, OPTIONS }` for the route file.
+
+<TypeTable
+	type={{
+		actions: {
+			description: "The actions to expose. Each one must use routesMiddleware and declare metadata.endpoint, or this call throws.",
+			type: "readonly ((...args: any[]) => Promise<any>)[]",
+			required: true,
+		},
+		pathParam: {
+			description: "Name of the catch-all segment. Must match the folder name.",
+			type: "string",
+			default: '"path"',
+		},
+		maxBodyBytes: {
+			description: "Maximum request body size in bytes.",
+			type: "number",
+			default: "1048576 (1 MiB)",
+		},
+		allowedOrigins: {
+			description: "Cross-origin origins that are accepted, in addition to the same origin.",
+			type: "readonly string[]",
+			default: "[]",
+		},
+		credentials: {
+			description: "Send Access-Control-Allow-Credentials: true to accepted origins.",
+			type: "boolean",
+			default: "false",
+		},
+		allowedHeaders: {
+			description: "Request headers accepted in CORS preflights (case-insensitive).",
+			type: "readonly string[]",
+			default: '["content-type"]',
+		},
+		onError: {
+			description: "Receives the original error behind every sanitized 500 response. It cannot change or delay the response.",
+			type: "(error: unknown, context: { request: Request }) => void | Promise<void>",
+		},
+	}}
+/>
+
+### `generateOpenApiDocument(options)`
+
+Returns an OpenAPI 3.1 document object. Import it from `@next-safe-action/adapter-routes/openapi`.
+
+<TypeTable
+	type={{
+		actions: {
+			description: "The actions to document. Each one must be a route action, as for createRouteHandlers. Only endpoints with endpoint.openapi are included.",
+			type: "readonly ((...args: any[]) => Promise<any>)[]",
+			required: true,
+		},
+		info: {
+			description: "The OpenAPI info object.",
+			type: "{ title: string; version: string; description?: string }",
+			required: true,
+		},
+		servers: {
+			description: "The OpenAPI servers. Include the catch-all folder path in the URL, for example /api.",
+			type: "{ url: string; description?: string }[]",
+		},
+	}}
+/>
+
+## Package entry points
+
+| Entry point | Exports | Environment |
+|---|---|---|
+| `@next-safe-action/adapter-routes` | `routesMiddleware`, `createRouteHandlers`, and the types `EndpointMetadata`, `EndpointOpenApi`, `RoutesMiddlewareOptions`, `RoutesOptions`, `OpenApiParameter`, `JsonSchema`, `HttpError` | Server |
+| `@next-safe-action/adapter-routes/openapi` | `generateOpenApiDocument`, `OpenApiDocumentOptions` | Server |
+
+## See also
+
+- [Middleware guide](/docs/guides/middleware): add authentication and authorization to the client
+- [Metadata](/docs/advanced/metadata): how `defineMetadataSchema` and `.metadata()` work
+- [Framework errors](/docs/advanced/framework-errors): `redirect()`, `notFound()`, `unauthorized()`, and `forbidden()` in actions
+- [Custom validation errors](/docs/advanced/custom-validation-errors): the validation error shapes to describe in `validationErrorsSchema`
+- [`createMiddleware()`](/docs/api/create-middleware#declaration-callback): the `onActionDefined` callback that the adapter uses

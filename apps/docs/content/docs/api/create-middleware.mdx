@@ -160,24 +160,17 @@ const adminClient = baseClient
 const broken = baseClient.use(adminGuard);
 ```
 
-## See also
-
-- [Middleware guide](/docs/guides/middleware): foundational middleware concepts
-- [Standalone middleware](/docs/advanced/standalone-middleware): guide with more patterns and use cases
-- [`.use()` method](/docs/api/safe-action-client#use): how standalone middleware is consumed by clients
-- [`createValidatedMiddleware()`](/docs/api/create-validated-middleware): standalone factory for post-validation middleware
-
 ## Declaration callback
 
 Pass a synchronous `onActionDefined` callback as the second argument to `define`:
 
 ```ts
 const middleware = createMiddleware().define(async ({ next }) => next(), {
- onActionDefined(definition) {
-  if (definition.bindArgsCount > 0) {
-   throw new TypeError("Bind arguments are not supported by this middleware");
-  }
- },
+	onActionDefined(definition) {
+		if (definition.bindArgsCount > 0) {
+			throw new TypeError("Bind arguments are not supported by this middleware");
+		}
+	},
 });
 ```
 
@@ -193,4 +186,12 @@ The exported [`ActionDefinition`](/docs/api/types#actiondefinition) type contain
 
 Only direct input schemas are exposed. Dynamic factories are never called to discover schemas. Callback return values cannot replace the action. Configuration errors propagate during definition. Async callbacks and promise-returning callbacks are rejected. This callback does not change middleware context or action inference.
 
-This is a stable public API. The supported contract is: synchronous completion, one notification per completed definition per middleware function identity, chain ordering, and a shallow-frozen description.
+This is a stable public API. The supported contract is: synchronous completion, one notification per completed definition per middleware function identity, chain ordering, and a shallow-frozen description. The [route adapter](/docs/integrations/routes) is built on it.
+
+## See also
+
+- [Middleware guide](/docs/guides/middleware): foundational middleware concepts
+- [Standalone middleware](/docs/advanced/standalone-middleware): guide with more patterns and use cases
+- [`.use()` method](/docs/api/safe-action-client#use): how standalone middleware is consumed by clients
+- [`createValidatedMiddleware()`](/docs/api/create-validated-middleware): standalone factory for post-validation middleware
+- [Route handlers](/docs/integrations/routes): adapter that uses `onActionDefined` to register endpoints

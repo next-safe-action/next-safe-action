@@ -1,14 +1,11 @@
 <div align="center">
   <img src="https://raw.githubusercontent.com/next-safe-action/next-safe-action/main/assets/logo.png" alt="next-safe-action logo" width="36" height="36">
-  <a href="https://github.com/next-safe-action/next-safe-action/packages/adapter-routes"><h1>adapter-routes</h1></a>
+  <a href="https://github.com/next-safe-action/next-safe-action/tree/main/packages/adapter-routes"><h1>adapter-routes</h1></a>
 </div>
 
-This adapter exposes selected [next-safe-action](https://github.com/next-safe-action/next-safe-action) actions as JSON mutation endpoints through Next.js Route Handlers, so the same validated action can serve React hooks and external API clients. It can also generate an OpenAPI 3.1 document for the exposed endpoints.
+Expose selected [next-safe-action](https://github.com/next-safe-action/next-safe-action) actions as JSON API endpoints through a Next.js catch-all Route Handler, and optionally generate an OpenAPI 3.1 document for Scalar, Swagger UI, or Redoc. The same validated action keeps working with the React hooks.
 
-## Requirements
-
-- Next.js >= `15.1.0`
-- next-safe-action >= `8.8.0`
+Requires Next.js >= 15.1.0 and next-safe-action >= 8.8.0.
 
 ## Installation
 
@@ -18,88 +15,40 @@ npm i next-safe-action @next-safe-action/adapter-routes
 
 ## Quick start
 
-### 1. Define an action with endpoint metadata
-
-An action is exposed only when it uses `routesMiddleware`, declares `metadata.endpoint`, and is registered with the handlers. Add authentication middleware before `routesMiddleware`.
-
 ```ts
-// src/app/api/actions.ts
+// src/app/actions.ts
 "use server";
 
 import { createSafeActionClient } from "next-safe-action";
 import { routesMiddleware, type EndpointMetadata } from "@next-safe-action/adapter-routes";
 import { z } from "zod";
 
-const client = createSafeActionClient({
+const apiClient = createSafeActionClient({
 	defineMetadataSchema: () => z.object({ endpoint: z.custom<EndpointMetadata>().optional() }),
 }).use(routesMiddleware());
 
-export const createUser = client
+export const createUser = apiClient
 	.metadata({ endpoint: { method: "POST", path: "/users", successStatus: 201 } })
 	.inputSchema(z.object({ name: z.string().min(1) }))
-	.outputSchema(z.object({ name: z.string() }))
-	.action(async ({ parsedInput }) => parsedInput);
+	.action(async ({ parsedInput }) => ({ name: parsedInput.name }));
 ```
-
-### 2. Create the catch-all route
 
 ```ts
 // src/app/api/[[...path]]/route.ts
 import { createRouteHandlers } from "@next-safe-action/adapter-routes";
-import { createUser } from "../actions";
+import { createUser } from "@/app/actions";
 
-export const { POST, PUT, PATCH, DELETE, OPTIONS } = createRouteHandlers({
-	actions: [createUser],
-	// allowedOrigins: ["https://console.example.com"],
-	// onError: (error) => console.error(error),
-});
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = createRouteHandlers({ actions: [createUser] });
 ```
-
-### 3. Call it
 
 ```sh
-curl -X POST https://example.com/api/users \
-  -H "content-type: application/json" \
-  -d '{"name":"Ada"}'
-# {"data":{"name":"Ada"}}
+curl -X POST http://localhost:3000/api/users -H "Content-Type: application/json" -d '{"name":"Ada"}'
+# 201 {"data":{"name":"Ada"}}
 ```
-
-Validation failures return `400 { validationErrors }`, server errors return `{ serverError }`, and adapter failures return `{ httpError: { code, message } }`. Bodies are limited to 1 MiB by default, a JSON content type is required, and cross-origin browser requests must match `allowedOrigins`.
-
-### Optional OpenAPI
-
-Declare shared error schemas on the middleware, opt each endpoint in with `openapi`, then generate.
-
-```ts
-const client = createSafeActionClient({
-	defineMetadataSchema: () => z.object({ endpoint: z.custom<EndpointMetadata>().optional() }),
-}).use(
-	routesMiddleware({
-		openapiDefaults: { serverErrorSchema: { type: "string" }, validationErrorsSchema: { type: "object" } },
-	})
-);
-
-export const createUser = client
-	.metadata({ endpoint: { method: "POST", path: "/users", openapi: { operationId: "createUser" } } })
-	.inputSchema(z.object({ name: z.string().min(1) }))
-	.outputSchema(z.object({ name: z.string() }))
-	.action(async ({ parsedInput }) => parsedInput);
-```
-
-```ts
-import { generateOpenApiDocument } from "@next-safe-action/adapter-routes/openapi";
-
-const document = generateOpenApiDocument({
-	actions: [createUser],
-	info: { title: "Users", version: "1.0.0" },
-});
-```
-
-Only endpoints with `endpoint.openapi` are documented. Schemas are converted with Standard JSON Schema.
 
 ## Documentation
 
-See the [route adapter documentation](https://next-safe-action.dev/docs/integrations/routes) for path templates, `mapInput`, stateful actions, the security model, CORS, and the complete OpenAPI configuration.
+See the [route handlers documentation](https://next-safe-action.dev/docs/integrations/routes) for path parameters, `mapInput`, stateful actions, status codes, the security model, CORS, OpenAPI generation, and how to serve an API reference viewer.
 
 ## License
 
