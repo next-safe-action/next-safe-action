@@ -1,4 +1,5 @@
 import type {} from "zod";
+import { attachActionDefinition } from "./action-definition";
 import { deepmerge } from "./deep-merge";
 import type {
 	ValidationErrorsFormat,
@@ -456,7 +457,7 @@ export function actionBuilder<
 					PreValidationCtx
 				>
 			) => {
-				return async (...clientInputs: unknown[]) => {
+				const action = async (...clientInputs: unknown[]) => {
 					let currentCtx: object = {};
 					const middlewareResult: MiddlewareResult<ServerError, object> = { success: false };
 					type PrevResult = SafeActionResult<ServerError, InputSchema, ShapedErrors, Data>;
@@ -662,6 +663,14 @@ export function actionBuilder<
 						utils
 					);
 				};
+				attachActionDefinition(action, {
+					stateful: withState,
+					inputSchema: args.staticInputSchema,
+					outputSchema: args.outputSchema,
+					dynamicInputSchema: !!args.inputSchemaFn && !args.staticInputSchema,
+					bindArgsCount: bindArgsSchemas.length,
+				});
+				return action;
 			},
 		};
 	}

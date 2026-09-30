@@ -121,6 +121,7 @@ export type SafeActionClientArgs<
 	metadata: Metadata;
 	metadataProvided?: HasMetadata;
 	inputSchemaFn: InputSchemaFn;
+	staticInputSchema?: StandardSchemaV1;
 	outputSchema: OutputSchema;
 	bindArgsSchemas: BindArgsSchemas;
 	handleValidationErrorsShape: HandleValidationErrorsShapeFn<InputSchema, BindArgsSchemas, Metadata, Ctx, ShapedErrors>;

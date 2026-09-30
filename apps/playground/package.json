@@ -13,6 +13,7 @@
 	"dependencies": {
 		"@hookform/resolvers": "catalog:",
 		"@next-safe-action/adapter-react-hook-form": "workspace:*",
+		"@next-safe-action/adapter-routes": "workspace:*",
 		"@next-safe-action/adapter-tanstack-query": "workspace:*",
 		"@tanstack/react-query": "catalog:",
 		"class-variance-authority": "^0.7.1",

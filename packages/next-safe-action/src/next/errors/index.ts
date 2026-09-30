@@ -43,3 +43,13 @@ export class FrameworkErrorHandler {
 		return this.#frameworkError;
 	}
 }
+
+/** Inspect only framework control-flow signals, without handling other errors. */
+export function inspectFrameworkError(
+	error: unknown
+): { kind: "redirect"; destination: string } | { kind: "access"; status: number } | { kind: "other" } | undefined {
+	if (isRedirectError(error)) return { kind: "redirect", destination: error.digest.split(";").slice(2, -2).join(";") };
+	if (isHTTPAccessFallbackError(error)) return { kind: "access", status: getAccessFallbackHTTPStatus(error) };
+	if (FrameworkErrorHandler.isNavigationError(error)) return { kind: "other" };
+	return undefined;
+}
