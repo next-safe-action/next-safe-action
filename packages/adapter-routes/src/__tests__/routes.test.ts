@@ -1,101 +1,85 @@
 import { ActionValidationError, createSafeActionClient, returnServerError } from "next-safe-action";
 import { expect, it, vi } from "vitest";
 import { z } from "zod";
-import { createRouteHandlers, routesMiddleware } from "../index";
-import type { EndpointMetadata, MutationMethod, RoutesOptions } from "../types";
+import { createRouteHandlers, createRouter } from "../index";
+import type { MutationMethod, RouteHandlersOptions, Router } from "../types";
 
-const client = createSafeActionClient({
-	defineMetadataSchema: () => z.object({ endpoint: z.custom<EndpointMetadata>().optional() }),
-	handleServerError: () => ({ code: "CUSTOM" }),
-}).use(routesMiddleware());
-function action(endpoint: EndpointMetadata, run = async (input: unknown): Promise<unknown> => input) {
-	return client
-		.metadata({ endpoint })
-		.inputSchema(z.unknown())
-		.action(async ({ parsedInput }) => run(parsedInput));
+const client = createSafeActionClient({ handleServerError: () => ({ code: "CUSTOM" }) });
+function echo(run = async (input: unknown): Promise<unknown> => input) {
+	return client.inputSchema(z.unknown()).action(async ({ parsedInput }) => run(parsedInput));
+}
+// Routes an echo action at POST /users. The config is untyped so tests can pass invalid values.
+function users(config: Record<string, unknown> = {}, run?: (input: unknown) => Promise<unknown>) {
+	return createRouter().post("/users", echo(run), config);
 }
 async function call(
-	actions: RoutesOptions["actions"],
-	method: MutationMethod | "OPTIONS" = "POST",
+	router: Router,
+	method: MutationMethod = "POST",
 	path = ["users"],
 	body: string | undefined = "{}",
 	headers: HeadersInit = { "content-type": "application/json" },
-	options: Partial<RoutesOptions> = {}
+	options: RouteHandlersOptions = {}
 ) {
-	const handlers = createRouteHandlers({ actions, ...options });
-	return handlers.POST(
-		new Request("https://app.test/api/" + path.join("/"), {
-			method,
-			body: method === "OPTIONS" ? undefined : body,
-			headers,
-		}),
+	return createRouteHandlers(router, options).POST(
+		new Request("https://app.test/api/" + path.join("/"), { method, body, headers }),
 		{ params: Promise.resolve({ path }) }
 	);
 }
-const passInput: EndpointMetadata["mapInput"] = ({ input }) => input;
+const passInput = ({ input }: { input: unknown }) => input;
+
 it.each(["POST", "PUT", "PATCH", "DELETE"] as const)("serves %s", async (method) => {
-	const response = await call(
-		[action({ method, path: "/users", successStatus: 201 })],
-		method,
-		undefined,
-		'{"name":"Ada"}'
-	);
+	const add = method.toLowerCase() as "post" | "put" | "patch" | "delete";
+	const router = createRouter()[add]("/users", echo(), { successStatus: 201 });
+	const response = await call(router, method, undefined, '{"name":"Ada"}');
 	expect(response.status).toBe(201);
 	expect(await response.json()).toEqual({ data: { name: "Ada" } });
 	expect(response.headers.get("cache-control")).toBe("no-store");
 });
+
 it("matches concrete paths before parameters and supports mappings", async () => {
-	const parameter = action({
-		method: "POST",
-		path: "/users/{id}",
-		mapInput: async ({ input, params }) => ({ input, id: params.id }),
-	});
-	const concrete = action({ method: "PUT", path: "/users/me" });
-	const result = await call([parameter, concrete], "POST", ["users", "42"]);
+	const router = createRouter()
+		.post("/users/{id}", echo(), { mapInput: async ({ input, params }) => ({ input, id: params.id }) })
+		.put("/users/me", echo());
+	const result = await call(router, "POST", ["users", "42"]);
 	expect(await result.json()).toEqual({ data: { input: {}, id: "42" } });
-	expect((await call([parameter, concrete], "POST", ["users", "me"])).status).toBe(405);
-	expect((await call([parameter], "POST", ["unknown"])).status).toBe(404);
-	const wrong = await call([parameter], "PUT", ["users", "42"]);
+	expect((await call(router, "POST", ["users", "me"])).status).toBe(405);
+	expect((await call(router, "POST", ["unknown"])).status).toBe(404);
+	const wrong = await call(router, "PUT", ["users", "42"]);
 	expect(wrong.status).toBe(405);
-	expect(wrong.headers.get("allow")).toBe("POST, OPTIONS");
+	expect(wrong.headers.get("allow")).toBe("POST");
 });
-it("rejects duplicates, ambiguous paths, unsupported configurations and bound actions", () => {
-	const a = action({ method: "POST", path: "/{id}/edit", mapInput: passInput });
-	for (const b of [
-		a,
-		action({ method: "POST", path: "/{name}/edit", mapInput: passInput }),
-		action({ method: "PUT", path: "/users/{id}", mapInput: passInput }),
-	]) {
-		expect(() => createRouteHandlers({ actions: [a, b] })).toThrow(/ambiguous/);
-	}
-	expect(() => createRouteHandlers({ actions: [a.bind(null)] })).toThrow("Bound");
-	expect(() =>
-		client
-			.metadata({ endpoint: { method: "POST", path: "/x" } })
-			.bindArgsSchemas([z.string()])
-			.action(async () => {})
-	).toThrow("bind");
-	expect(() => action({ method: "POST", path: "/x", successStatus: 204 })).toThrow("JSON body");
-	expect(() => action({ method: "POST", path: "/{id}/{id}", mapInput: passInput })).toThrow("Duplicate path parameter");
+
+it("rejects duplicates, ambiguous paths, unsupported configurations and non-actions", () => {
+	const base = createRouter().post("/{id}/edit", echo(), { mapInput: passInput });
+	expect(() => base.post("/{id}/edit", echo(), { mapInput: passInput })).toThrow("ambiguous");
+	expect(() => base.post("/{name}/edit", echo(), { mapInput: passInput })).toThrow("ambiguous");
+	expect(() => base.put("/users/{id}", echo(), { mapInput: passInput })).toThrow("ambiguous");
+	// Routers are immutable: a failed or successful add never changes the original router.
+	expect(base.routes).toHaveLength(1);
+	expect(base.put("/{id}/edit", echo(), { mapInput: passInput }).routes).toHaveLength(2);
+	expect(base.routes).toHaveLength(1);
+	expect(() => createRouter().post("/x", echo().bind(null) as never)).toThrow("not a safe action");
+	expect(() => createRouter().post("/x", async () => ({}))).toThrow("not a safe action");
+	const bound = client.bindArgsSchemas([z.string()]).action(async () => {});
+	expect(() => createRouter().post("/x", bound as never)).toThrow("bind arguments");
+	expect(() => users({ successStatus: 204 })).toThrow("JSON body");
+	expect(() => users({ mapInput: 1 })).toThrow("functions");
+	expect(() => createRouter().post("/{id}/{id}", echo(), { mapInput: passInput })).toThrow("Duplicate path parameter");
 	// Without mapInput, path parameters would be silently dropped from the action input.
-	expect(() => action({ method: "POST", path: "/users/{id}" })).toThrow("Path parameters require mapInput");
-	expect(() =>
-		client
-			.use(routesMiddleware())
-			.metadata({ endpoint: { method: "POST", path: "/x" } })
-			.action(async () => {})
-	).toThrow("more than once");
-	const required = createSafeActionClient().use(routesMiddleware({ requireEndpoint: true }));
-	expect(() => required.action(async () => {})).toThrow("required");
+	expect(() => createRouter().post("/users/{id}", echo(), {} as never)).toThrow("path parameters require mapInput");
+	for (const path of ["users", "/users/", "/a//b", "/a/*", "/a/..", "/a/%2F"])
+		expect(() => createRouter().post(path as "/", echo())).toThrow("Invalid route");
+	expect(() => createRouteHandlers({} as Router)).toThrow("createRouter()");
 });
+
 it("rejects invalid JSON, non-JSON bodies and oversized streams", async () => {
-	const a = action({ method: "POST", path: "/users" });
-	expect((await call([a], "POST", undefined, "{")).status).toBe(400);
-	expect((await call([a], "POST", undefined, "{}", {})).status).toBe(415);
-	expect((await call([a], "POST", undefined, "12345", undefined, { maxBodyBytes: 4 })).status).toBe(413);
+	const router = users();
+	expect((await call(router, "POST", undefined, "{")).status).toBe(400);
+	expect((await call(router, "POST", undefined, "{}", {})).status).toBe(415);
+	expect((await call(router, "POST", undefined, "12345", undefined, { maxBodyBytes: 4 })).status).toBe(413);
 	// A string body gets an implicit "text/plain" content type, which is rejected even when empty.
-	expect((await call([a], "POST", undefined, "", {})).status).toBe(415);
-	expect((await call([a], "POST", undefined, "")).status).toBe(200);
+	expect((await call(router, "POST", undefined, "", {})).status).toBe(415);
+	expect((await call(router, "POST", undefined, "")).status).toBe(200);
 	const cancel = vi.fn();
 	const stream = new ReadableStream({
 		start(controller) {
@@ -104,41 +88,31 @@ it("rejects invalid JSON, non-JSON bodies and oversized streams", async () => {
 		cancel,
 	});
 	const request = new Request("https://app.test", { method: "POST", body: stream, duplex: "half" } as RequestInit);
-	const result = await createRouteHandlers({ actions: [a], maxBodyBytes: 4 }).POST(request, {
+	const result = await createRouteHandlers(router, { maxBodyBytes: 4 }).POST(request, {
 		params: Promise.resolve({ path: ["users"] }),
 	});
 	expect(result.status).toBe(413);
 	expect(cancel).toHaveBeenCalledOnce();
 });
-it("enforces origins and path-specific preflight without wildcard credentials", async () => {
-	const a = action({ method: "POST", path: "/users" });
+
+it("enforces origins and accepts listed ones without CORS headers", async () => {
+	const router = users();
 	for (const origin of ["null", "https://evil.test"])
-		expect((await call([a], "POST", undefined, "{}", { origin })).status).toBe(403);
-	const headers = {
-		"origin": "https://other.test",
-		"access-control-request-method": "POST",
-		"access-control-request-headers": "content-type",
-	};
-	const response = await call([a], "OPTIONS", undefined, undefined, headers, {
-		allowedOrigins: ["https://other.test"],
-		credentials: true,
-	});
-	expect(response.status).toBe(204);
-	expect(response.headers.get("access-control-allow-origin")).toBe(headers.origin);
-	expect(response.headers.get("access-control-allow-credentials")).toBe("true");
-	expect(
-		(await call([a], "OPTIONS", ["missing"], undefined, headers, { allowedOrigins: [headers.origin] })).status
-	).toBe(404);
-	expect(
-		(
-			await call([a], "OPTIONS", undefined, undefined, {
-				"origin": "https://app.test",
-				"access-control-request-headers": "x-secret",
-			})
-		).status
-	).toBe(403);
-	expect(() => createRouteHandlers({ actions: [a], allowedOrigins: ["*"] })).toThrow();
+		expect((await call(router, "POST", undefined, "{}", { origin })).status).toBe(403);
+	const listed = await call(
+		router,
+		"POST",
+		undefined,
+		"{",
+		{ "content-type": "application/json", "origin": "https://other.test" },
+		{ allowedOrigins: ["https://other.test"] }
+	);
+	expect(listed.status).toBe(400);
+	expect(listed.headers.get("access-control-allow-origin")).toBeNull();
+	expect(() => createRouteHandlers(router, { allowedOrigins: ["*"] })).toThrow();
+	expect(createRouteHandlers(router)).not.toHaveProperty("OPTIONS");
 });
+
 it("validates previous state once, applies transforms and defaults omitted state", async () => {
 	const validate = vi.fn((value: unknown) => z.object({ data: z.coerce.number() }).safeParse(value));
 	const stateSchema = {
@@ -152,57 +126,48 @@ it("validates previous state once, applies transforms and defaults omitted state
 		},
 	};
 	const state = client
-		.metadata({ endpoint: { method: "POST", path: "/users", stateSchema, mapInput: ({ input }) => input } })
 		.inputSchema(z.number())
 		.stateAction(async ({ parsedInput }, { prevResult }) => (prevResult.data ?? 0) + parsedInput);
-	let response = await call([state], "POST", undefined, '{"input":2}');
+	const router = createRouter().post("/users", state, { stateSchema });
+	let response = await call(router, "POST", undefined, '{"input":2}');
 	expect(await response.json()).toEqual({ data: 2 });
 	expect(validate).not.toHaveBeenCalled();
-	response = await call([state], "POST", undefined, '{"input":2,"prevResult":{"data":"3"}}');
+	response = await call(router, "POST", undefined, '{"input":2,"prevResult":{"data":"3"}}');
 	expect(await response.json()).toEqual({ data: 5 });
 	expect(validate).toHaveBeenCalledOnce();
 	for (const body of ["null", "[]", '{"input":2,"prevResult":null}', '{"unexpected":2}'])
-		expect((await call([state], "POST", undefined, body)).status).toBe(400);
-	expect(() => client.metadata({ endpoint: { method: "POST", path: "/bad" } }).stateAction(async () => {})).toThrow(
-		"stateSchema"
-	);
+		expect((await call(router, "POST", undefined, body)).status).toBe(400);
+	expect(() => createRouter().post("/bad", state, {} as never)).toThrow("stateSchema");
 });
+
 it("preserves validation and server errors, void and short-circuit results", async () => {
-	const endpoint: EndpointMetadata = { method: "POST", path: "/users", serverErrorStatus: () => 409 };
-	const invalid = client
-		.metadata({ endpoint })
-		.inputSchema(z.string())
-		.action(async () => "ok", { throwValidationErrors: true });
-	const response = await call([invalid]);
+	const invalid = client.inputSchema(z.string()).action(async () => "ok", { throwValidationErrors: true });
+	const response = await call(createRouter().post("/users", invalid, { serverErrorStatus: () => 409 }));
 	expect(response.status).toBe(400);
 	expect(await response.json()).toHaveProperty("validationErrors");
-	const custom = client.metadata({ endpoint }).action(async () => returnServerError({ code: "CUSTOM" }));
-	const error = await call([custom]);
+	const custom = client.action(async () => returnServerError({ code: "CUSTOM" }));
+	const error = await call(createRouter().post("/users", custom, { serverErrorStatus: () => 409 }));
 	expect(error.status).toBe(409);
 	expect(await error.json()).toEqual({ serverError: { code: "CUSTOM" } });
-	expect(await (await call([action(endpoint, async () => undefined)])).json()).toEqual({});
-	const short = client
-		.use(async () => ({ success: true }))
-		.metadata({ endpoint })
-		.action(async () => "unreachable");
-	expect(await (await call([short])).json()).toEqual({});
+	expect(await (await call(users({}, async () => undefined))).json()).toEqual({});
+	const short = client.use(async () => ({ success: true })).action(async () => "unreachable");
+	expect(await (await call(createRouter().post("/users", short))).json()).toEqual({});
 });
+
 it("sanitizes callbacks and serialization errors, converts navigation and rethrows other signals", async () => {
-	const endpoint: EndpointMetadata = { method: "POST", path: "/users" };
-	const callback = client.metadata({ endpoint }).action(async () => "ok", {
+	const callback = client.action(async () => "ok", {
 		onSuccess: async () => {
 			throw new Error("SECRET");
 		},
 	});
 	const cyclic: Record<string, unknown> = {};
 	cyclic.self = cyclic;
-	for (const a of [
-		callback,
-		action(endpoint, async () => 1n),
-		action(endpoint, async () => cyclic),
-		action(
+	for (const router of [
+		createRouter().post("/users", callback),
+		users({}, async () => 1n),
+		users({}, async () => cyclic),
+		users(
 			{
-				...endpoint,
 				serverErrorStatus: () => {
 					throw new Error("SECRET");
 				},
@@ -212,7 +177,7 @@ it("sanitizes callbacks and serialization errors, converts navigation and rethro
 			}
 		),
 	]) {
-		const response = await call([a]);
+		const response = await call(router);
 		expect(response.status).toBe(500);
 		expect(await response.json()).toEqual({ httpError: { code: "INTERNAL_ERROR", message: "Internal server error" } });
 	}
@@ -221,33 +186,31 @@ it("sanitizes callbacks and serialization errors, converts navigation and rethro
 		[403, "FORBIDDEN", "Forbidden"],
 		[404, "NOT_FOUND", "Not found"],
 	] as const) {
-		const a = action(endpoint, async () => {
+		const router = users({}, async () => {
 			throw Object.assign(new Error(), { digest: "NEXT_HTTP_ERROR_FALLBACK;" + status });
 		});
-		const response = await call([a]);
+		const response = await call(router);
 		expect(response.status).toBe(status);
 		expect(await response.json()).toEqual({ httpError: { code, message } });
 	}
-	const redirect = action(endpoint, async () => {
+	const redirect = users({}, async () => {
 		throw Object.assign(new Error(), { digest: "NEXT_REDIRECT;replace;/next;a;307;" });
 	});
-	const response = await call([redirect]);
+	const response = await call(redirect);
 	expect(response.status).toBe(303);
 	expect(response.headers.get("location")).toBe("/next;a");
 	const dynamic = Object.assign(new Error("dynamic"), { digest: "DYNAMIC_SERVER_USAGE" });
 	await expect(
-		call([
-			action(endpoint, async () => {
+		call(
+			users({}, async () => {
 				throw dynamic;
-			}),
-		])
+			})
+		)
 	).rejects.toBe(dynamic);
 });
 
 it("supports root and custom catch-all names and protects protocol headers", async () => {
-	const a = action({
-		method: "POST",
-		path: "/",
+	const router = createRouter().post("/", echo(), {
 		headers: {
 			"cache-control": "public",
 			"content-type": "text/plain",
@@ -255,7 +218,7 @@ it("supports root and custom catch-all names and protects protocol headers", asy
 			"x-example": "yes",
 		},
 	});
-	const handlers = createRouteHandlers({ actions: [a], pathParam: "segments" });
+	const handlers = createRouteHandlers(router, { pathParam: "segments" });
 	const result = await handlers.POST(new Request("https://app.test", { method: "POST" }), {
 		params: Promise.resolve({}),
 	});
@@ -270,99 +233,65 @@ it("supports root and custom catch-all names and protects protocol headers", asy
 	expect(missing.status).toBe(404);
 });
 
-it("requires middleware, metadata and registration together", async () => {
-	const ordinary = createSafeActionClient({
-		defineMetadataSchema: () => z.object({ endpoint: z.custom<EndpointMetadata>() }),
-	})
-		.metadata({ endpoint: { method: "POST", path: "/users" } })
-		.action(async () => "hidden");
-	const noMetadata = client.metadata({}).action(async () => "hidden");
-	const enabled = action({ method: "POST", path: "/users" });
-	expect(() => createRouteHandlers({ actions: [ordinary] })).toThrow("has no route");
-	expect(() => createRouteHandlers({ actions: [noMetadata] })).toThrow("has no route");
-	expect((await call([])).status).toBe(404);
-	expect((await call([enabled])).status).toBe(200);
-	expect(Object.keys(enabled)).toEqual([]);
+it("exposes only routed actions and adds no enumerable keys to actions", async () => {
+	const routed = echo();
+	const unrouted = echo();
+	const router = createRouter().post("/users", routed);
+	expect((await call(createRouter())).status).toBe(404);
+	expect((await call(router)).status).toBe(200);
+	expect((await call(router, "POST", ["other"])).status).toBe(404);
+	expect(router.routes.map((route) => route.action)).toEqual([routed]);
+	expect(router.routes.map((route) => route.action)).not.toContain(unrouted);
+	expect(Object.keys(routed)).toEqual([]);
 });
 
 it("sanitizes raw throws, input mapper failures and invalid error statuses", async () => {
-	const endpoint: EndpointMetadata = { method: "POST", path: "/users" };
 	const raw = createSafeActionClient({
-		defineMetadataSchema: () => z.object({ endpoint: z.custom<EndpointMetadata>() }),
 		handleServerError: (error) => {
 			throw error;
 		},
-	})
-		.use(routesMiddleware())
-		.metadata({ endpoint })
-		.action(async () => {
-			throw new Error("SECRET");
-		});
-	const mapped = action({
-		...endpoint,
-		mapInput: () => {
-			throw new Error("SECRET");
-		},
-	});
-	const invalidStatus = action({ ...endpoint, serverErrorStatus: () => 200 }, async () => {
+	}).action(async () => {
 		throw new Error("SECRET");
 	});
-	for (const a of [raw, mapped, invalidStatus]) {
-		const result = await call([a]);
+	const routers = [
+		createRouter().post("/users", raw),
+		users({
+			mapInput: () => {
+				throw new Error("SECRET");
+			},
+		}),
+		users({ serverErrorStatus: () => 200 }, async () => {
+			throw new Error("SECRET");
+		}),
+	];
+	for (const router of routers) {
+		const result = await call(router);
 		expect(result.status).toBe(500);
 		expect(await result.text()).not.toContain("SECRET");
 	}
 });
 
 it("preserves repeated response headers on thrown validation errors", async () => {
-	const a = client
-		.metadata({
-			endpoint: {
-				method: "POST",
-				path: "/users",
-				headers: [
-					["set-cookie", "a=1"],
-					["set-cookie", "b=2"],
-					["x-example", "yes"],
-				],
-			},
-		})
-		.inputSchema(z.string())
-		.action(async () => "ok", { throwValidationErrors: true });
-	const result = await call([a]);
+	const a = client.inputSchema(z.string()).action(async () => "ok", { throwValidationErrors: true });
+	const router = createRouter().post("/users", a, {
+		headers: [
+			["set-cookie", "a=1"],
+			["set-cookie", "b=2"],
+			["x-example", "yes"],
+		],
+	});
+	const result = await call(router);
 	expect(result.status).toBe(400);
 	expect(result.headers.getSetCookie()).toEqual(["a=1", "b=2"]);
 	expect(result.headers.get("x-example")).toBe("yes");
 });
 
-it("reflects allowed origins on success and error responses without implicit credentials", async () => {
-	const a = action({ method: "POST", path: "/users" });
-	const same = await call([a], "POST", undefined, "{}", {
-		"content-type": "application/json",
-		"origin": "https://app.test",
-	});
-	expect(same.status).toBe(200);
-	expect(same.headers.get("access-control-allow-origin")).toBe("https://app.test");
-	expect(same.headers.get("access-control-allow-credentials")).toBeNull();
-	const listed = await call(
-		[a],
-		"POST",
-		undefined,
-		"{",
-		{ "content-type": "application/json", "origin": "https://other.test" },
-		{ allowedOrigins: ["https://other.test"] }
-	);
-	expect(listed.status).toBe(400);
-	expect(listed.headers.get("access-control-allow-origin")).toBe("https://other.test");
-	expect(listed.headers.get("vary")).toBe("Origin");
-});
-
 it("matches origins against forwarded scheme and host, falling back to the request URL", async () => {
 	const run = vi.fn(async () => "ok");
-	const a = action({ method: "POST", path: "/users" }, run);
+	const router = users({}, run);
 	const origin = "https://app.example";
-	const send = (headers: Record<string, string>, options: Partial<RoutesOptions> = {}) =>
-		createRouteHandlers({ actions: [a], ...options }).POST(
+	const send = (headers: Record<string, string>, options: RouteHandlersOptions = {}) =>
+		createRouteHandlers(router, options).POST(
 			// Next.js builds request.url from the configured hostname, not from the request.
 			new Request("http://localhost:3000/api/users", {
 				method: "POST",
@@ -371,7 +300,7 @@ it("matches origins against forwarded scheme and host, falling back to the reque
 			}),
 			{ params: Promise.resolve({ path: ["users"] }) }
 		);
-	const ok = async (headers: Record<string, string>, options?: Partial<RoutesOptions>) =>
+	const ok = async (headers: Record<string, string>, options?: RouteHandlersOptions) =>
 		expect((await send(headers, options)).status).toBe(200);
 	const denied = async (headers: Record<string, string>) => expect((await send(headers)).status).toBe(403);
 	await ok({ "host": "APP.example", "x-forwarded-proto": "https" });
@@ -394,30 +323,24 @@ it("matches origins against forwarded scheme and host, falling back to the reque
 	expect(run).toHaveBeenCalledTimes(6);
 });
 
-it("answers preflight for parameter paths and applies concrete-path priority to preflight", async () => {
-	const create = action({ method: "POST", path: "/users/{id}", mapInput: passInput });
-	const remove = action({ method: "DELETE", path: "/users/{id}", mapInput: passInput });
-	const me = action({ method: "PUT", path: "/users/me" });
-	const preflight = (path: string[], method: string) =>
-		call([create, remove, me], "OPTIONS", path, undefined, {
-			"origin": "https://app.test",
-			"access-control-request-method": method,
-		});
-	const parameter = await preflight(["users", "42"], "DELETE");
-	expect(parameter.status).toBe(204);
-	expect(parameter.headers.get("access-control-allow-methods")).toBe("POST, DELETE, OPTIONS");
-	expect((await preflight(["users", "me"], "POST")).status).toBe(405);
-	expect((await preflight(["users", "me"], "PUT")).status).toBe(204);
-	const wrong = await call([create, remove], "PUT", ["users", "42"]);
-	expect(wrong.headers.get("allow")).toBe("POST, DELETE, OPTIONS");
+it("applies concrete-path priority and lists only the matched template's methods", async () => {
+	const router = createRouter()
+		.post("/users/{id}", echo(), { mapInput: passInput })
+		.delete("/users/{id}", echo(), { mapInput: passInput })
+		.put("/users/me", echo());
+	const concrete = await call(router, "POST", ["users", "me"]);
+	expect(concrete.status).toBe(405);
+	expect(concrete.headers.get("allow")).toBe("PUT");
+	const wrong = await call(router, "PUT", ["users", "42"]);
+	expect(wrong.headers.get("allow")).toBe("POST, DELETE");
 });
 
 it("enforces the exact body limit, strict UTF-8 and JSON media types before running mappers or actions", async () => {
 	const mapInput = vi.fn(({ input }: { input: unknown }) => input);
 	const run = vi.fn(async (input: unknown) => input);
-	const a = action({ method: "POST", path: "/users", mapInput }, run);
-	const send = (body: BodyInit, type = "application/json", options: Partial<RoutesOptions> = {}) =>
-		createRouteHandlers({ actions: [a], ...options }).POST(
+	const router = users({ mapInput }, run);
+	const send = (body: BodyInit, type = "application/json", options: RouteHandlersOptions = {}) =>
+		createRouteHandlers(router, options).POST(
 			new Request("https://app.test/api/users", { method: "POST", body, headers: { "content-type": type } }),
 			{ params: Promise.resolve({ path: ["users"] }) }
 		);
@@ -439,46 +362,46 @@ it("enforces the exact body limit, strict UTF-8 and JSON media types before runn
 });
 
 it("keeps hostile keys as own properties and ignores method override headers", async () => {
-	const a = action({
-		method: "POST",
-		path: "/{__proto__}/{constructor}",
+	const router = createRouter().post("/{__proto__}/{constructor}", echo(), {
 		mapInput: ({ input, params }) => ({
 			input,
 			own: Object.hasOwn(params, "__proto__") && Object.hasOwn(params, "constructor"),
 			proto: Object.getPrototypeOf(params) === Object.prototype,
 		}),
 	});
-	const response = await call([a], "POST", ["a", "b"], '{"__proto__":{"polluted":true},"constructor":1}');
+	const response = await call(router, "POST", ["a", "b"], '{"__proto__":{"polluted":true},"constructor":1}');
 	expect(await response.json()).toEqual({
 		data: { input: JSON.parse('{"__proto__":{"polluted":true},"constructor":1}'), own: true, proto: true },
 	});
 	expect(({} as { polluted?: boolean }).polluted).toBeUndefined();
-	const remove = action({ method: "DELETE", path: "/users" }, async () => "deleted");
-	const override = await call([remove], "POST", undefined, "{}", {
+	const remove = createRouter().delete(
+		"/users",
+		echo(async () => "deleted")
+	);
+	const override = await call(remove, "POST", undefined, "{}", {
 		"content-type": "application/json",
 		"x-http-method-override": "DELETE",
 	});
 	expect(override.status).toBe(405);
 });
 
-it("keeps endpoint headers on redirects and access errors", async () => {
+it("keeps route headers on redirects and access errors", async () => {
 	const headers = { "x-example": "yes" };
-	const redirect = action({ method: "POST", path: "/users", headers }, async () => {
+	const redirect = users({ headers }, async () => {
 		throw Object.assign(new Error(), { digest: "NEXT_REDIRECT;replace;/next;307;" });
 	});
-	const denied = action({ method: "POST", path: "/users", headers }, async () => {
+	const denied = users({ headers }, async () => {
 		throw Object.assign(new Error(), { digest: "NEXT_HTTP_ERROR_FALLBACK;403" });
 	});
-	const moved = await call([redirect]);
+	const moved = await call(redirect);
 	expect(moved.status).toBe(303);
 	expect(moved.headers.get("x-example")).toBe("yes");
-	const forbidden = await call([denied]);
+	const forbidden = await call(denied);
 	expect(forbidden.status).toBe(403);
 	expect(forbidden.headers.get("x-example")).toBe("yes");
 });
 
 it("reports the original cause of sanitized failures through onError only", async () => {
-	const endpoint: EndpointMetadata = { method: "POST", path: "/users" };
 	const causes: unknown[] = [];
 	const onError = vi.fn((error: unknown, _context: { request: Request }) => {
 		causes.push(error);
@@ -487,22 +410,21 @@ it("reports the original cause of sanitized failures through onError only", asyn
 	const cyclic: Record<string, unknown> = {};
 	cyclic.self = cyclic;
 	const sanitized = [
-		action({
-			...endpoint,
+		users({
 			mapInput: () => {
 				throw secret;
 			},
 		}),
-		action({ ...endpoint, serverErrorStatus: () => 200 }, async () => {
+		users({ serverErrorStatus: () => 200 }, async () => {
 			throw new Error("boom");
 		}),
-		action(endpoint, async () => cyclic),
-		action(endpoint, async () => {
+		users({}, async () => cyclic),
+		users({}, async () => {
 			throw Object.assign(new Error(), { digest: "NEXT_REDIRECT;replace;/bad\nheader;307;" });
 		}),
 	];
-	for (const a of sanitized) {
-		const response = await call([a], "POST", undefined, "{}", undefined, { onError });
+	for (const router of sanitized) {
+		const response = await call(router, "POST", undefined, "{}", undefined, { onError });
 		expect(response.status).toBe(500);
 		expect(await response.text()).not.toContain("SECRET");
 	}
@@ -510,14 +432,13 @@ it("reports the original cause of sanitized failures through onError only", asyn
 	expect(causes[0]).toBe(secret);
 	expect(onError.mock.calls[0]![1]).toHaveProperty("request");
 	onError.mockClear();
-	const invalid = client
-		.metadata({ endpoint })
-		.inputSchema(z.string())
-		.action(async () => "ok", { throwValidationErrors: true });
-	expect((await call([invalid], "POST", undefined, "{}", undefined, { onError })).status).toBe(400);
-	expect((await call([action(endpoint)], "POST", undefined, "{", undefined, { onError })).status).toBe(400);
+	const invalid = client.inputSchema(z.string()).action(async () => "ok", { throwValidationErrors: true });
+	expect(
+		(await call(createRouter().post("/users", invalid), "POST", undefined, "{}", undefined, { onError })).status
+	).toBe(400);
+	expect((await call(users(), "POST", undefined, "{", undefined, { onError })).status).toBe(400);
 	expect(onError).not.toHaveBeenCalled();
-	const throwing = await call([sanitized[2]!], "POST", undefined, "{}", undefined, {
+	const throwing = await call(sanitized[2]!, "POST", undefined, "{}", undefined, {
 		onError: () => {
 			throw new Error("reporter");
 		},
@@ -526,7 +447,7 @@ it("reports the original cause of sanitized failures through onError only", asyn
 	expect(await throwing.json()).toEqual({ httpError: { code: "INTERNAL_ERROR", message: "Internal server error" } });
 	const rejection = vi.fn();
 	process.once("unhandledRejection", rejection);
-	const asyncThrowing = await call([sanitized[2]!], "POST", undefined, "{}", undefined, {
+	const asyncThrowing = await call(sanitized[2]!, "POST", undefined, "{}", undefined, {
 		onError: async () => {
 			throw new Error("async reporter");
 		},
@@ -534,35 +455,33 @@ it("reports the original cause of sanitized failures through onError only", asyn
 	expect(asyncThrowing.status).toBe(500);
 	await new Promise((resolve) => setTimeout(resolve, 0));
 	expect(rejection).not.toHaveBeenCalled();
-	expect(() => createRouteHandlers({ actions: [], onError: 1 as unknown as () => void })).toThrow("onError");
+	expect(() => createRouteHandlers(createRouter(), { onError: 1 as unknown as () => void })).toThrow("onError");
 });
 
-it("recognizes thrown validation errors from a duplicate core instance", async () => {
+it("routes actions and recognizes thrown validation errors from a duplicate core instance", async () => {
 	vi.resetModules();
 	const duplicate = await import("next-safe-action");
 	expect(duplicate.ActionValidationError).not.toBe(ActionValidationError);
 	const a = duplicate
-		.createSafeActionClient({ defineMetadataSchema: () => z.object({ endpoint: z.custom<EndpointMetadata>() }) })
-		.use(routesMiddleware())
-		.metadata({ endpoint: { method: "POST", path: "/users" } })
+		.createSafeActionClient()
 		.inputSchema(z.string())
 		.action(async () => "ok", { throwValidationErrors: true });
-	const response = await call([a]);
+	const response = await call(createRouter().post("/users", a));
 	expect(response.status).toBe(400);
 	expect(await response.json()).toHaveProperty("validationErrors");
 });
 
 it("rejects path parameter values that are empty, dot segments or contain a slash", async () => {
 	const run = vi.fn(async (input: unknown) => input);
-	const a = action({ method: "POST", path: "/users/{id}", mapInput: ({ params }) => params.id }, run);
-	for (const id of ["", ".", "..", "a/b"]) expect((await call([a], "POST", ["users", id])).status).toBe(404);
+	const router = createRouter().post("/users/{id}", echo(run), { mapInput: ({ params }) => params.id });
+	for (const id of ["", ".", "..", "a/b"]) expect((await call(router, "POST", ["users", id])).status).toBe(404);
 	expect(run).not.toHaveBeenCalled();
-	expect(await (await call([a], "POST", ["users", "a.b"])).json()).toEqual({ data: "a.b" });
+	expect(await (await call(router, "POST", ["users", "a.b"])).json()).toEqual({ data: "a.b" });
 });
 
 it("never treats opaque origins as same-origin", async () => {
 	const run = vi.fn(async () => "ok");
-	const response = await call([action({ method: "POST", path: "/users" }, run)], "POST", undefined, "{}", {
+	const response = await call(users({}, run), "POST", undefined, "{}", {
 		"content-type": "application/json",
 		"origin": "chrome-extension://abc",
 		"host": "abc",
@@ -570,28 +489,4 @@ it("never treats opaque origins as same-origin", async () => {
 	});
 	expect(response.status).toBe(403);
 	expect(run).not.toHaveBeenCalled();
-});
-
-it("exposes custom endpoint headers to allowed cross-origin callers only", async () => {
-	const a = action({
-		method: "POST",
-		path: "/users",
-		headers: [
-			["x-example", "yes"],
-			["x-other", "1"],
-			["x-other", "2"],
-			["cache-control", "public"],
-		],
-	});
-	const cors = await call([a], "POST", undefined, "{}", {
-		"content-type": "application/json",
-		"origin": "https://app.test",
-	});
-	expect(cors.headers.get("access-control-expose-headers")).toBe("x-example, x-other");
-	expect((await call([a])).headers.get("access-control-expose-headers")).toBeNull();
-	const plain = await call([action({ method: "POST", path: "/users" })], "POST", undefined, "{}", {
-		"content-type": "application/json",
-		"origin": "https://app.test",
-	});
-	expect(plain.headers.get("access-control-expose-headers")).toBeNull();
 });

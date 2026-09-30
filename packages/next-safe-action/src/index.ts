@@ -72,5 +72,6 @@ export const createSafeActionClient = <
 	});
 };
 
-export type { ActionDefinition, MiddlewareOptions } from "./middleware";
+export { getActionDefinition } from "./action-definition";
+export type { ActionDefinition } from "./action-definition";
 export { inspectFrameworkError } from "./next/errors";

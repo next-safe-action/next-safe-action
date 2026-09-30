@@ -1,8 +1,7 @@
 import { createRouteHandlers } from "@next-safe-action/adapter-routes";
-import { routeActions } from "@/app/routes/_lib/route-actions";
+import { router } from "@/app/routes/_lib/router";
 
-export const { POST, PUT, PATCH, DELETE, OPTIONS } = createRouteHandlers({
-	actions: routeActions,
+export const { POST, PUT, PATCH, DELETE } = createRouteHandlers(router, {
 	// Receives the original error behind every sanitized 500 response.
 	onError: (error) => console.error("Route handler error:", error),
 });

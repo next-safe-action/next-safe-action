@@ -9,8 +9,9 @@ import { HttpDemo } from "./_components/http-demo";
 import { RunningTotalDemo } from "./_components/running-total-demo";
 
 export default async function RoutesPage() {
-	const [client, handler, openapi, counter, updateTodo, reserveUsername, runningTotal, createReport] =
+	const [router, client, handler, openapi, counter, updateTodo, reserveUsername, runningTotal, createReport] =
 		await Promise.all([
+			readAndHighlightFile("routes/_lib/router.ts"),
 			readAndHighlightFile("routes/_lib/route-client.ts"),
 			readAndHighlightFile("api/routes/[[...path]]/route.ts"),
 			readAndHighlightFile("api/openapi.json/route.ts"),
@@ -30,11 +31,12 @@ export default async function RoutesPage() {
 			<div className="space-y-6">
 				<ExampleCard
 					title="Setup"
-					description="Actions opt in with routesMiddleware and metadata.endpoint, then get registered in a [[...path]] catch-all route. The same list feeds the OpenAPI document."
+					description="Actions stay ordinary actions. A router maps them to HTTP methods and paths, and the same router feeds the [[...path]] catch-all route and the OpenAPI document."
 				>
 					<div className="space-y-4">
 						{[
-							{ label: "Action clients, with auth middleware before routesMiddleware", source: client },
+							{ label: "Router: HTTP methods, paths and per-route options", source: router },
+							{ label: "Action clients, with auth middleware", source: client },
 							{ label: "Catch-all route handler: /api/routes/[[...path]]", source: handler },
 							{ label: "OpenAPI document: GET /api/openapi.json", source: openapi },
 						].map(({ label, source }) => (
@@ -95,7 +97,7 @@ export default async function RoutesPage() {
 				<RunningTotalDemo source={runningTotal} />
 				<HttpDemo
 					title="Authentication middleware"
-					description="apiKeyClient checks the x-api-key header in middleware placed before routesMiddleware (see the Setup card). Without a valid key, unauthorized() becomes a 401 response."
+					description="apiKeyClient checks the x-api-key header in middleware (see the Setup card). Without a valid key, unauthorized() becomes a 401 response."
 					source={createReport}
 					testId="report-http-result"
 					requests={[

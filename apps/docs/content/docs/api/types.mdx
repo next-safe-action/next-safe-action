@@ -140,29 +140,15 @@ This is intentionally a flat object rather than an intersection with `SafeAction
 
 ---
 
-### `MiddlewareOptions`
-
-The optional second argument of `createMiddleware().define()`.
-
-```ts
-type MiddlewareOptions = {
-	onActionDefined?: (definition: ActionDefinition) => void;
-};
-```
-
-The callback must be synchronous. See [Declaration callback](/docs/api/create-middleware#declaration-callback).
-
----
-
 ### `ActionDefinition`
 
-The shallow-frozen, read-only description passed to `onActionDefined` when an action is defined with `action()` or `stateAction()`.
+The shallow-frozen, read-only description of an action, returned by `getActionDefinition(action)`. Every action created with `action()` or `stateAction()` carries one. Bound actions and other functions do not, so `getActionDefinition()` returns `undefined` for them.
 
 ```ts
+import { getActionDefinition } from "next-safe-action";
+
 type ActionDefinition = Readonly<{
-	action: (...args: any[]) => Promise<any>;
 	stateful: boolean;
-	metadata: unknown;
 	inputSchema: StandardSchemaV1 | undefined;
 	outputSchema: StandardSchemaV1 | undefined;
 	dynamicInputSchema: boolean;
@@ -172,17 +158,9 @@ type ActionDefinition = Readonly<{
 
 <TypeTable
 	type={{
-		action: {
-			description: "The defined action function. Adapters can attach non-enumerable descriptors to it.",
-			type: "(...args: any[]) => Promise<any>",
-		},
 		stateful: {
 			description: "true for stateAction(), false for action().",
 			type: "boolean",
-		},
-		metadata: {
-			description: "The declared metadata value, before metadata schema validation. Validation runs on invocation.",
-			type: "unknown",
 		},
 		inputSchema: {
 			description: "The schema passed directly to the last inputSchema() call. undefined when that call received an async factory function.",
@@ -193,7 +171,7 @@ type ActionDefinition = Readonly<{
 			type: "StandardSchemaV1 | undefined",
 		},
 		dynamicInputSchema: {
-			description: "true when the effective input schema comes from a factory function. Factories are never executed at definition time.",
+			description: "true when the effective input schema comes from a factory function. Factories are never executed to build the definition.",
 			type: "boolean",
 		},
 		bindArgsCount: {
@@ -202,6 +180,8 @@ type ActionDefinition = Readonly<{
 		},
 	}}
 />
+
+The [routes adapter](/docs/integrations/routes) reads it to validate routes and to generate OpenAPI documents.
 
 ---
 

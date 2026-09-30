@@ -21,15 +21,14 @@ test("the same route action remains usable through useAction", async ({ page }) 
 	expect(await response.json()).toEqual({ data: { count: 3 } });
 });
 
-test("client JavaScript excludes route descriptors and OpenAPI generation", async ({ request }) => {
+test("client JavaScript excludes action definitions and the routes adapter", async ({ request }) => {
 	// Check emitted files rather than the RSC payload, which can contain server-rendered source examples.
 	const root = join(process.cwd(), ".next/static");
 	for (const file of await readdir(root, { recursive: true })) {
 		if (!file.endsWith(".js")) continue;
 		const source = await readFile(join(root, file), "utf8");
-		expect(source).not.toContain("next-safe-action.adapter-routes.v1");
-		expect(source).not.toContain("next-safe-action.onActionDefined.v1");
-		expect(source).not.toContain("next-safe-action.invalid/schemas/");
+		expect(source).not.toContain("next-safe-action.action-definition.v1");
+		expect(source).not.toContain("createRouteHandlers expects a router");
 	}
 	expect((await request.get("/routes")).ok()).toBe(true);
 });

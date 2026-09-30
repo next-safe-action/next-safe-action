@@ -1,4 +1,5 @@
 import type {} from "zod";
+import { attachActionDefinition } from "./action-definition";
 import { deepmerge } from "./deep-merge";
 import type {
 	ValidationErrorsFormat,
@@ -11,7 +12,6 @@ import type {
 	ServerCodeFn,
 	StatefulServerCodeFn,
 } from "./index.types";
-import { notifyActionDefined } from "./middleware";
 import { FrameworkErrorHandler } from "./next/errors";
 import { extractServerError } from "./server-error";
 import type {
@@ -663,16 +663,13 @@ export function actionBuilder<
 						utils
 					);
 				};
-				const definition = Object.freeze({
-					action,
+				attachActionDefinition(action, {
 					stateful: withState,
-					metadata: args.metadata,
 					inputSchema: args.staticInputSchema,
 					outputSchema: args.outputSchema,
 					dynamicInputSchema: !!args.inputSchemaFn && !args.staticInputSchema,
 					bindArgsCount: bindArgsSchemas.length,
 				});
-				for (const middleware of new Set(args.middlewareFns)) notifyActionDefined(middleware, definition);
 				return action;
 			},
 		};

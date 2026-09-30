@@ -12,7 +12,7 @@ afterAll(() => {
 	rmSync(outDir, { recursive: true, force: true });
 });
 
-// The core package must stay a single external import in both entries: the `Symbol.for` descriptor protocol and
+// The core package must stay a single external import in both entries: the `Symbol.for` action definition protocol and
 // `instanceof` checks depend on the host application's copy of next-safe-action. Bundling or rewriting the specifier
 // would create a duplicate core instance. See https://github.com/next-safe-action/next-safe-action/issues/476 for
 // the related `resolveDepSubpath` regression.

@@ -1,8 +1,8 @@
 import { ActionValidationError, inspectFrameworkError } from "next-safe-action";
-import { isParameter, methods, routeTable } from "./definition";
-import type { HttpError, RouteContext, RoutesOptions } from "./types";
+import { isParameter, methods } from "./router";
+import type { HttpError, RouteContext, RouteHandlersOptions, Router } from "./types";
 
-export { routesMiddleware } from "./definition";
+export { createRouter } from "./router";
 export type * from "./types";
 
 class PreparationError extends Error {
@@ -94,8 +94,14 @@ const accessErrors: Record<number, [code: string, message: string]> = {
 	403: ["FORBIDDEN", "Forbidden"],
 	404: ["NOT_FOUND", "Not found"],
 };
-export function createRouteHandlers(options: RoutesOptions) {
-	const table = routeTable(options.actions);
+export function createRouteHandlers(router: Router, options: RouteHandlersOptions = {}) {
+	if (!Array.isArray((router as Partial<Router> | undefined)?.routes))
+		throw new TypeError("createRouteHandlers expects a router from createRouter()");
+	// Concrete templates are matched before parameterized ones. Node 18 does not support toSorted.
+	// oxlint-disable-next-line unicorn/no-array-sort
+	const table = [...router.routes].sort(
+		(a, b) => a.segments.filter(isParameter).length - b.segments.filter(isParameter).length
+	);
 	const limit = options.maxBodyBytes ?? 1024 * 1024;
 	if (!Number.isSafeInteger(limit) || limit < 0) throw new TypeError("Invalid maxBodyBytes");
 	const origins = new Set(options.allowedOrigins ?? []);
@@ -103,10 +109,9 @@ export function createRouteHandlers(options: RoutesOptions) {
 		if (origin === "null" || new URL(origin).origin !== origin)
 			throw new TypeError("Allowed origins must be explicit origins");
 	}
-	const allowedHeaders = (options.allowedHeaders ?? ["content-type"]).map((header) => header.toLowerCase());
 	if (options.onError !== undefined && typeof options.onError !== "function") throw new TypeError("Invalid onError");
 	const handler = async (request: Request, context: RouteContext): Promise<Response> => {
-		const headers = new Headers({ "Cache-Control": "no-store", "Vary": "Origin" });
+		const headers = new Headers({ "Cache-Control": "no-store" });
 		const json = (body: unknown, status: number) => {
 			headers.set("Content-Type", "application/json");
 			return new Response(JSON.stringify(body), { status, headers });
@@ -129,8 +134,6 @@ export function createRouteHandlers(options: RoutesOptions) {
 			if (origin !== null) {
 				if (origin === "null" || (!origins.has(origin) && !isSameOrigin(origin, request)))
 					fail(403, "ORIGIN_NOT_ALLOWED", "Origin is not allowed");
-				headers.set("Access-Control-Allow-Origin", origin);
-				if (options.credentials) headers.set("Access-Control-Allow-Credentials", "true");
 			}
 			const rawPath = (await context.params)[options.pathParam ?? "path"];
 			if (rawPath !== undefined && (!Array.isArray(rawPath) || rawPath.some((part) => typeof part !== "string")))
@@ -144,49 +147,21 @@ export function createRouteHandlers(options: RoutesOptions) {
 			const first = matches[0];
 			if (!first) return error(404, "NOT_FOUND", "Endpoint not found");
 			// Select the most concrete template before selecting its method.
-			const routes = matches.filter((route) => route.endpoint.path === first.endpoint.path);
-			const allow = [
-				...methods.filter((method) => routes.some((route) => route.endpoint.method === method)),
-				"OPTIONS",
-			];
-			if (request.method === "OPTIONS") {
-				headers.set("Allow", allow.join(", "));
-				headers.set("Vary", "Origin, Access-Control-Request-Method, Access-Control-Request-Headers");
-				const requestedMethod = request.headers.get("access-control-request-method");
-				if (requestedMethod && !allow.includes(requestedMethod))
-					return error(405, "METHOD_NOT_ALLOWED", "Method is not allowed");
-				const requestedHeaders =
-					request.headers
-						.get("access-control-request-headers")
-						?.split(",")
-						.map((h) => h.trim().toLowerCase()) ?? [];
-				if (requestedHeaders.some((header) => !allowedHeaders.includes(header)))
-					return error(403, "HEADERS_NOT_ALLOWED", "Request headers are not allowed");
-				headers.set("Access-Control-Allow-Methods", allow.join(", "));
-				headers.set("Access-Control-Allow-Headers", allowedHeaders.join(", "));
-				return new Response(null, { status: 204, headers });
-			}
-			const route = routes.find(({ endpoint }) => endpoint.method === request.method);
+			const routes = matches.filter((route) => route.path === first.path);
+			const route = routes.find(({ method }) => method === request.method);
 			if (!route) {
-				headers.set("Allow", allow.join(", "));
+				headers.set("Allow", methods.filter((method) => routes.some((match) => match.method === method)).join(", "));
 				return error(405, "METHOD_NOT_ALLOWED", "Method is not allowed");
 			}
-			const exposed: string[] = [];
-			new Headers(route.endpoint.headers).forEach((value, key) => {
+			new Headers(route.config.headers).forEach((value, key) => {
 				if (
 					key !== "cache-control" &&
 					key !== "content-type" &&
 					key !== "content-length" &&
-					key !== "vary" &&
 					!key.startsWith("access-control-")
-				) {
+				)
 					headers.append(key, value);
-					exposed.push(key);
-				}
 			});
-			// Cross-origin callers can read the endpoint's custom headers.
-			if (exposed.length && headers.has("Access-Control-Allow-Origin"))
-				headers.set("Access-Control-Expose-Headers", [...new Set(exposed)].join(", "));
 			const params = Object.fromEntries(
 				route.segments.flatMap((part, i) => (isParameter(part) ? [[part.slice(1, -1), path[i]!]] : []))
 			);
@@ -196,20 +171,18 @@ export function createRouteHandlers(options: RoutesOptions) {
 				if (!isRecord(input) || Object.keys(input).some((key) => key !== "input" && key !== "prevResult"))
 					fail(400, "INVALID_STATE", "Invalid state envelope");
 				if ("prevResult" in input) {
-					const parsed = await route.endpoint.stateSchema!["~standard"].validate(input.prevResult);
+					const parsed = await route.config.stateSchema!["~standard"].validate(input.prevResult);
 					if (parsed.issues) fail(400, "INVALID_STATE", "Invalid previous result");
 					prevResult = parsed.value;
 				}
 				input = input.input;
 			}
-			if (route.endpoint.mapInput) input = await route.endpoint.mapInput({ input, params, request });
-			const result = route.definition.stateful
-				? await route.definition.action(prevResult, input)
-				: await route.definition.action(input);
-			let status = route.endpoint.successStatus ?? 200;
+			if (route.config.mapInput) input = await route.config.mapInput({ input, params, request });
+			const result = route.definition.stateful ? await route.action(prevResult, input) : await route.action(input);
+			let status = route.config.successStatus ?? 200;
 			if (result.validationErrors !== undefined) status = 400;
 			else if (result.serverError !== undefined) {
-				status = route.endpoint.serverErrorStatus?.(result.serverError) ?? 500;
+				status = route.config.serverErrorStatus?.(result.serverError) ?? 500;
 				if (!Number.isInteger(status) || status < 400 || status > 599)
 					throw new TypeError("Invalid server error status");
 			}
@@ -240,5 +213,5 @@ export function createRouteHandlers(options: RoutesOptions) {
 			return internalError(caught);
 		}
 	};
-	return { POST: handler, PUT: handler, PATCH: handler, DELETE: handler, OPTIONS: handler };
+	return { POST: handler, PUT: handler, PATCH: handler, DELETE: handler };
 }

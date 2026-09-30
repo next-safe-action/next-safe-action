@@ -1,7 +1,8 @@
-import { isParameter, routeTable } from "./definition";
-import type { JsonSchema, OpenApiParameter, RoutesOptions, Schema } from "./types";
+import { isParameter } from "./router";
+import type { JsonSchema, OpenApiErrors, OpenApiParameter, Router, Schema } from "./types";
 
-export type OpenApiDocumentOptions = Pick<RoutesOptions, "actions"> & {
+/** `serverErrorSchema` and `validationErrorsSchema` are the defaults for every route; a route's `openapi` overrides them. */
+export type OpenApiDocumentOptions = OpenApiErrors & {
 	info: { title: string; version: string; description?: string };
 	servers?: { url: string; description?: string }[];
 };
@@ -27,7 +28,7 @@ function response(description: string, schema: JsonSchema) {
 	return { description, content: { "application/json": { schema } } };
 }
 
-export function generateOpenApiDocument(options: OpenApiDocumentOptions) {
+export function generateOpenApiDocument(router: Router, options: OpenApiDocumentOptions) {
 	const schemas: Record<string, JsonSchema> = {};
 	const paths: Record<string, Record<string, unknown>> = {};
 	const operationIds = new Set<string>();
@@ -110,9 +111,9 @@ export function generateOpenApiDocument(options: OpenApiDocumentOptions) {
 			throw new TypeError(name + ": JSON Schema conversion failed; provide an explicit override", { cause });
 		}
 	}
-	for (const route of routeTable(options.actions)) {
-		const { endpoint, definition } = route;
-		const config = endpoint.openapi;
+	for (const route of router.routes) {
+		const { definition } = route;
+		const config = route.config.openapi;
 		if (!config) continue;
 		const id = config.operationId;
 		if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(id) || operationIds.has(id))
@@ -120,11 +121,11 @@ export function generateOpenApiDocument(options: OpenApiDocumentOptions) {
 		operationIds.add(id);
 		if (definition.dynamicInputSchema && config.requestBodySchema === undefined)
 			throw new TypeError(id + ": dynamic input schemas cannot be documented");
-		if (endpoint.mapInput && (config.requestBodySchema === undefined || config.parameters === undefined))
+		if (route.config.mapInput && (config.requestBodySchema === undefined || config.parameters === undefined))
 			throw new TypeError(id + ": mapInput requires requestBodySchema and parameters");
 		const errors = {
-			serverErrorSchema: config.serverErrorSchema ?? route.defaults?.serverErrorSchema,
-			validationErrorsSchema: config.validationErrorsSchema ?? route.defaults?.validationErrorsSchema,
+			serverErrorSchema: config.serverErrorSchema ?? options.serverErrorSchema,
+			validationErrorsSchema: config.validationErrorsSchema ?? options.validationErrorsSchema,
 		};
 		if (errors.serverErrorSchema === undefined || errors.validationErrorsSchema === undefined)
 			throw new TypeError(id + ": explicit serverErrorSchema and validationErrorsSchema are required");
@@ -137,7 +138,7 @@ export function generateOpenApiDocument(options: OpenApiDocumentOptions) {
 		// Optionality cannot be inferred without running validators, so it defaults to "an input schema exists".
 		const inputRequired = config.requestBodyRequired ?? request !== undefined;
 		if (definition.stateful) {
-			const previous = convert(id + "_PrevResult", endpoint.stateSchema, "input", config.prevResultSchema);
+			const previous = convert(id + "_PrevResult", route.config.stateSchema, "input", config.prevResultSchema);
 			// An override describes the complete HTTP envelope, not just its input field.
 			if (config.requestBodySchema === undefined)
 				request = {
@@ -166,7 +167,7 @@ export function generateOpenApiDocument(options: OpenApiDocumentOptions) {
 				throw new TypeError(id + ": missing required path parameter {" + name + "}");
 		}
 		const responses: Record<string, ReturnType<typeof response> | Record<string, unknown>> = {};
-		responses[endpoint.successStatus ?? 200] = response(
+		responses[route.config.successStatus ?? 200] = response(
 			"Action result, including void success or middleware short-circuit",
 			{ anyOf: [envelope("data", output), { type: "object", maxProperties: 0 }] }
 		);
@@ -174,9 +175,9 @@ export function generateOpenApiDocument(options: OpenApiDocumentOptions) {
 		responses[400] = response("Validation or HTTP error", {
 			anyOf: [envelope("validationErrors", validation), httpError],
 		});
-		if (endpoint.serverErrorStatus && !config.serverErrorStatuses?.length)
+		if (route.config.serverErrorStatus && !config.serverErrorStatuses?.length)
 			throw new TypeError(id + ": serverErrorStatuses is required for status mapping");
-		for (const status of endpoint.serverErrorStatus ? config.serverErrorStatuses! : [500]) {
+		for (const status of route.config.serverErrorStatus ? config.serverErrorStatuses! : [500]) {
 			if (!Number.isInteger(status) || status < 400 || status > 599)
 				throw new TypeError(id + ": invalid server error status");
 			responses[status] = response("Action or HTTP error", {
@@ -188,8 +189,8 @@ export function generateOpenApiDocument(options: OpenApiDocumentOptions) {
 			});
 		}
 		responses[303] = { description: "Mutation redirect", headers: { Location: { schema: { type: "string" } } } };
-		paths[endpoint.path] ??= {};
-		paths[endpoint.path]![endpoint.method.toLowerCase()] = {
+		paths[route.path] ??= {};
+		paths[route.path]![route.method.toLowerCase()] = {
 			operationId: id,
 			...(config.summary ? { summary: config.summary } : {}),
 			...(config.description ? { description: config.description } : {}),
