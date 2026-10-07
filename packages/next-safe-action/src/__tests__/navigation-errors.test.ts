@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { z } from "zod";
 import { createSafeActionClient, type MiddlewareResult } from "..";
 import { FrameworkErrorHandler } from "../next/errors";
@@ -244,4 +244,30 @@ test("navigation error discards any pre-populated result (onSettled receives emp
 	expect(innerData).toEqual({ inner: "ran to completion" });
 	// But onSettled received the idle shape, not the partial success.
 	expect(onSettledResult).toStrictEqual({});
+});
+
+// Regression: Next.js `unstable_rethrow()` re-throws these signals, so they must reach the framework
+// instead of `handleServerError`, `onError`, or a `serverError` result.
+test.each([
+	["HANGING_PROMISE_REJECTION", "During prerendering, `cookies()` rejects when the prerender is complete."],
+	["NEXT_PRERENDER_INTERRUPTED", "Route /test needs to bail out of prerendering at this point."],
+])("action rethrows the %s framework signal without calling handleServerError", async (digest, message) => {
+	const signal = Object.assign(new Error(message), { digest });
+	const handleServerError = vi.fn(() => "server error");
+	const onError = vi.fn();
+	const onNavigation = vi.fn();
+
+	const action = createSafeActionClient({ handleServerError }).action(
+		async () => {
+			throw signal;
+		},
+		{ onError, onNavigation }
+	);
+
+	await expect(action()).rejects.toBe(signal);
+	expect(FrameworkErrorHandler.isNavigationError(signal)).toBe(true);
+	expect(FrameworkErrorHandler.getNavigationKind(signal)).toBe("other");
+	expect(handleServerError).not.toHaveBeenCalled();
+	expect(onError).not.toHaveBeenCalled();
+	expect(onNavigation).toHaveBeenCalledWith(expect.objectContaining({ navigationKind: "other" }));
 });

@@ -246,14 +246,16 @@ it("sanitizes callbacks and serialization errors, converts navigation and rethro
 	const response = await call(redirect);
 	expect(response.status).toBe(303);
 	expect(response.headers.get("location")).toBe("/next;a");
-	const dynamic = Object.assign(new Error("dynamic"), { digest: "DYNAMIC_SERVER_USAGE" });
-	await expect(
-		call(
-			users({}, async () => {
-				throw dynamic;
-			})
-		)
-	).rejects.toBe(dynamic);
+	for (const digest of ["DYNAMIC_SERVER_USAGE", "HANGING_PROMISE_REJECTION", "NEXT_PRERENDER_INTERRUPTED"]) {
+		const signal = Object.assign(new Error(digest), { digest });
+		await expect(
+			call(
+				users({}, async () => {
+					throw signal;
+				})
+			)
+		).rejects.toBe(signal);
+	}
 });
 
 it("supports root and custom catch-all names and protects protocol headers", async () => {

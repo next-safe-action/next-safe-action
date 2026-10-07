@@ -1,16 +1,47 @@
 import type { NavigationKind } from "../../index.types";
-import { isBailoutToCSRError } from "./bailout-to-csr";
-import { isDynamicUsageError } from "./dynamic-usage";
 import { getAccessFallbackHTTPStatus, isHTTPAccessFallbackError } from "./http-access-fallback";
-import { isPostpone } from "./postpone";
+import { isDynamicPostpone, isPostpone } from "./postpone";
 import { isRedirectError } from "./redirect";
-import { isNextRouterError } from "./router";
+
+/**
+ * Digests of framework control-flow errors that carry no extra data. Each one mirrors a check in
+ * https://github.com/vercel/next.js/blob/canary/packages/next/src/client/components/unstable-rethrow.server.ts
+ */
+const FRAMEWORK_SIGNAL_DIGESTS = new Set([
+	// shared/lib/lazy-dynamic/bailout-to-csr.ts (`isBailoutToCSRError`)
+	"BAILOUT_TO_CLIENT_SIDE_RENDERING",
+	// client/components/hooks-server-context.ts (`isDynamicServerError`)
+	"DYNAMIC_SERVER_USAGE",
+	// server/dynamic-rendering-utils.ts (`isHangingPromiseRejectionError`), Next.js >= 15.2 with
+	// `cacheComponents`/`dynamicIO`: a request-data promise rejected when a prerender aborts.
+	"HANGING_PROMISE_REJECTION",
+	// server/app-render/dynamic-rendering.ts (`isPrerenderInterruptedError`), Next.js >= 16 with
+	// `cacheComponents`: thrown synchronously, e.g. by `revalidatePath()` or `draftMode()` during a prerender.
+	"NEXT_PRERENDER_INTERRUPTED",
+]);
+
+function hasFrameworkSignalDigest(error: unknown): boolean {
+	return (
+		typeof error === "object" &&
+		error !== null &&
+		"digest" in error &&
+		typeof error.digest === "string" &&
+		FRAMEWORK_SIGNAL_DIGESTS.has(error.digest)
+	);
+}
 
 export class FrameworkErrorHandler {
 	#frameworkError: Error | undefined;
 
+	/** Same set of errors that Next.js `unstable_rethrow()` re-throws (without walking `error.cause`). */
 	static isNavigationError(error: unknown): error is Error {
-		return isNextRouterError(error) || isBailoutToCSRError(error) || isDynamicUsageError(error) || isPostpone(error);
+		return (
+			isRedirectError(error) ||
+			isHTTPAccessFallbackError(error) ||
+			hasFrameworkSignalDigest(error) ||
+			isDynamicPostpone(error) ||
+			isPostpone(error)
+		);
 	}
 
 	static getNavigationKind(error: Error): NavigationKind {
