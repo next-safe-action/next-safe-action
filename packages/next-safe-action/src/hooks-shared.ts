@@ -52,6 +52,7 @@ export function useActionBase<ServerError, Schema extends StandardSchemaV1 | und
 
 	const [isTransitioning, startTransition] = React.useTransition();
 	const [result, setResult] = React.useState<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>(
+		// oxlint-disable-next-line react/refs -- mount-captured `initResult`, never written after mount
 		initResultRef.current
 	);
 	const [clientInput, setClientInput] = React.useState<InferInputOrDefault<Schema, void>>();

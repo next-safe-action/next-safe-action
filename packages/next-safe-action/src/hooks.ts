@@ -378,6 +378,7 @@ const useStateActionInternal = <
 
 	// ─── Core useActionState ──────────────────────────────────────────────
 
+	// oxlint-disable-next-line react/refs -- mount-captured `initResult`, never written after mount (see AGENTS.md)
 	const [rawResult, dispatcher, isExecuting] = React.useActionState(wrappedAction, initResultRef.current);
 
 	// ─── execute ──────────────────────────────────────────────────────────
@@ -484,6 +485,7 @@ const useStateActionInternal = <
 	// not provided) so the idle branch's runtime value matches its declared type in both phases:
 	// at mount and after reset. This is also the intuitive contract for `reset`: return to the
 	// initial state.
+	// oxlint-disable-next-line react/refs -- mount-captured `initResult`, never written after mount (see AGENTS.md)
 	const result = isReset ? initResultRef.current : (rawResult ?? {});
 
 	// `useActionState`'s pending flag can't be cancelled: after a mid-flight `reset` it stays
@@ -776,6 +778,7 @@ export const useOptimisticStateAction = <
 	// not only StrictMode's double invoke) would otherwise leave state that never committed where
 	// the next event handler reads it, and `resolvePrevResult` would send it to the server. Every
 	// write is deferred to the layout effect below, which only runs for a render that committed.
+	/* oxlint-disable react/refs -- pure render-time reads; every ref write is deferred to the layout effect below */
 	const propChanged = utils.currentState !== lastPropRef.current;
 	const committedData = (base.result as { data?: unknown }).data as State | undefined;
 	const committedIsFresh = base.result !== supersededResultRef.current && !ignoreCommittedDataRef.current;
@@ -789,6 +792,7 @@ export const useOptimisticStateAction = <
 	// Derived, never assigned during render, for the same reason as `confirmed`: an abandoned
 	// concurrent render must not leave a cut behind that no commit ever agreed to.
 	const acked = propChanged ? settledIdRef.current : ackedThroughRef.current;
+	/* oxlint-enable react/refs */
 
 	React.useLayoutEffect(() => {
 		if (propChanged) {
@@ -811,6 +815,7 @@ export const useOptimisticStateAction = <
 	const [frame, addOptimistic] = React.useOptimistic<
 		{ generation: number; acked: number; state: State },
 		{ generation: number; dispatchId: number; input: InferInputOrDefault<Schema, undefined> }
+		// oxlint-disable-next-line react/refs -- `confirmed` and `acked` are derived from refs that are only written in the layout effect
 	>({ generation, acked, state: confirmed }, (current, payload) =>
 		payload.generation === current.generation && payload.dispatchId > current.acked
 			? {
