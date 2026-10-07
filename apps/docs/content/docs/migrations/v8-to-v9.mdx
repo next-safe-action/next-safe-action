@@ -60,7 +60,7 @@ Upgrading Next.js from 14 to 15 is a separate migration with its own breaking ch
 
 ### Commit your work
 
-The codemod refuses to run on a git working tree with uncommitted changes, so you can always review and revert what it did. Commit (or stash) the dependency update:
+The codemod refuses to write files when the git working tree has uncommitted changes (untracked files count too), so you can always review and revert what it did. Commit (or stash) the dependency update:
 
 ```bash
 git add -A
@@ -84,14 +84,14 @@ Then apply them:
 npx @next-safe-action/codemod@latest v9
 ```
 
-Run both commands from your project root. To limit the run to specific files or directories, pass them as arguments, for example `npx @next-safe-action/codemod@latest v9 src`. See the [codemod reference](#codemod-reference) for all flags.
+Run both commands from your project root. Without arguments, the codemod scans the current directory. To limit the run to specific files or directories, pass them as arguments, for example `npx @next-safe-action/codemod@latest v9 src`. The V9-04 requirement checks read the `package.json` files that are inside the scanned paths, so a run limited to `src` skips them. See the [codemod reference](#codemod-reference) for all flags.
 
 </Step>
 <Step>
 
 ### Resolve manual items
 
-The codemod prints a list of manual items: places it found but could not change safely. Each item has a rule id, a file and line, a reason, a suggested fix, and a link to the matching section of this page. Fix each one by hand.
+The codemod prints a list of manual items: places it found but could not change safely. Each item has a rule id, a file and line, a reason, a suggested fix, and a link to the matching section of this page. Fix each one by hand. Many items point at text in comments, strings, or Markdown files: change what refers to next-safe-action and ignore the rest (for example a `.schema()` call of another library).
 
 </Step>
 <Step>
@@ -130,7 +130,8 @@ Any docs page is available as Markdown when you append `.md` to its URL.
 - Use the package manager the project already uses. Detect it from the lockfile: `package-lock.json` (npm), `pnpm-lock.yaml` (pnpm), `yarn.lock` (yarn), `bun.lock` or `bun.lockb` (bun). In a monorepo, run the install command in the workspace that depends on `next-safe-action` (for example `pnpm --filter <app> add ...`).
 - Never rename a `.schema(` call unless its receiver is a next-safe-action client. Other libraries have `.schema()` methods too.
 - Never pass `--force` to the codemod to get past a dirty working tree unless the user approved it. Commit or stash first, or ask.
-- Write codemod reports outside the repository (for example in `$TMPDIR`). A report file inside the repository makes the working tree dirty, and the codemod then refuses to run.
+- Write codemod reports outside the repository (for example in `$TMPDIR`). A report file inside the repository is an untracked file, which makes the working tree dirty, and the codemod then refuses to run.
+- With `--json`, the report is the only thing on stdout. The codemod writes its log lines and errors to stderr. Check the exit code before you parse the report: on exit code `1`, stdout is empty.
 
 ### Step 1: Check and update dependencies (V9-04)
 
@@ -184,20 +185,21 @@ npx @next-safe-action/codemod@latest v9 --json > "${TMPDIR:-/tmp}/nsa-v9.json"
 
 The report has four arrays. Consume them in this order:
 
-1. `environment`: one entry per package or runtime requirement (rule `V9-04`). For every entry whose `status` does not say the requirement is met, run the command in `fix`, then commit.
+1. `environment`: one entry per check (rule `V9-04`), including the checks that pass and the running Node.js. Ignore entries with `status: "ok"`: their `fix` text is a generic command. For `status: "upgrade"`, run the command in `fix`, then commit. For `status: "unknown"`, the codemod could not read a version (a `workspace:` or `catalog:` range, a tag, a `||` or `>` range, or an adapter that is not installed). Check that package by hand with the commands in Step 1.
 2. `changes`: the edits the codemod made (`rule`, `file`, `line`, `before`, `after`). Review them with `git diff`. No action is needed unless an edit looks wrong.
 3. `manual`: places the codemod found but did not change. For each entry, open `file` at `line`:`column`, read `why`, apply `fix`, and use the section linked in `docs` (`#v9-01` to `#v9-04`) for the exact transformation.
-4. `skipped`: anything the codemod did not process. Check those files by hand with the detection commands in Step 3.
+4. `skipped`: `{ file, reason }` entries for what the codemod could not process: a source file with a syntax error (not transformed, but its leftovers are in `manual`), or a `tsconfig.json` that failed to load (its files were analyzed without its path aliases, so expect more `manual` items). Fix the cause and run the codemod again, or check those files by hand with the detection commands in Step 3.
 
-To list the manual items in a compact form (requires `jq`):
+To list the unresolved environment entries and the manual items in a compact form (requires `jq`):
 
 ```bash
+jq -r '.environment[] | select(.status != "ok") | "\(.status) \(.file) \(.package) \(.found) \(.fix)"' "${TMPDIR:-/tmp}/nsa-v9.json"
 jq -r '.manual[] | "\(.rule) \(.file):\(.line):\(.column) \(.fix)"' "${TMPDIR:-/tmp}/nsa-v9.json"
 ```
 
 The exit code is `0` even when there are manual items, so read the `manual` array instead of relying on the exit code. Exit code `1` means an error or a dirty working tree. The full format is in [Report format](#report-format).
 
-**Done when:** the codemod ran without `--dry`, `environment` has no unmet requirements, and every `manual` and `skipped` entry is resolved.
+**Done when:** the codemod ran without `--dry`, no `environment` entry has `status: "upgrade"` or an unchecked `"unknown"`, and every `manual` and `skipped` entry is resolved.
 
 ### Step 3: Check every rule
 
@@ -249,7 +251,7 @@ import type { DVES as Format, SafeActionUtils } from "next-safe-action";
 import type { ValidationErrorsFormat as Format, ActionCallbacks } from "next-safe-action";
 ```
 
-For an aliased import, rename only the imported name and keep the local alias. For a namespace import (`import type * as NSA from "next-safe-action"`), rename the member access (`NSA.DVES` becomes `NSA.ValidationErrorsFormat`). For a re-export (`export type { DVES } from "next-safe-action"`), rename the exported name, or keep the old public name with `export type { ValidationErrorsFormat as DVES } from "next-safe-action"` if other packages depend on it.
+For an aliased import, rename only the imported name and keep the local alias. For a namespace import (`import type * as NSA from "next-safe-action"`), rename the member access (`NSA.DVES` becomes `NSA.ValidationErrorsFormat`). For a re-export (`export type { DVES } from "next-safe-action"`), rename the exported name, or keep the old public name with `export type { ValidationErrorsFormat as DVES } from "next-safe-action"` if other packages depend on it. The codemod takes the first option.
 
 False positives: an identifier with one of these names that is declared locally or imported from another package. Rename only identifiers that come from `next-safe-action` or `next-safe-action/hooks`, directly or through a re-export.
 
@@ -272,7 +274,7 @@ export const action = actionClient.schema(schema).action(async ({ parsedInput })
 export const action = actionClient.inputSchema(schema).action(async ({ parsedInput }) => {});
 ```
 
-A receiver is a next-safe-action client when it is the return value of `createSafeActionClient()`, or the result of calling a client method on one (`.use()`, `.useValidated()`, `.metadata()`, `.bindArgsSchemas()`, `.outputSchema()`). Trace the receiver back to its declaration, through imports and re-exports, to decide. Calls often sit on their own line in a method chain, so read the lines above each hit.
+A receiver is a next-safe-action client when it is the return value of `createSafeActionClient()`, or the result of calling a client method on one (`.use()`, `.useValidated()`, `.metadata()`, `.inputSchema()`, `.bindArgsSchemas()`, `.outputSchema()`). Calls after `.action()` or `.stateAction()` are not on a client. Trace the receiver back to its declaration, through imports and re-exports, to decide. Calls often sit on their own line in a method chain, so read the lines above each hit.
 
 False positives: this pattern also matches `.schema()` methods of other libraries (validation libraries, ORMs, query builders, API clients). Leave those unchanged.
 
@@ -315,9 +317,9 @@ import { useStateAction } from "next-safe-action/stateful-hooks";
 import { useStateAction } from "next-safe-action/hooks";
 ```
 
-**Codemod:** full. It rewrites every specifier form: static imports, type imports, re-exports, dynamic `import()`, `require()`, and `vi.mock()` calls.
+**Codemod:** full. It rewrites every string literal that is exactly `next-safe-action/stateful-hooks` (also a template literal without expressions) and keeps the quotes. That covers static imports, type imports, re-exports, dynamic `import()`, `require()`, and `vi.mock()` and `jest.mock()` calls. When the same file already has a named `next-safe-action/hooks` import of the same kind (both `import` or both `import type`), the codemod merges the names into it, without duplicates, and removes the old import line.
 
-**Manual steps:** none in JavaScript and TypeScript code. The codemod reports mentions in other files (for example Markdown, MDX, Vue, Svelte, or Astro) as manual items.
+**Manual steps:** none for the code above. The codemod reports every other mention as a manual item: partial strings, comments, and files that are not JavaScript or TypeScript (for example Markdown, MDX, Vue, Svelte, or Astro).
 
 ## Removed deprecated type aliases [#v9-02]
 
@@ -345,9 +347,16 @@ import type { ActionCallbacks } from "next-safe-action";
 
 `MiddlewareResult` is not affected: its signature is the same as in v8.
 
-**Codemod:** full. Renames are import-aware: the codemod changes an identifier only when it comes from next-safe-action, and it handles aliased imports, re-exports, and namespace access.
+**Codemod:** full. Renames are import-aware: the codemod changes an identifier only when it traces back to next-safe-action, and it leaves a local type that has the same name alone. It handles:
 
-**Manual steps:** none in code. The codemod reports leftover mentions in text, such as Markdown or MDX docs, as manual items.
+- Imports, `import type`, inline `type` specifiers, and every use of the name. An aliased import (`DVES as Format`) keeps its local alias.
+- Namespace access (`nsa.DVES`) and `import("next-safe-action").DVES`.
+- Barrel files and re-exports (`export { DVES } from "next-safe-action"`, `export { X }`), including the files that import the name from the barrel.
+- Files that already import the new name: the old specifier is removed. If the new name is already used for something else in the file, the codemod writes `ValidationErrorsFormat as DVES` and keeps the old local name.
+
+An un-aliased re-export changes the public export name of your module (`DVES` becomes `ValidationErrorsFormat`). Files inside the scanned paths that import it are updated, but consumers outside the scanned paths, such as other packages, are not.
+
+**Manual steps:** none for names that the codemod can trace. It reports every other mention as a manual item: names it cannot trace to a declaration, comments, strings, and text in Markdown or MDX docs.
 
 ## Removed `.schema()` method [#v9-03]
 
@@ -371,9 +380,11 @@ export const updateUser = authActionClient
 	});
 ```
 
-**Codemod:** partial. The codemod renames a `.schema()` call only when it can prove that the receiver is a next-safe-action client. It follows the client across files with TypeScript symbol resolution, including `tsconfig.json` paths and barrel files. A chain that looks like a client but cannot be resolved (for example a client typed as `any`, or one created in plain JavaScript without type information) becomes a manual item. `.schema()` calls on other libraries are never changed.
+**Codemod:** partial. The codemod renames a `.schema()` call only when it can prove that the receiver is a next-safe-action client. The proof is a chain that starts at `createSafeActionClient()` from `next-safe-action`, or at a declaration typed `SafeActionClient`, and continues only through the client methods `.use()`, `.useValidated()`, `.metadata()`, `.inputSchema()`, `.bindArgsSchemas()`, `.outputSchema()`, and `.schema()`. The codemod follows the receiver across files with TypeScript symbol resolution: variables, aliases, `tsconfig.json` paths, barrel files, `export *`, namespace imports, default exports, and object properties. JavaScript files are analyzed too. When `next-safe-action` is installed, the codemod also accepts a receiver whose type is `SafeActionClient`, which covers wrapper functions.
 
-**Manual steps:** for each manual item, check that the receiver is a next-safe-action client and rename the call to `.inputSchema()`. In TypeScript code, `tsc --noEmit` reports every call that is left.
+A receiver that the codemod cannot decide becomes a manual item (for example the result of a wrapper function when `next-safe-action` is not installed, a parameter without a `SafeActionClient` type, a value typed `any`, or a dynamic value). `.schema()` calls that are provably not on a client (other libraries, calls after `.action()`) are left alone and not reported.
+
+**Manual steps:** for each manual item, check that the receiver is a next-safe-action client and rename the call to `.inputSchema()`. Ignore the item otherwise. In TypeScript code, `tsc --noEmit` reports every call that is left.
 
 ## New minimum requirements [#v9-04]
 
@@ -399,7 +410,7 @@ All first-party adapters now require `next-safe-action` >= 9.0.0 and the same Ne
 - **React 19:** the hooks use React 19's `useActionState` and `useOptimistic`. v8 had a runtime check that threw a descriptive error when `useActionState` was missing. v9 removes this check, because React 19 is now a hard requirement.
 - **Node.js 18.18:** this is the minimum Node.js version of Next.js 15.1.
 
-**Codemod:** reports only. It never edits `package.json`. It lists every requirement that is not met and prints the install command for your package manager.
+**Codemod:** reports only. It never edits `package.json`. It reads every `package.json` in the scanned paths that lists `next-safe-action` or a first-party adapter in `dependencies` or `devDependencies`, and checks `next`, `react`, `react-dom`, `next-safe-action`, each adapter, and `engines.node`. It also checks `.nvmrc`, `.node-version`, and the Node.js that runs the codemod. It prefers the version installed in `node_modules` over the declared range. An adapter passes when its installed release has a `next-safe-action` peer dependency of 9.0.0 or higher. The report says which checks are met, and the fix text of a failed check has the install command for your package manager.
 
 **Manual steps:** update your dependencies as described in [Update dependencies](#update-dependencies). If you must stay on Next.js 14 or 15.0, stay on next-safe-action v8.
 
@@ -444,86 +455,113 @@ There is nothing to migrate: your actions keep working as they are, and you can 
 npx @next-safe-action/codemod@latest v9 [paths...] [flags]
 ```
 
-Run it from the project root. Pass paths to process only specific files or directories.
+Run it from the project root. `paths` are files or directories. Without paths, the codemod scans the current directory.
 
 ### Flags
 
 | Flag | Effect |
 |---|---|
 | `--dry` | Analyze and report, but write no files. Also runs on a dirty working tree. |
-| `--print` | Print the transformed files instead of writing them. |
-| `--force` | Skip the clean git working tree check. |
-| `--json` | Print a machine-readable report on stdout. See [Report format](#report-format). |
+| `--print` | Print each changed file instead of writing it. Also runs on a dirty working tree. |
+| `--force` | Write files even when the git working tree has uncommitted changes. |
+| `--json` | Print a machine-readable report on stdout. See [Report format](#report-format). With `--print`, the printed files go to stderr. |
+| `-h`, `--help` | Show the help. |
+
+Without `--json`, the codemod prints a human-readable report on stdout: the changes, the manual items, the environment checks that need attention, and the skipped files. With `--json`, stdout holds only the JSON report, and a one-line summary and all errors go to stderr.
 
 ### What it does
 
 | Rule | Action |
 |---|---|
-| `V9-01` | Rewrites `next-safe-action/stateful-hooks` to `next-safe-action/hooks` in every specifier form: static and type imports, re-exports, dynamic `import()`, `require()`, and `vi.mock()`. |
-| `V9-02` | Renames the removed type aliases, but only identifiers that come from next-safe-action. Handles aliased imports, re-exports, and namespace access. |
-| `V9-03` | Renames `.schema()` to `.inputSchema()` on receivers that it proves are next-safe-action clients, with TypeScript symbol resolution across files (including `tsconfig.json` paths and barrel files). Client-like chains that it cannot resolve become manual items. |
-| `V9-04` | Checks the installed versions of Next.js, React, Node.js, next-safe-action, and the adapters. Reports problems and prints the install command for the detected package manager. Never edits `package.json`. |
+| `V9-01` | Rewrites every string literal that is exactly `next-safe-action/stateful-hooks` to `next-safe-action/hooks`: static and type imports, re-exports, dynamic `import()`, `require()`, `vi.mock()`, and `jest.mock()`. Merges the names into an existing `next-safe-action/hooks` import when there is one. |
+| `V9-02` | Renames the removed type aliases, but only identifiers that trace back to next-safe-action. Handles aliased imports, re-exports and barrels, and namespace access. |
+| `V9-03` | Renames `.schema()` to `.inputSchema()` on receivers that it proves are next-safe-action clients, with TypeScript symbol resolution across files (including `tsconfig.json` paths and barrel files). Receivers that it cannot decide become manual items. |
+| `V9-04` | Checks the versions of Next.js, React, Node.js, next-safe-action, and the adapters. Reports problems and prints the install command for the detected package manager. Never edits `package.json`. |
 
-After the rewrites, a text scan looks for leftovers of `V9-01` to `V9-03` in all scanned files, including Markdown, MDX, Vue, Svelte, and Astro files, and reports each one as a manual item.
+The rewrites change only the text that needs to change. Quotes, line endings (including CRLF), and a byte order mark are kept.
+
+After the rewrites, a text scan looks for leftovers of `V9-01` to `V9-03` in all scanned files, including Markdown, MDX, Vue, Svelte, and Astro files, and reports each one as a manual item, except those that the codemod proved unrelated. Running the codemod again changes nothing.
+
+### Scanned files
+
+- **Transformed:** `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, and `.cjs` files. Files that do not mention next-safe-action, a removed name, or `.schema(` are not parsed.
+- **Scanned for leftovers only:** `.md`, `.mdx`, `.vue`, `.svelte`, and `.astro` files. The codemod never changes them.
+- **Read for the V9-04 checks:** `package.json`, `.nvmrc`, and `.node-version` files.
+- **Always skipped:** the directories `node_modules`, `.next`, `dist`, `build`, `out`, `coverage`, `.turbo`, and `.git`.
+- **Inside a git repository:** files ignored by `.gitignore` are skipped. Outside git, `.gitignore` is not read, only the always-skipped directories apply, and symlinks are not followed.
+
+A path that names a file is always scanned. A path that does not exist is an error.
 
 ### Safety
 
-- The codemod refuses to write files when the git working tree has uncommitted changes, so you can always review its edits with `git diff` and revert them. Use `--dry` to preview, or `--force` to skip the check.
+- Without `--dry`, `--print`, or `--force`, the codemod refuses to run when the git working tree has uncommitted changes, including untracked files anywhere in the repository. You can then always review its edits with `git diff` and revert them. Use `--dry` or `--print` to preview, or `--force` to skip the check. A folder that is not a git repository is fine.
 - It never edits `package.json` or lockfiles.
 - It never changes `.schema()` calls that it cannot prove belong to a next-safe-action client.
 
 ### Report format [#report-format]
 
-With `--json`, the codemod prints one JSON object on stdout:
+With `--json`, the codemod prints one JSON object on stdout. All paths are relative to the current directory.
 
 ```ts
 type CodemodReport = {
-	// Edits the codemod made (or would make, with --dry).
+	// Edits the codemod made (or would make, with --dry or --print).
+	// One entry per rule and original line.
 	changes: Array<{
 		rule: string; // "V9-01" | "V9-02" | "V9-03"
 		file: string;
-		line: number;
-		before: string;
-		after: string;
+		line: number; // line in the original file
+		before: string; // the full original line (or lines)
+		after: string; // the full changed line, "" when the line was removed (a merged import)
 	}>;
 	// Places the codemod found but did not change. Fix each one by hand.
 	manual: Array<{
-		rule: string;
+		rule: string; // "V9-01" | "V9-02" | "V9-03"
 		file: string;
-		line: number;
+		line: number; // line and column in the migrated file
 		column: number;
-		snippet: string; // the code or text at that position
+		snippet: string; // the trimmed line at that position, 200 characters at most
 		why: string; // why the codemod did not change it
 		fix: string; // what to do
 		docs: string; // link to the matching section of this guide
 	}>;
-	// Dependency and runtime requirements (rule V9-04).
+	// Dependency and runtime checks (rule V9-04), including the ones that pass.
 	environment: Array<{
 		rule: string; // "V9-04"
-		package: string;
-		found: string;
-		required: string;
-		status: string;
-		fix: string; // install command for the detected package manager
+		file: string; // the checked file, or "(current Node.js runtime)"
+		package: string; // a package name, or "node"
+		found: string; // always a string, see below
+		required: string; // for example ">=15.1.0"
+		status: "ok" | "upgrade" | "unknown";
+		fix: string; // always set, also when status is "ok"
 	}>;
-	// Anything that was not processed.
-	skipped: Array<unknown>;
+	// Files and configs that the codemod could not process.
+	skipped: Array<{
+		file: string;
+		reason: string; // a syntax error, or a tsconfig.json that failed to load
+	}>;
 };
 ```
+
+`environment[].status` has three values: `ok` (the requirement is met), `upgrade` (it is not met), and `unknown` (the codemod could not read a version).
+
+`environment[].found` is always a string, and the codemod only reports packages that your `package.json` declares, so there is no missing value. It ends with `(installed)` when the version comes from `node_modules`, and with `(declared)` when it comes from the range in `package.json`. A declared package that is not installed gets the declared range, for example `^15.0.0 (declared)`. A range that the codemod cannot read (`workspace:*`, `catalog:`, a tag, a `||` or `>` range) and an adapter that is not installed have the status `unknown`. For an installed adapter, `found` also shows its `next-safe-action` peer range. For Node.js, `found` is the `engines.node` value, the content of `.nvmrc` or `.node-version`, or the running version.
 
 ### Exit codes
 
 | Code | Meaning |
 |---|---|
-| `0` | Success, also when the report has manual items. |
-| `1` | An error occurred, or the git working tree is dirty (without `--dry` or `--force`). |
+| `0` | Success, also when the report has manual items or unmet requirements. Also for `--help`. |
+| `1` | An error occurred (for example a path that does not exist), the transform or a flag is unknown, or the git working tree is dirty (without `--dry`, `--print`, or `--force`). |
 
 ### Limitations
 
 - It does not update dependencies. Do that yourself, see [Update dependencies](#update-dependencies).
-- It does not rename `.schema()` calls on clients that it cannot resolve. They are reported as manual items.
-- It reports leftovers in Markdown, MDX, Vue, Svelte, and Astro files, but does not change them.
-- It can change the formatting of the lines it edits. Run your formatter after the codemod.
+- It does not rename `.schema()` calls on receivers that it cannot resolve. They are reported as manual items.
+- It reports leftovers in comments, strings, Markdown, MDX, Vue, Svelte, and Astro files, but does not change them. Because it cannot tell what a mention in text refers to, some manual items are false positives, for example a `.schema()` call of another library in a Markdown file.
+- It does not transform a file that has a syntax error. The file is listed in `skipped`, and its leftovers are listed as manual items.
+- Renaming an un-aliased re-export changes the public export name of that module. Consumers outside the scanned paths are not updated.
+- It does not run your formatter. The edits keep the existing formatting, but a merged import can leave a line that your formatter would lay out differently (for example `useAction, useStateAction,` on one line of a multi-line import). Run your formatter after the codemod if your project checks formatting.
+- It can use the types of an installed `next-safe-action`, which is what proves the receivers of wrapper functions. With v9 installed, the removed type names no longer exist in those types, so a removed name that is re-exported through an `export * from "next-safe-action"` barrel cannot be traced, and each use becomes a manual item. Direct imports from `next-safe-action` do not need the types.
 
 ## Troubleshooting [#troubleshooting]
 
@@ -554,7 +592,7 @@ Rename `.schema()` to `.inputSchema()`. See [V9-03](#v9-03).
 
 ### The codemod refuses to run
 
-The git working tree has uncommitted changes. Commit or stash them and run the codemod again. To preview without writing files, use `--dry`. Use `--force` only if you can review the result some other way.
+The git working tree has uncommitted changes, and untracked files count too (a report file that you wrote inside the repository is one). Commit or stash them and run the codemod again. To preview without writing files, use `--dry` or `--print`, which do not need a clean tree. Use `--force` only if you can review the result some other way.
 
 ### The codemod reported manual items, but the exit code is 0
 
