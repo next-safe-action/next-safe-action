@@ -9,7 +9,6 @@
 	"oxc.fmt.configPath": ".oxfmtrc.json",
 	"oxc.typeAware": true,
 	"editor.rulers": [120],
-	"typescript.tsdk": "node_modules/typescript/lib",
 	"[markdown]": {
 		"editor.formatOnSave": false
 	},
