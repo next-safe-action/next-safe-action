@@ -75,12 +75,12 @@
 	},
 	"peerDependencies": {
 		"@tanstack/react-query": ">= 5.0.0",
-		"next": ">= 14.0.0",
+		"next": ">= 15.1.0",
 		"next-safe-action": ">=8.1.10",
-		"react": ">= 18.2.0"
+		"react": ">= 19.0.0"
 	},
 	"engines": {
-		"node": ">=18.17"
+		"node": ">=18.18"
 	},
 	"repository": {
 		"type": "git",

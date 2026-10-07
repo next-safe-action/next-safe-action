@@ -76,7 +76,7 @@
 		"next-safe-action": ">= 8.4.0"
 	},
 	"engines": {
-		"node": ">=18.17"
+		"node": ">=18.18"
 	},
 	"repository": {
 		"type": "git",

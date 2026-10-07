@@ -191,7 +191,7 @@ type StateActionStrategies<ServerError, Schema extends StandardSchemaV1 | undefi
 /**
  * Shared implementation behind `useStateAction` and `useOptimisticStateAction`.
  *
- * Owns every concurrency invariant of the stateful path: the React 19 guard, the FIFO resolver
+ * Owns every concurrency invariant of the stateful path: the FIFO resolver
  * queue that keeps `executeAsync` promises aligned with dispatch order, the reset generation that
  * marks uncancellable in-flight dispatches stale, the `queueMicrotask` double-apply that keeps a
  * dispatch visible inside an ambient transition, and the reset masking of `useActionState`'s
@@ -210,13 +210,6 @@ const useStateActionInternal = <
 	} & HookBaseOptions<ServerError, Schema, ShapedErrors, Data>,
 	strategies?: StateActionStrategies<ServerError, Schema, ShapedErrors, Data>
 ): UseStateActionHookReturn<ServerError, Schema, ShapedErrors, Data, InitR> => {
-	if (typeof React.useActionState !== "function") {
-		throw new Error(
-			"useStateAction requires React 19+ (Next.js 15+). " +
-				"For older versions, use React's useActionState directly with your safe action."
-		);
-	}
-
 	// ─── Refs ────────────────────────────────────────────────────────────
 
 	// `initResult` is captured once at mount, mirroring React's `useActionState` initialState:
@@ -554,8 +547,6 @@ const useStateActionInternal = <
  * Provides full lifecycle control: callbacks, status tracking, navigation error handling,
  * `executeAsync`, `reset`, and `formAction` for `<form action={formAction}>` integration.
  *
- * Requires React 19+ (Next.js 15+). On older versions, a runtime error is thrown with guidance.
- *
  * @param safeActionFn The stateful action function created with `.stateAction()`.
  * @param opts Optional configuration: `initResult` for initial state, plus all hook options and callbacks.
  *
@@ -593,8 +584,6 @@ export const useStateAction = <
  * next queued dispatch sends to the server. A `currentState` that commits while an action is still
  * running was rendered before that action wrote, so it is the older value for the server base even
  * though its identity is newer.
- *
- * Requires React 19+ (Next.js 15+). On older versions, a runtime error is thrown with guidance.
  *
  * @param safeActionFn The stateful action function created with `.stateAction()`.
  * @param utils Required `currentState` and `updateFn`, optional `initResult` and callbacks.

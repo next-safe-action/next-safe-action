@@ -7,8 +7,8 @@ This adapter offers a way to seamlessly integrate [next-safe-action](https://git
 
 # Requirements
 
-- React >= `18.2.0`
-- Next.js >= `14.0.0`
+- React >= `19.0.0`
+- Next.js >= `15.1.0`
 - next-safe-action >= `7.6.0`
 - react-hook-form >= `7.0.0`
 - @hookform/resolvers >= `3.0.0`
