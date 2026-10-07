@@ -44,7 +44,7 @@ function fireCallback<A>(cb: ((arg: A) => unknown) | undefined, arg: A) {
  * @param safeActionFn The action function
  * @param opts Optional configuration: `initResult` for initial state, plus callbacks
  *
- * {@link https://next-safe-action.dev/docs/execute-actions/hooks/useaction See docs for more information}
+ * {@link https://next-safe-action.dev/docs/guides/hooks See docs for more information}
  */
 export const useAction = <
 	ServerError,
@@ -83,7 +83,7 @@ export const useAction = <
  * @param safeActionFn The action function
  * @param utils Required `currentData` and `updateFn`, optional `initResult` for initial state, and optional callbacks
  *
- * {@link https://next-safe-action.dev/docs/execute-actions/hooks/useoptimisticaction See docs for more information}
+ * {@link https://next-safe-action.dev/docs/guides/optimistic-updates See docs for more information}
  */
 export const useOptimisticAction = <
 	ServerError,
@@ -542,7 +542,7 @@ const useStateActionInternal = <
 
 /**
  * Use the stateful action from a Client Component via hook. Used for actions defined with
- * [`stateAction`](https://next-safe-action.dev/docs/define-actions/instance-methods#action--stateaction).
+ * [`stateAction`](https://next-safe-action.dev/docs/api/safe-action-client#stateaction).
  *
  * Provides full lifecycle control: callbacks, status tracking, navigation error handling,
  * `executeAsync`, `reset`, and `formAction` for `<form action={formAction}>` integration.
@@ -550,7 +550,7 @@ const useStateActionInternal = <
  * @param safeActionFn The stateful action function created with `.stateAction()`.
  * @param opts Optional configuration: `initResult` for initial state, plus all hook options and callbacks.
  *
- * {@link https://next-safe-action.dev/docs/execute-actions/hooks/usestateaction See docs for more information}
+ * {@link https://next-safe-action.dev/docs/guides/hooks#usestateaction See docs for more information}
  */
 export const useStateAction = <
 	ServerError,
@@ -588,7 +588,7 @@ export const useStateAction = <
  * @param safeActionFn The stateful action function created with `.stateAction()`.
  * @param utils Required `currentState` and `updateFn`, optional `initResult` and callbacks.
  *
- * {@link https://next-safe-action.dev/docs/execute-actions/hooks/useoptimisticstateaction See docs for more information}
+ * {@link https://next-safe-action.dev/docs/guides/coordinating-mutations See docs for more information}
  */
 export const useOptimisticStateAction = <
 	ServerError,

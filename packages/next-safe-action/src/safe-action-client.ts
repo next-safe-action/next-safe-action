@@ -88,7 +88,7 @@ export class SafeActionClient<
 	 * Cannot be called after `useValidated()`.
 	 * @param middlewareFn Middleware function
 	 *
-	 * {@link https://next-safe-action.dev/docs/define-actions/instance-methods#use See docs for more information}
+	 * {@link https://next-safe-action.dev/docs/api/safe-action-client#use See docs for more information}
 	 */
 	use<NextCtx extends object>(
 		this: HasValidatedMiddleware extends false
@@ -144,7 +144,7 @@ export class SafeActionClient<
 	 *
 	 * @param middlewareFn Validated middleware function
 	 *
-	 * {@link https://next-safe-action.dev/docs/define-actions/instance-methods#usevalidated See docs for more information}
+	 * {@link https://next-safe-action.dev/docs/api/safe-action-client#usevalidated See docs for more information}
 	 */
 	useValidated<NextCtx extends object>(
 		this: [InputSchema, BindArgsSchemas] extends [undefined, readonly []]
@@ -194,9 +194,9 @@ export class SafeActionClient<
 
 	/**
 	 * Define metadata for the action.
-	 * @param data Metadata with the same type as the return value of the [`defineMetadataSchema`](https://next-safe-action.dev/docs/define-actions/create-the-client#definemetadataschema) optional initialization function
+	 * @param data Metadata with the same type as the return value of the [`defineMetadataSchema`](https://next-safe-action.dev/docs/advanced/metadata#define-a-metadata-schema) optional initialization function
 	 *
-	 * {@link https://next-safe-action.dev/docs/define-actions/instance-methods#metadata See docs for more information}
+	 * {@link https://next-safe-action.dev/docs/api/safe-action-client#metadata See docs for more information}
 	 */
 	metadata(data: Metadata) {
 		return new SafeActionClient({
@@ -212,7 +212,7 @@ export class SafeActionClient<
 	 * @param inputSchema Input validation schema
 	 * @param utils Optional utils object
 	 *
-	 * {@link https://next-safe-action.dev/docs/define-actions/create-the-client#inputschema See docs for more information}
+	 * {@link https://next-safe-action.dev/docs/api/safe-action-client#inputschema See docs for more information}
 	 */
 	inputSchema<
 		OIS extends StandardSchemaV1 | InputSchemaFactoryFn<InputSchema>, // override input schema
@@ -287,7 +287,7 @@ export class SafeActionClient<
 	 * Cannot be called after `useValidated()`.
 	 * @param bindArgsSchemas Bind args input validation schemas
 	 *
-	 * {@link https://next-safe-action.dev/docs/define-actions/instance-methods#bindargsschemas See docs for more information}
+	 * {@link https://next-safe-action.dev/docs/api/safe-action-client#bindargsschemas See docs for more information}
 	 */
 	bindArgsSchemas<const OBindArgsSchemas extends readonly StandardSchemaV1[]>(
 		this: HasValidatedMiddleware extends false
@@ -327,7 +327,7 @@ export class SafeActionClient<
 	 * Define the output data validation schema for the action.
 	 * @param schema Output data validation schema
 	 *
-	 * {@link https://next-safe-action.dev/docs/define-actions/create-the-client#outputschema See docs for more information}
+	 * {@link https://next-safe-action.dev/docs/api/safe-action-client#outputschema See docs for more information}
 	 */
 	outputSchema<OOS extends StandardSchemaV1>(dataSchema: OOS) {
 		return new SafeActionClient({
@@ -341,7 +341,7 @@ export class SafeActionClient<
 	 * @param serverCodeFn Code that will be executed on the **server side**
 	 * @param [cb] Optional callbacks that will be called after action execution, on the server.
 	 *
-	 * {@link https://next-safe-action.dev/docs/define-actions/instance-methods#action--stateaction See docs for more information}
+	 * {@link https://next-safe-action.dev/docs/api/safe-action-client#action See docs for more information}
 	 */
 	action<
 		Data extends InferOutputOrDefault<OutputSchema, any>,
@@ -388,11 +388,11 @@ export class SafeActionClient<
 
 	/**
 	 * Define the stateful action.
-	 * To be used with the [`useStateAction`](https://next-safe-action.dev/docs/execute-actions/hooks/usestateaction) hook.
+	 * To be used with the [`useStateAction`](https://next-safe-action.dev/docs/guides/hooks#usestateaction) hook.
 	 * @param serverCodeFn Code that will be executed on the **server side**
 	 * @param [cb] Optional callbacks that will be called after action execution, on the server.
 	 *
-	 * {@link https://next-safe-action.dev/docs/define-actions/instance-methods#action--stateaction See docs for more information}
+	 * {@link https://next-safe-action.dev/docs/api/safe-action-client#stateaction See docs for more information}
 	 */
 	stateAction<
 		Data extends InferOutputOrDefault<OutputSchema, any>,

@@ -68,7 +68,7 @@ All commands run from the repository root unless noted.
 ## Code Style
 
 - **Formatter**: Oxfmt, tabs (tabWidth 2), printWidth 120, semicolons, double quotes, trailing commas (es5), import sorting, Tailwind CSS class sorting. Config in `.oxfmtrc.json`.
-- **Linter**: Oxlint with type-aware checking via `oxlint-tsgolint`. Shared base config in `.oxlintrc.base.json`, package overrides in per-package `.oxlintrc.json`. Plugins: oxc, eslint, unicorn, typescript, react, react-perf (library packages), plus nextjs (app packages). The React Compiler rule `react/refs` is off in the core package, because the hooks read refs during render on purpose (see the hook architecture notes below); the playground only exempts its shadcn-generated files and two request-time Server Components.
+- **Linter**: Oxlint with type-aware checking via `oxlint-tsgolint`. Shared base config in `.oxlintrc.base.json`, package overrides in per-package `.oxlintrc.json`. Plugins: oxc, eslint, unicorn, typescript, react, react-perf (library packages), plus nextjs (app packages). The React Compiler rule `react/refs` is on in the core package; the few intentional render-time ref reads in the hooks (see the hook architecture notes below) carry line-level `oxlint-disable` comments with a reason, so any new render-time ref access fails lint. The playground only exempts its shadcn-generated files and two request-time Server Components.
 - **TypeScript**: strict mode with `noUncheckedIndexedAccess`. Library lint runs `tsc --noEmit && oxlint --type-aware .`. The catalog pins TypeScript with a tilde (`~7.0.2`) because tsdown's dts generator (`rolldown-plugin-dts`, peer `~7.0.0`) only supports the native compiler for 7.0.x; widen it once 7.1 is supported.
 - Prefer explicit type imports/exports (enforced by Oxlint).
 - **CSS**: Tailwind v4 with CSS-first configuration (no tailwind.config file), PostCSS via `@tailwindcss/postcss`.
@@ -79,7 +79,7 @@ All commands run from the repository root unless noted.
 The library has four entry points: `next-safe-action` (server), `next-safe-action/hooks` (client), plus `next-safe-action/routes` (JSON mutation route handlers) and its optional `next-safe-action/routes/openapi` (OpenAPI 3.1 generation). The RHF adapter has two: `@next-safe-action/adapter-react-hook-form` and `@next-safe-action/adapter-react-hook-form/hooks`. The TanStack Query adapter has one: `@next-safe-action/adapter-tanstack-query`. The Better Auth adapter has one: `@next-safe-action/adapter-better-auth`. The codemod package has no library entry, only the `next-safe-action-codemod` bin.
 
 **Server-side core:**
-- `safe-action-client.ts`: `SafeActionClient` class with chainable methods: `use()` (middleware), `metadata()`, `inputSchema()`, `outputSchema()`, `bindArgsSchema()`, `action()`, `stateAction()`
+- `safe-action-client.ts`: `SafeActionClient` class with chainable methods: `use()` (middleware), `useValidated()` (middleware that runs after input validation), `metadata()`, `inputSchema()`, `bindArgsSchemas()`, `outputSchema()`, `action()`, `stateAction()`
 - `action-builder.ts`: core execution engine: runs the middleware stack, validates input/output via Standard Schema, handles errors
 - `deep-merge.ts`: dependency-free `deepmerge()` used to merge middleware context objects (inlined from `deepmerge-ts` to keep the package free of runtime dependencies)
 - `middleware.ts`: `createMiddleware()` and `createValidatedMiddleware()` for standalone middleware definitions
