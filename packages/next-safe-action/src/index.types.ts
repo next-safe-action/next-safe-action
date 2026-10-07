@@ -198,12 +198,12 @@ export type SafeActionResult<
  * Collapses the void-success branch of a `SafeActionResult` union.
  *
  * The runtime never emits `{ data: undefined }` for a void-returning action
- * (see `buildResultAndRunCallbacks` in `action-builder.ts` — it only sets
+ * (see `buildResultAndRunCallbacks` in `action-builder.ts`, it only sets
  * `data` when `middlewareResult.data !== undefined`). For user-facing types,
  * we drop the `{ data: void }` branch so that `r.data` narrows to exactly
  * `undefined` instead of `void | undefined`.
  *
- * This is a distributive conditional — each member of the input union is
+ * This is a distributive conditional, each member of the input union is
  * checked individually. Only the exact `{ data: void }` shape is excluded;
  * other branches (idle, server error, validation error) pass through.
  *

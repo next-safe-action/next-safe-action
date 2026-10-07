@@ -211,7 +211,7 @@ test("navigation error discards any pre-populated result (onSettled receives emp
 	// the result to `{}` before any data accumulated during the run can leak into
 	// `onSettled`. We construct a compound state where the inner action succeeds
 	// (populating `middlewareResult.data`) and then an outer middleware throws a
-	// redirect during post-processing — onSettled must still see `result: {}`.
+	// redirect during post-processing; onSettled must still see `result: {}`.
 	let onSettledResult: unknown;
 	let innerData: unknown;
 
@@ -219,7 +219,7 @@ test("navigation error discards any pre-populated result (onSettled receives emp
 		.use(async ({ next }) => {
 			const res = await next();
 			// Inner action succeeded; its data is observable here, confirming the
-			// setup is valid — the inner `next()` did populate `data`.
+			// setup is valid; the inner `next()` did populate `data`.
 			innerData = (res as { data?: unknown }).data;
 			redirect("/after-success");
 		})
@@ -240,7 +240,7 @@ test("navigation error discards any pre-populated result (onSettled receives emp
 		}
 	});
 
-	// Inner action data DID exist mid-flight — middleware saw it.
+	// Inner action data DID exist mid-flight; middleware saw it.
 	expect(innerData).toEqual({ inner: "ran to completion" });
 	// But onSettled received the idle shape, not the partial success.
 	expect(onSettledResult).toStrictEqual({});

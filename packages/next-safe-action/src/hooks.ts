@@ -114,7 +114,7 @@ export const useOptimisticAction = <
 		setOptimisticValue
 	);
 
-	// Cast rationale: same as `useAction` — runtime consistency guaranteed by
+	// Cast rationale: same as `useAction`: runtime consistency guaranteed by
 	// `getActionStatus` + `getActionShorthandStatusObject`. The double assertion
 	// is needed because TypeScript can't verify overlap between the widened object
 	// and the distributed intersection-over-union (`UseActionHookReturn & { optimisticState }`).
@@ -522,7 +522,7 @@ const useStateActionInternal = <
 
 	// ─── Return ───────────────────────────────────────────────────────────
 
-	// Cast rationale: same as `useAction` — runtime consistency guaranteed by
+	// Cast rationale: same as `useAction`: runtime consistency guaranteed by
 	// `getActionStatus` + `getActionShorthandStatusObject`. The double assertion
 	// through `unknown` is needed because TypeScript can't verify overlap between
 	// the widened object and the distributed intersection-over-union.
@@ -614,11 +614,11 @@ export const useOptimisticStateAction = <
 	//
 	// Two different "last confirmed" values are tracked, because they answer different questions:
 	//
-	//   `lastConfirmedRef`  — what the USER SEES. Advances only when `useActionState` commits.
+	//   `lastConfirmedRef`:  what the USER SEES. Advances only when `useActionState` commits.
 	//                         React withholds that commit until the whole queue drains and drops
 	//                         every optimistic payload in the same commit, so a base derived from
 	//                         it can never double-apply a payload that is still attached.
-	//   `lastServerDataRef` — what the SERVER GETS. Advances the moment a dispatch settles, before
+	//   `lastServerDataRef`: what the SERVER GETS. Advances the moment a dispatch settles, before
 	//                         any commit, because the next queued dispatch runs immediately and
 	//                         needs its predecessor's domain state.
 	//
@@ -829,7 +829,7 @@ export const useOptimisticStateAction = <
 		addOptimisticRef.current = addOptimistic;
 	});
 
-	// Cast rationale: same as `useOptimisticAction` — runtime consistency is guaranteed by
+	// Cast rationale: same as `useOptimisticAction`: runtime consistency is guaranteed by
 	// `getActionStatus` + `getActionShorthandStatusObject`, but TypeScript can't verify overlap
 	// between the widened object and the distributed intersection-over-union.
 	return {

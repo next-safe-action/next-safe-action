@@ -319,7 +319,7 @@ export function actionBuilder<
 		// since it's set at the action level and overrides the client setting.
 		// `throwServerError` is gated on the absence of `validationErrors` so that
 		// the advertised precedence (validationErrors > serverError > data) is
-		// honored even when a compound state reaches this point — e.g. invalid
+		// honored even when a compound state reaches this point, e.g. invalid
 		// bind args (wrapped as `serverError`) combined with invalid main input
 		// (`validationErrors`). In that case we must not throw the wrapped bind
 		// args server error and lose the actionable field errors.

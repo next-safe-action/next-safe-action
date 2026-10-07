@@ -34,7 +34,7 @@ export function useActionBase<ServerError, Schema extends StandardSchemaV1 | und
 	isTransitioning: boolean;
 	// Exposed as `NormalizeActionResult<...>` so that void-returning actions
 	// surface `data: undefined` rather than `data: void | undefined`. The
-	// internal `useState` still holds the raw `SafeActionResult` union — the
+	// internal `useState` still holds the raw `SafeActionResult` union, the
 	// type-only narrowing happens once at this boundary via a cast.
 	result: NormalizeActionResult<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>;
 	clientInput: InferInputOrDefault<Schema, void> | undefined;
@@ -250,7 +250,7 @@ export function useActionBase<ServerError, Schema extends StandardSchemaV1 | und
 		isTransitioning,
 		// `result` and `executeAsync` are structurally compatible with
 		// `NormalizeActionResult<SafeActionResult<...>>` for every concrete `Data`
-		// the runtime ever produces — `NormalizeActionResult` only drops the
+		// the runtime ever produces, `NormalizeActionResult` only drops the
 		// `{ data: void }` branch, which the action builder never emits (see
 		// `buildResultAndRunCallbacks` in `action-builder.ts`). TypeScript can't
 		// verify this while `Data` is still a free generic, so the cast is
