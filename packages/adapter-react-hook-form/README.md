@@ -9,9 +9,10 @@ This adapter offers a way to seamlessly integrate [next-safe-action](https://git
 
 - React >= `19.0.0`
 - Next.js >= `15.1.0`
-- next-safe-action >= `7.6.0`
+- Node.js >= `18.18`
+- next-safe-action >= `9.0.0`
 - react-hook-form >= `7.0.0`
-- @hookform/resolvers >= `3.0.0`
+- @hookform/resolvers >= `5.0.0`
 
 # Installation
 
@@ -55,7 +56,7 @@ import { actionClient } from "@/lib/safe-action";
 import { loginSchema } from "./validation";
 import { checkCredentials } from "@/services/auth";
 
-export const loginAction = actionClient.schema(loginSchema).action(async ({ parsedInput }) => {
+export const loginAction = actionClient.inputSchema(loginSchema).action(async ({ parsedInput }) => {
 	const valid = await checkCredentials(parsedInput.username, parsedInput.password);
 
 	// If the credentials are invalid, return root validation error.
@@ -137,7 +138,7 @@ import { addTodoSchema } from "./validation";
 import { badWordsCheck } from "@/utils";
 import { saveTodoInDb } from "@/services/db";
 
-export const addTodoAction = actionClient.schema(addTodoSchema).action(async ({ parsedInput }) => {
+export const addTodoAction = actionClient.inputSchema(addTodoSchema).action(async ({ parsedInput }) => {
 	const containsBadWords = badWordsCheck(parsedInput.newTodo);
 
 	// If the todo con

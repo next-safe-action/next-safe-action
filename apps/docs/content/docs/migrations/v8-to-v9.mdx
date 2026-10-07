@@ -1,0 +1,579 @@
+---
+title: Migration from v8 to v9
+description: Learn how to migrate from next-safe-action version 8 to version 9, with an automated codemod and a step-by-step checklist for AI coding agents.
+---
+
+Version 9 is a cleanup release. It raises the minimum supported versions of Next.js, React, and Node.js, removes the APIs that were deprecated during v8, ships built-in [route handlers](/docs/advanced/route-handlers), and fixes how framework signals are handled during `cacheComponents` prerenders.
+
+For most apps, the upgrade is two commands: update the dependencies, then run the codemod. The codemod rewrites the removed APIs for you and reports everything it cannot change safely.
+
+<Callout title="Using an AI coding agent?">
+Point your agent to the [For AI agents](#for-ai-agents) section. It is a deterministic checklist with detection commands, exact transformations, and done criteria for every change. The raw Markdown of this page is available at `https://next-safe-action.dev/docs/migrations/v8-to-v9.md`.
+</Callout>
+
+## Breaking changes at a glance
+
+Every breaking change has a stable rule id. The codemod uses the same ids in its output, and each id links to its section on this page.
+
+| Rule id | Change | Replacement | Codemod |
+|---|---|---|---|
+| [`V9-01`](#v9-01) | `next-safe-action/stateful-hooks` entry point removed | Import `useStateAction` from `next-safe-action/hooks` | Full |
+| [`V9-02`](#v9-02) | Deprecated type aliases removed (`HookSafeActionFn`, `HookSafeStateActionFn`, `DVES`, `StateServerCodeFn`, `SafeActionUtils`) | The current names, same generic parameters | Full |
+| [`V9-03`](#v9-03) | `.schema()` client method removed | `.inputSchema()` | Partial: rewrites calls on proven safe action clients, reports the rest |
+| [`V9-04`](#v9-04) | Next.js >= 15.1.0, React >= 19.0.0, Node.js >= 18.18, adapters require next-safe-action >= 9.0.0 | Update your dependencies | Reports only, never edits `package.json` |
+
+Apart from these changes and the [behavior change](#behavior-changes) for prerender signals, the public API of v9 is the same as v8.7.
+
+## Upgrade in 5 steps
+
+<Steps>
+<Step>
+
+### Update dependencies
+
+Install next-safe-action v9:
+
+```package-install
+npm install next-safe-action@9
+```
+
+If you use any first-party adapter, update it in the same step. Every adapter release that supports v9 requires `next-safe-action` >= 9.0.0, so the core package and the adapters must move together. Install only the adapters you use:
+
+```package-install
+npm install @next-safe-action/adapter-react-hook-form@latest @next-safe-action/adapter-tanstack-query@latest @next-safe-action/adapter-better-auth@latest
+```
+
+If your app runs on Next.js older than 15.1.0 or React older than 19.0.0, upgrade them too:
+
+```package-install
+npm install next@^15.1.0 react@^19 react-dom@^19
+```
+
+TypeScript users should also install `@types/react@^19` and `@types/react-dom@^19` as dev dependencies. See [New minimum requirements](#v9-04) for the full list.
+
+<Callout title="Coming from Next.js 14?">
+Upgrading Next.js from 14 to 15 is a separate migration with its own breaking changes (async request APIs, caching defaults, React 19). Follow the [Next.js 15 upgrade guide](https://nextjs.org/docs/app/guides/upgrading/version-15) first, then come back to this guide. If you cannot upgrade Next.js yet, stay on next-safe-action v8.
+</Callout>
+
+</Step>
+<Step>
+
+### Commit your work
+
+The codemod refuses to run on a git working tree with uncommitted changes, so you can always review and revert what it did. Commit (or stash) the dependency update:
+
+```bash
+git add -A
+git commit -m "chore: upgrade next-safe-action to v9"
+```
+
+</Step>
+<Step>
+
+### Run the codemod
+
+Preview the changes first. `--dry` writes nothing:
+
+```bash
+npx @next-safe-action/codemod@latest v9 --dry
+```
+
+Then apply them:
+
+```bash
+npx @next-safe-action/codemod@latest v9
+```
+
+Run both commands from your project root. To limit the run to specific files or directories, pass them as arguments, for example `npx @next-safe-action/codemod@latest v9 src`. See the [codemod reference](#codemod-reference) for all flags.
+
+</Step>
+<Step>
+
+### Resolve manual items
+
+The codemod prints a list of manual items: places it found but could not change safely. Each item has a rule id, a file and line, a reason, a suggested fix, and a link to the matching section of this page. Fix each one by hand.
+
+</Step>
+<Step>
+
+### Verify
+
+Type check, lint, test, and build your app:
+
+```bash
+npx tsc --noEmit
+npm run lint
+npm test
+npm run build
+```
+
+Use your own script names. TypeScript reports every leftover use of a removed API in typed code, so a clean `tsc --noEmit` is the strongest signal that the migration is complete. Review `git diff`, then commit.
+
+</Step>
+</Steps>
+
+## For AI agents [#for-ai-agents]
+
+This section is a deterministic procedure for AI coding agents. Humans can use it too, as a checklist. Follow the steps in order. Every step has a command, an expected result, and a done criterion.
+
+Machine-readable versions of the docs:
+
+- This page as Markdown: `https://next-safe-action.dev/docs/migrations/v8-to-v9.md`
+- Index of all pages: `https://next-safe-action.dev/llms.txt`
+- All pages in one file: `https://next-safe-action.dev/llms-full.txt`
+
+Any docs page is available as Markdown when you append `.md` to its URL.
+
+### Ground rules
+
+- The migration does not change application behavior. It renames imports, types, and one method, and it updates dependency versions. Do not refactor anything else.
+- Use the package manager the project already uses. Detect it from the lockfile: `package-lock.json` (npm), `pnpm-lock.yaml` (pnpm), `yarn.lock` (yarn), `bun.lock` or `bun.lockb` (bun). In a monorepo, run the install command in the workspace that depends on `next-safe-action` (for example `pnpm --filter <app> add ...`).
+- Never rename a `.schema(` call unless its receiver is a next-safe-action client. Other libraries have `.schema()` methods too.
+- Never pass `--force` to the codemod to get past a dirty working tree unless the user approved it. Commit or stash first, or ask.
+- Write codemod reports outside the repository (for example in `$TMPDIR`). A report file inside the repository makes the working tree dirty, and the codemod then refuses to run.
+
+### Step 1: Check and update dependencies (V9-04)
+
+Read the installed versions:
+
+```bash
+node --version
+npm ls next react react-dom next-safe-action @next-safe-action/adapter-react-hook-form @next-safe-action/adapter-tanstack-query @next-safe-action/adapter-better-auth
+```
+
+With pnpm, use `pnpm ls` with the same arguments. With yarn, use `yarn why <package>`. With bun, use `bun pm ls`.
+
+Required minimums:
+
+| Package | Minimum |
+|---|---|
+| Node.js | 18.18 |
+| `next` | 15.1.0 |
+| `react`, `react-dom` | 19.0.0 |
+| `next-safe-action` | 9.0.0 |
+| `@next-safe-action/adapter-react-hook-form` | 3.0.0 |
+| `@next-safe-action/adapter-tanstack-query` | 0.2.0 |
+| `@next-safe-action/adapter-better-auth` | 0.2.0 |
+
+Update commands. Add only the adapters that are already dependencies of the project:
+
+| Package manager | Command |
+|---|---|
+| npm | `npm install next-safe-action@9 @next-safe-action/adapter-react-hook-form@latest` |
+| pnpm | `pnpm add next-safe-action@9 @next-safe-action/adapter-react-hook-form@latest` |
+| yarn | `yarn add next-safe-action@9 @next-safe-action/adapter-react-hook-form@latest` |
+| bun | `bun add next-safe-action@9 @next-safe-action/adapter-react-hook-form@latest` |
+
+If `next` is older than 15.1.0, stop and tell the user: a Next.js 14 to 15 upgrade is a separate migration (see the [Next.js 15 upgrade guide](https://nextjs.org/docs/app/guides/upgrading/version-15)). If only `react`/`react-dom` are below 19.0.0 on Next.js >= 15.1.0, install `react@^19 react-dom@^19` and, for TypeScript projects, `@types/react@^19 @types/react-dom@^19`.
+
+**Done when:** every package in the table meets its minimum, and the package manager reports no peer dependency errors for `next-safe-action` or its adapters. Then commit the dependency update.
+
+### Step 2: Run the codemod with a JSON report
+
+Preview, with the report outside the repository:
+
+```bash
+npx @next-safe-action/codemod@latest v9 --dry --json > "${TMPDIR:-/tmp}/nsa-v9-dry.json"
+```
+
+Apply, after the working tree is clean:
+
+```bash
+npx @next-safe-action/codemod@latest v9 --json > "${TMPDIR:-/tmp}/nsa-v9.json"
+```
+
+The report has four arrays. Consume them in this order:
+
+1. `environment`: one entry per package or runtime requirement (rule `V9-04`). For every entry whose `status` does not say the requirement is met, run the command in `fix`, then commit.
+2. `changes`: the edits the codemod made (`rule`, `file`, `line`, `before`, `after`). Review them with `git diff`. No action is needed unless an edit looks wrong.
+3. `manual`: places the codemod found but did not change. For each entry, open `file` at `line`:`column`, read `why`, apply `fix`, and use the section linked in `docs` (`#v9-01` to `#v9-04`) for the exact transformation.
+4. `skipped`: anything the codemod did not process. Check those files by hand with the detection commands in Step 3.
+
+To list the manual items in a compact form (requires `jq`):
+
+```bash
+jq -r '.manual[] | "\(.rule) \(.file):\(.line):\(.column) \(.fix)"' "${TMPDIR:-/tmp}/nsa-v9.json"
+```
+
+The exit code is `0` even when there are manual items, so read the `manual` array instead of relying on the exit code. Exit code `1` means an error or a dirty working tree. The full format is in [Report format](#report-format).
+
+**Done when:** the codemod ran without `--dry`, `environment` has no unmet requirements, and every `manual` and `skipped` entry is resolved.
+
+### Step 3: Check every rule
+
+Run these checks even after the codemod, to catch anything it could not see. `rg` (ripgrep) skips files ignored by `.gitignore`, so `node_modules` and build output are not searched.
+
+#### V9-01: `next-safe-action/stateful-hooks`
+
+Detect:
+
+```bash
+rg -n "next-safe-action/stateful-hooks"
+```
+
+Transform: replace the module specifier `next-safe-action/stateful-hooks` with `next-safe-action/hooks`. The imported names do not change. This applies to every form: `import`, `import type`, `export ... from`, `import()`, `require()`, `vi.mock()`, `jest.mock()`, and any path alias or text that names the module.
+
+```ts
+// before
+import { useStateAction } from "next-safe-action/stateful-hooks";
+// after
+import { useStateAction } from "next-safe-action/hooks";
+```
+
+False positives: none. Historical text, such as a changelog, can stay as is.
+
+**Done when:** the search returns no hits outside historical text.
+
+#### V9-02: removed type aliases
+
+Detect:
+
+```bash
+rg -nw "HookSafeActionFn|HookSafeStateActionFn|DVES|StateServerCodeFn|SafeActionUtils"
+```
+
+Transform: rename the identifier in the import and at every use. Keep the generic arguments as they are: they have the same parameters in the same order.
+
+| Removed | Replacement | Import from |
+|---|---|---|
+| `HookSafeActionFn` | `SingleInputActionFn` | `next-safe-action/hooks` |
+| `HookSafeStateActionFn` | `SingleInputStateActionFn` | `next-safe-action/hooks` |
+| `DVES` | `ValidationErrorsFormat` | `next-safe-action` |
+| `StateServerCodeFn` | `StatefulServerCodeFn` | `next-safe-action` |
+| `SafeActionUtils` | `ActionCallbacks` | `next-safe-action` |
+
+```ts
+// before
+import type { DVES as Format, SafeActionUtils } from "next-safe-action";
+// after
+import type { ValidationErrorsFormat as Format, ActionCallbacks } from "next-safe-action";
+```
+
+For an aliased import, rename only the imported name and keep the local alias. For a namespace import (`import type * as NSA from "next-safe-action"`), rename the member access (`NSA.DVES` becomes `NSA.ValidationErrorsFormat`). For a re-export (`export type { DVES } from "next-safe-action"`), rename the exported name, or keep the old public name with `export type { ValidationErrorsFormat as DVES } from "next-safe-action"` if other packages depend on it.
+
+False positives: an identifier with one of these names that is declared locally or imported from another package. Rename only identifiers that come from `next-safe-action` or `next-safe-action/hooks`, directly or through a re-export.
+
+**Done when:** every remaining hit is declared somewhere else than next-safe-action.
+
+#### V9-03: `.schema()` method
+
+Detect:
+
+```bash
+rg -n "\.schema\s*[(<]"
+```
+
+Transform: rename `.schema(` to `.inputSchema(` when the receiver is a next-safe-action client. The arguments do not change, including async schema factories.
+
+```ts
+// before
+export const action = actionClient.schema(schema).action(async ({ parsedInput }) => {});
+// after
+export const action = actionClient.inputSchema(schema).action(async ({ parsedInput }) => {});
+```
+
+A receiver is a next-safe-action client when it is the return value of `createSafeActionClient()`, or the result of calling a client method on one (`.use()`, `.useValidated()`, `.metadata()`, `.bindArgsSchemas()`, `.outputSchema()`). Trace the receiver back to its declaration, through imports and re-exports, to decide. Calls often sit on their own line in a method chain, so read the lines above each hit.
+
+False positives: this pattern also matches `.schema()` methods of other libraries (validation libraries, ORMs, query builders, API clients). Leave those unchanged.
+
+**Done when:** every remaining hit has a receiver that is not a next-safe-action client, and `tsc --noEmit` passes. In typed code, a leftover call fails with `Property 'schema' does not exist on type 'SafeActionClient<...>'`.
+
+#### V9-04: requirements
+
+Covered by Step 1. **Done when:** the Step 1 criterion holds.
+
+### Step 4: Verify
+
+Run the project's own scripts. Typical commands:
+
+```bash
+npx tsc --noEmit
+npm run lint
+npm test
+npm run build
+```
+
+**Done when** all of these hold:
+
+- The Step 3 searches return no unreviewed hits.
+- `tsc --noEmit` passes (for TypeScript projects).
+- Lint, tests, and the production build pass, or fail only for reasons that also fail on the commit before the migration.
+
+Report the result to the user with the list of manual fixes you applied.
+
+## Removed `stateful-hooks` entry point [#v9-01]
+
+**What changed:** the `next-safe-action/stateful-hooks` entry point is removed.
+
+**Why:** the entry point existed to keep code that needs React 19 (`useActionState`) away from React 18 builds. Since v8.3.0, `useStateAction` is exported from `next-safe-action/hooks`, and `stateful-hooks` was only a re-export kept for backward compatibility. Now that v9 requires React 19, a separate entry point has no purpose.
+
+```ts title="v8"
+import { useStateAction } from "next-safe-action/stateful-hooks";
+```
+
+```ts title="v9"
+import { useStateAction } from "next-safe-action/hooks";
+```
+
+**Codemod:** full. It rewrites every specifier form: static imports, type imports, re-exports, dynamic `import()`, `require()`, and `vi.mock()` calls.
+
+**Manual steps:** none in JavaScript and TypeScript code. The codemod reports mentions in other files (for example Markdown, MDX, Vue, Svelte, or Astro) as manual items.
+
+## Removed deprecated type aliases [#v9-02]
+
+**What changed:** five type aliases that were deprecated in v8 are removed.
+
+| Removed | Replacement | Import from |
+|---|---|---|
+| `HookSafeActionFn` | `SingleInputActionFn` | `next-safe-action/hooks` |
+| `HookSafeStateActionFn` | `SingleInputStateActionFn` | `next-safe-action/hooks` |
+| `DVES` | `ValidationErrorsFormat` | `next-safe-action` |
+| `StateServerCodeFn` | `StatefulServerCodeFn` | `next-safe-action` |
+| `SafeActionUtils` | `ActionCallbacks` | `next-safe-action` |
+
+**Why:** the new names describe what the types are. The old names were aliases kept only for backward compatibility. The replacements take the same generic parameters, in the same order.
+
+```ts title="v8"
+import type { HookSafeActionFn } from "next-safe-action/hooks";
+import type { SafeActionUtils } from "next-safe-action";
+```
+
+```ts title="v9"
+import type { SingleInputActionFn } from "next-safe-action/hooks";
+import type { ActionCallbacks } from "next-safe-action";
+```
+
+`MiddlewareResult` is not affected: its signature is the same as in v8.
+
+**Codemod:** full. Renames are import-aware: the codemod changes an identifier only when it comes from next-safe-action, and it handles aliased imports, re-exports, and namespace access.
+
+**Manual steps:** none in code. The codemod reports leftover mentions in text, such as Markdown or MDX docs, as manual items.
+
+## Removed `.schema()` method [#v9-03]
+
+**What changed:** the `.schema()` method of the safe action client is removed.
+
+**Why:** v8 renamed `.schema()` to `.inputSchema()` to make the difference with `.outputSchema()` clear, and kept `.schema()` as a deprecated alias. See the [v7 to v8 migration guide](/docs/migrations/v7-to-v8#-schema-method-renamed-to-inputschema).
+
+```ts title="v8"
+export const updateUser = authActionClient
+	.schema(async (prevSchema) => prevSchema.extend({ name: z.string() }))
+	.action(async ({ parsedInput }) => {
+		/* ... */
+	});
+```
+
+```ts title="v9"
+export const updateUser = authActionClient
+	.inputSchema(async (prevSchema) => prevSchema.extend({ name: z.string() }))
+	.action(async ({ parsedInput }) => {
+		/* ... */
+	});
+```
+
+**Codemod:** partial. The codemod renames a `.schema()` call only when it can prove that the receiver is a next-safe-action client. It follows the client across files with TypeScript symbol resolution, including `tsconfig.json` paths and barrel files. A chain that looks like a client but cannot be resolved (for example a client typed as `any`, or one created in plain JavaScript without type information) becomes a manual item. `.schema()` calls on other libraries are never changed.
+
+**Manual steps:** for each manual item, check that the receiver is a next-safe-action client and rename the call to `.inputSchema()`. In TypeScript code, `tsc --noEmit` reports every call that is left.
+
+## New minimum requirements [#v9-04]
+
+**What changed:**
+
+| Requirement | v8 | v9 |
+|---|---|---|
+| Next.js | >= 14.0.0 | >= 15.1.0 |
+| React and React DOM | >= 18.2.0 | >= 19.0.0 |
+| Node.js | >= 18.17 | >= 18.18 |
+
+All first-party adapters now require `next-safe-action` >= 9.0.0 and the same Next.js, React, and Node.js minimums. These are the first adapter releases for v9:
+
+| Adapter | First release for v9 | Previous `next-safe-action` requirement |
+|---|---|---|
+| `@next-safe-action/adapter-react-hook-form` | 3.0.0 | >= 8.1.10 |
+| `@next-safe-action/adapter-tanstack-query` | 0.2.0 | >= 8.1.10 |
+| `@next-safe-action/adapter-better-auth` | 0.2.0 | >= 8.4.0 |
+
+**Why:**
+
+- **Next.js 15.1:** next-safe-action detects `notFound()` through the `NEXT_HTTP_ERROR_FALLBACK;404` error digest, which Next.js introduced in 15.1. On Next.js 15.0.x, a `notFound()` call in an action was not detected as a navigation.
+- **React 19:** the hooks use React 19's `useActionState` and `useOptimistic`. v8 had a runtime check that threw a descriptive error when `useActionState` was missing. v9 removes this check, because React 19 is now a hard requirement.
+- **Node.js 18.18:** this is the minimum Node.js version of Next.js 15.1.
+
+**Codemod:** reports only. It never edits `package.json`. It lists every requirement that is not met and prints the install command for your package manager.
+
+**Manual steps:** update your dependencies as described in [Update dependencies](#update-dependencies). If you must stay on Next.js 14 or 15.0, stay on next-safe-action v8.
+
+## Behavior changes [#behavior-changes]
+
+### Prerender signals are re-thrown to Next.js
+
+With `cacheComponents` (or the earlier `dynamicIO` flag), Next.js throws two control-flow signals while it prerenders a route:
+
+- `HANGING_PROMISE_REJECTION`: a request data promise (for example `cookies()`) rejects when the prerender is complete.
+- `NEXT_PRERENDER_INTERRUPTED`: a call such as `revalidatePath()` or `draftMode()` interrupts the prerender.
+
+In v8, next-safe-action treated these signals as ordinary errors. They went to `handleServerError` (which logs them by default), fired the `onError` callback, and produced a `serverError` result.
+
+In v9, they are handled like the other framework signals, which is the same set that Next.js `unstable_rethrow()` re-throws:
+
+- The server-side `onNavigation` and `onSettled` action callbacks run with `navigationKind: "other"`.
+- The signal is then re-thrown, so Next.js can handle it.
+- `handleServerError` and `onError` are not called, and no `serverError` result is returned.
+- `isNavigationError()` returns `true` for these signals.
+
+**What you need to do:** usually nothing. If your `handleServerError` or `onError` code filtered these digests by hand, you can remove that code. If you relied on seeing these signals in `handleServerError` (for example, to count them), you will not see them there anymore. See [Framework navigation/errors](/docs/advanced/framework-errors) for details.
+
+### Internal changes
+
+The hooks no longer write React refs during render. This has no effect on the public API or on how the hooks behave.
+
+## New features
+
+### Built-in route handlers
+
+next-safe-action can now expose selected actions as JSON endpoints through a Next.js catch-all Route Handler, and generate an OpenAPI 3.1 document from their schemas. The feature is built into the core package, with two new server-only entry points:
+
+- `next-safe-action/routes`: `createRouter()`, `mergeRouters()`, and `createRouteHandlers()`.
+- `next-safe-action/routes/openapi`: `generateOpenApiDocument()`.
+
+There is nothing to migrate: your actions keep working as they are, and you can expose them over HTTP when you need it. See [Route handlers](/docs/advanced/route-handlers).
+
+## Codemod reference [#codemod-reference]
+
+```bash
+npx @next-safe-action/codemod@latest v9 [paths...] [flags]
+```
+
+Run it from the project root. Pass paths to process only specific files or directories.
+
+### Flags
+
+| Flag | Effect |
+|---|---|
+| `--dry` | Analyze and report, but write no files. Also runs on a dirty working tree. |
+| `--print` | Print the transformed files instead of writing them. |
+| `--force` | Skip the clean git working tree check. |
+| `--json` | Print a machine-readable report on stdout. See [Report format](#report-format). |
+
+### What it does
+
+| Rule | Action |
+|---|---|
+| `V9-01` | Rewrites `next-safe-action/stateful-hooks` to `next-safe-action/hooks` in every specifier form: static and type imports, re-exports, dynamic `import()`, `require()`, and `vi.mock()`. |
+| `V9-02` | Renames the removed type aliases, but only identifiers that come from next-safe-action. Handles aliased imports, re-exports, and namespace access. |
+| `V9-03` | Renames `.schema()` to `.inputSchema()` on receivers that it proves are next-safe-action clients, with TypeScript symbol resolution across files (including `tsconfig.json` paths and barrel files). Client-like chains that it cannot resolve become manual items. |
+| `V9-04` | Checks the installed versions of Next.js, React, Node.js, next-safe-action, and the adapters. Reports problems and prints the install command for the detected package manager. Never edits `package.json`. |
+
+After the rewrites, a text scan looks for leftovers of `V9-01` to `V9-03` in all scanned files, including Markdown, MDX, Vue, Svelte, and Astro files, and reports each one as a manual item.
+
+### Safety
+
+- The codemod refuses to write files when the git working tree has uncommitted changes, so you can always review its edits with `git diff` and revert them. Use `--dry` to preview, or `--force` to skip the check.
+- It never edits `package.json` or lockfiles.
+- It never changes `.schema()` calls that it cannot prove belong to a next-safe-action client.
+
+### Report format [#report-format]
+
+With `--json`, the codemod prints one JSON object on stdout:
+
+```ts
+type CodemodReport = {
+	// Edits the codemod made (or would make, with --dry).
+	changes: Array<{
+		rule: string; // "V9-01" | "V9-02" | "V9-03"
+		file: string;
+		line: number;
+		before: string;
+		after: string;
+	}>;
+	// Places the codemod found but did not change. Fix each one by hand.
+	manual: Array<{
+		rule: string;
+		file: string;
+		line: number;
+		column: number;
+		snippet: string; // the code or text at that position
+		why: string; // why the codemod did not change it
+		fix: string; // what to do
+		docs: string; // link to the matching section of this guide
+	}>;
+	// Dependency and runtime requirements (rule V9-04).
+	environment: Array<{
+		rule: string; // "V9-04"
+		package: string;
+		found: string;
+		required: string;
+		status: string;
+		fix: string; // install command for the detected package manager
+	}>;
+	// Anything that was not processed.
+	skipped: Array<unknown>;
+};
+```
+
+### Exit codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Success, also when the report has manual items. |
+| `1` | An error occurred, or the git working tree is dirty (without `--dry` or `--force`). |
+
+### Limitations
+
+- It does not update dependencies. Do that yourself, see [Update dependencies](#update-dependencies).
+- It does not rename `.schema()` calls on clients that it cannot resolve. They are reported as manual items.
+- It reports leftovers in Markdown, MDX, Vue, Svelte, and Astro files, but does not change them.
+- It can change the formatting of the lines it edits. Run your formatter after the codemod.
+
+## Troubleshooting [#troubleshooting]
+
+### Peer dependency warnings or `ERESOLVE` errors after the upgrade
+
+The package manager found a version that does not meet a requirement. The usual causes:
+
+- An adapter was updated, but `next-safe-action` is still on v8. The adapter releases for v9 require `next-safe-action` >= 9.0.0. Install `next-safe-action@9`.
+- `next`, `react`, or `react-dom` is below the new minimum. See [New minimum requirements](#v9-04).
+
+Do not silence the warnings with `--force` or `--legacy-peer-deps`: they point at a real version mismatch.
+
+### The adapters and the core package have mismatched versions
+
+Update the core package and every adapter you use in the same install command (see [Update dependencies](#update-dependencies)). Then make sure there is only one copy of `next-safe-action`: `npm ls next-safe-action` (or `pnpm ls`, `yarn why`, `bun pm ls`) must show a single 9.x version. In a monorepo, every workspace must use the same major version.
+
+### `Cannot find module 'next-safe-action/stateful-hooks'`
+
+Import `useStateAction` from `next-safe-action/hooks`. See [V9-01](#v9-01).
+
+### `Module '"next-safe-action"' has no exported member 'DVES'`
+
+The same error for `HookSafeActionFn`, `HookSafeStateActionFn`, `StateServerCodeFn`, or `SafeActionUtils` means that the type alias was removed. Use the new name. See [V9-02](#v9-02).
+
+### `Property 'schema' does not exist on type 'SafeActionClient<...>'`
+
+Rename `.schema()` to `.inputSchema()`. See [V9-03](#v9-03).
+
+### The codemod refuses to run
+
+The git working tree has uncommitted changes. Commit or stash them and run the codemod again. To preview without writing files, use `--dry`. Use `--force` only if you can review the result some other way.
+
+### The codemod reported manual items, but the exit code is 0
+
+This is intentional. Exit code `0` means the codemod ran correctly. Read the manual items in its output (or the `manual` array of the `--json` report) and fix them by hand.
+
+### `handleServerError` no longer receives some errors during prerendering
+
+These are the `HANGING_PROMISE_REJECTION` and `NEXT_PRERENDER_INTERRUPTED` framework signals, which v9 re-throws to Next.js. See [Behavior changes](#behavior-changes).
+
+### I cannot upgrade to Next.js 15.1 or React 19 yet
+
+Stay on next-safe-action v8, which supports Next.js >= 14 and React >= 18.2.0:
+
+```package-install
+npm install next-safe-action@8
+```
+
+Upgrade to v9 after you upgrade Next.js and React.
+
+## What about v8?
+
+Version 8 stays available on npm. The v8 documentation source is available on [GitHub](https://github.com/next-safe-action/next-safe-action/tree/next-safe-action%408.7.3/apps/docs/content/docs).
