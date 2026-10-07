@@ -18,10 +18,6 @@
 			"types": "./dist/hooks.d.mts",
 			"default": "./dist/hooks.mjs"
 		},
-		"./stateful-hooks": {
-			"types": "./dist/stateful-hooks.d.mts",
-			"default": "./dist/stateful-hooks.mjs"
-		},
 		"./routes": {
 			"types": "./dist/routes.d.mts",
 			"default": "./dist/routes.mjs"
@@ -38,9 +34,6 @@
 			],
 			"hooks": [
 				"./dist/hooks.d.mts"
-			],
-			"stateful-hooks": [
-				"./dist/stateful-hooks.d.mts"
 			],
 			"routes": [
 				"./dist/routes.d.mts"

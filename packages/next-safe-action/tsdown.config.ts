@@ -4,7 +4,6 @@ export default defineConfig({
 	entry: {
 		"index": "src/index.ts",
 		"hooks": "src/hooks.ts",
-		"stateful-hooks": "src/stateful-hooks.ts",
 		"routes": "src/routes/index.ts",
 		"routes/openapi": "src/routes/openapi.ts",
 	},

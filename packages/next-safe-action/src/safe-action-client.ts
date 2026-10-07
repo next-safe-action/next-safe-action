@@ -283,12 +283,6 @@ export class SafeActionClient<
 	}
 
 	/**
-	 * @deprecated Alias for `inputSchema` method. Use that instead.
-	 */
-	// oxlint-disable-next-line typescript/unbound-method
-	schema = this.inputSchema;
-
-	/**
 	 * Define the bind args input validation schema for the action.
 	 * Cannot be called after `useValidated()`.
 	 * @param bindArgsSchemas Bind args input validation schemas

@@ -73,7 +73,7 @@
 	"peerDependencies": {
 		"better-auth": ">= 1.5.0",
 		"next": ">= 15.1.0",
-		"next-safe-action": ">= 8.4.0"
+		"next-safe-action": ">= 9.0.0"
 	},
 	"engines": {
 		"node": ">=18.18"

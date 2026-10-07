@@ -254,18 +254,17 @@ export type SafeStateActionFn<
  * This is intentionally a flat object rather than `SafeActionResult & { ... }`, because
  * `SafeActionResult` is now a discriminated union and intersecting it with additional
  * fields would prevent mutation of `data`/`serverError`/`validationErrors` during
- * middleware execution. The public shape (the set of readable fields) is unchanged.
+ * middleware execution.
  *
- * `NextCtx` is a phantom generic parameter kept for backward compatibility with the
- * previous signature — it is intentionally unused in the body so that
- * `MiddlewareResult<SE, A>` and `MiddlewareResult<SE, B>` remain mutually assignable
- * (as they were when this type intersected `SafeActionResult<..., NextCtx>`, where
- * `NextCtx` was likewise phantom).
+ * `NextCtx` does not appear in the body, but it is NOT dead: it carries the context type that
+ * `next({ ctx })` produced. TypeScript infers type arguments from matching alias references, so a
+ * middleware returning `Promise<MiddlewareResult<SE, NC>>` is how `use()`, `useValidated()`, and
+ * `createMiddleware().define()` infer the context a middleware adds. Removing the parameter turns
+ * every inferred middleware context into `object`. Because it is unused in the body,
+ * `MiddlewareResult<SE, A>` and `MiddlewareResult<SE, B>` stay mutually assignable.
  */
-// `data` and `validationErrors` are intentionally typed as `any` to match the
-// previous definition (`SafeActionResult<ServerError, any, any, any, NextCtx>
-// & { ... }`), preserving universal-donor assignability for middleware authors
-// who inspect the return value of `await next()`.
+// `data` and `validationErrors` are intentionally typed as `any`, preserving universal-donor
+// assignability for middleware authors who inspect the return value of `await next()`.
 // oxlint-disable-next-line no-unused-vars
 export type MiddlewareResult<ServerError, NextCtx extends object> = {
 	data?: any;
@@ -500,38 +499,3 @@ export type InferServerError<T> = T extends
  * Type of the core safe action client.
  */
 export { SafeActionClient };
-
-/**
- * Deprecated aliases kept for backward compatibility.
- */
-
-/**
- * @deprecated Use `ValidationErrorsFormat` instead.
- */
-export type DVES = ValidationErrorsFormat;
-
-/**
- * @deprecated Use `StatefulServerCodeFn` instead.
- */
-export type StateServerCodeFn<
-	ServerError,
-	Metadata,
-	Ctx extends object,
-	Schema extends StandardSchemaV1 | undefined,
-	BindArgsSchemas extends readonly StandardSchemaV1[],
-	ShapedErrors,
-	Data,
-> = StatefulServerCodeFn<ServerError, Metadata, Ctx, Schema, BindArgsSchemas, ShapedErrors, Data>;
-
-/**
- * @deprecated Use `ActionCallbacks` instead.
- */
-export type SafeActionUtils<
-	ServerError,
-	Metadata,
-	Ctx extends object,
-	Schema extends StandardSchemaV1 | undefined,
-	BindArgsSchemas extends readonly StandardSchemaV1[],
-	ShapedErrors,
-	Data,
-> = ActionCallbacks<ServerError, Metadata, Ctx, Schema, BindArgsSchemas, ShapedErrors, Data>;
