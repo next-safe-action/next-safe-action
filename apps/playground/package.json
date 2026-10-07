@@ -32,7 +32,7 @@
 		"zod-form-data": "^3.0.3"
 	},
 	"devDependencies": {
-		"@playwright/test": "1.61.1",
+		"@playwright/test": "1.63.0",
 		"@tailwindcss/postcss": "catalog:",
 		"@types/node": "catalog:",
 		"@types/react": "catalog:",
