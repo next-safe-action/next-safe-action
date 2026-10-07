@@ -1,4 +1,4 @@
-import { mergeRouters } from "@next-safe-action/adapter-routes";
+import { mergeRouters } from "next-safe-action/routes";
 import { z } from "zod";
 import { routeCounter } from "../_actions/counter-action";
 import { createReport } from "../_actions/create-report-action";

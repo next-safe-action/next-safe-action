@@ -1,9 +1,9 @@
-import { createSafeActionClient } from "next-safe-action";
 import { expectTypeOf, test } from "vitest";
 import { z } from "zod";
-import { createRouteHandlers, createRouter, mergeRouters } from "../index";
-import type { Router } from "../index";
-import { generateOpenApiDocument } from "../openapi";
+import { createSafeActionClient } from "../../index";
+import { createRouteHandlers, createRouter, mergeRouters } from "../../routes";
+import type { Router } from "../../routes";
+import { generateOpenApiDocument } from "../../routes/openapi";
 
 const client = createSafeActionClient({ handleServerError: () => ({ code: "ERROR" as const }) });
 const update = client.inputSchema(z.object({ id: z.string(), title: z.string() })).action(async () => "ok");

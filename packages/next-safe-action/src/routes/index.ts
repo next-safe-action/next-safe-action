@@ -1,4 +1,5 @@
-import { ActionValidationError, inspectFrameworkError } from "next-safe-action";
+import { inspectFrameworkError } from "../next/errors";
+import { ActionValidationError } from "../validation-errors";
 import { isParameter, methods } from "./router";
 import type { HttpError, RouteContext, RouteHandlersOptions, Router } from "./types";
 

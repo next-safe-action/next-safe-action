@@ -21,7 +21,7 @@ test("the same route action remains usable through useAction", async ({ page }) 
 	expect(await response.json()).toEqual({ data: { count: 3 } });
 });
 
-test("client JavaScript excludes action definitions and the routes adapter", async ({ request }) => {
+test("client JavaScript excludes action definitions and the routes entry", async ({ request }) => {
 	// Check emitted files rather than the RSC payload, which can contain server-rendered source examples.
 	const root = join(process.cwd(), ".next/static");
 	for (const file of await readdir(root, { recursive: true })) {

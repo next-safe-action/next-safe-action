@@ -1,4 +1,4 @@
-import { createRouter } from "@next-safe-action/adapter-routes";
+import { createRouter } from "next-safe-action/routes";
 import { z } from "zod";
 import { createTodo } from "../_actions/create-todo-action";
 import { inviteMember } from "../_actions/invite-member-action";

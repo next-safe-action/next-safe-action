@@ -1,8 +1,8 @@
-import { ActionValidationError, createSafeActionClient, returnServerError } from "next-safe-action";
 import { expect, it, vi } from "vitest";
 import { z } from "zod";
-import { createRouteHandlers, createRouter, mergeRouters } from "../index";
-import type { MutationMethod, RouteHandlersOptions, Router } from "../types";
+import { ActionValidationError, createSafeActionClient, returnServerError } from "../index";
+import { createRouteHandlers, createRouter, mergeRouters } from "../routes";
+import type { MutationMethod, RouteHandlersOptions, Router } from "../routes/types";
 
 const client = createSafeActionClient({ handleServerError: () => ({ code: "CUSTOM" }) });
 function echo(run = async (input: unknown): Promise<unknown> => input) {
@@ -507,7 +507,7 @@ it("reports the original cause of sanitized failures through onError only", asyn
 
 it("routes actions and recognizes thrown validation errors from a duplicate core instance", async () => {
 	vi.resetModules();
-	const duplicate = await import("next-safe-action");
+	const duplicate = await import("../index");
 	expect(duplicate.ActionValidationError).not.toBe(ActionValidationError);
 	const a = duplicate
 		.createSafeActionClient()

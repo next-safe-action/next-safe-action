@@ -21,6 +21,14 @@
 		"./stateful-hooks": {
 			"types": "./dist/stateful-hooks.d.mts",
 			"default": "./dist/stateful-hooks.mjs"
+		},
+		"./routes": {
+			"types": "./dist/routes.d.mts",
+			"default": "./dist/routes.mjs"
+		},
+		"./routes/openapi": {
+			"types": "./dist/routes/openapi.d.mts",
+			"default": "./dist/routes/openapi.mjs"
 		}
 	},
 	"typesVersions": {
@@ -33,6 +41,12 @@
 			],
 			"stateful-hooks": [
 				"./dist/stateful-hooks.d.mts"
+			],
+			"routes": [
+				"./dist/routes.d.mts"
+			],
+			"routes/openapi": [
+				"./dist/routes/openapi.d.mts"
 			]
 		}
 	},
@@ -62,7 +76,12 @@
 		"actions",
 		"react actions",
 		"next actions",
-		"server actions"
+		"server actions",
+		"route handlers",
+		"routes",
+		"rest",
+		"json",
+		"openapi"
 	],
 	"author": "Edoardo Ranghieri",
 	"license": "MIT",

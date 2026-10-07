@@ -1,6 +1,7 @@
 import { expectTypeOf, test } from "vitest";
-import { createSafeActionClient, getActionDefinition } from "../../index";
-import type { ActionDefinition } from "../../index";
+import { getActionDefinition } from "../../action-definition";
+import type { ActionDefinition } from "../../action-definition";
+import { createSafeActionClient } from "../../index";
 
 test("getActionDefinition accepts any value and may return undefined", () => {
 	const action = createSafeActionClient().action(async () => "ok");

@@ -71,7 +71,3 @@ export const createSafeActionClient = <
 				: formatValidationErrors(ve),
 	});
 };
-
-export { getActionDefinition } from "./action-definition";
-export type { ActionDefinition } from "./action-definition";
-export { inspectFrameworkError } from "./next/errors";

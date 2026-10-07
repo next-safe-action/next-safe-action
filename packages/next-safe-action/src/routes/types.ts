@@ -1,4 +1,5 @@
-import type { ActionDefinition, InferSafeActionFnInput, InferServerError } from "next-safe-action";
+import type { ActionDefinition } from "../action-definition";
+import type { InferSafeActionFnInput, InferServerError } from "../index.types";
 
 export type Schema = NonNullable<ActionDefinition["inputSchema"]>;
 export type JsonSchema = boolean | Record<string, unknown>;
@@ -99,7 +100,7 @@ export type Router<Prefix extends string = ""> = Readonly<{
 export type RouteHandlersOptions = {
 	pathParam?: string;
 	maxBodyBytes?: number;
-	/** Other origins that the origin check accepts. The adapter sends no CORS headers. */
+	/** Other origins that the origin check accepts. The route handlers send no CORS headers. */
 	allowedOrigins?: readonly string[];
 	/** Receives the original error behind every sanitized 500 response. The response stays sanitized and is not delayed. */
 	onError?: (error: unknown, context: { request: Request }) => void | Promise<void>;

@@ -1,4 +1,4 @@
-import { createRouteHandlers } from "@next-safe-action/adapter-routes";
+import { createRouteHandlers } from "next-safe-action/routes";
 import { router } from "@/app/routes/_lib/router";
 
 export const { POST, PUT, PATCH, DELETE } = createRouteHandlers(router, {

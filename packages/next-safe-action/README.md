@@ -14,6 +14,8 @@
 - ✅ Input/output validation using multiple validation libraries
 - ✅ Advanced server error handling
 - ✅ Optimistic updates
+- ✅ Expose actions as JSON route handlers, with optional OpenAPI 3.1 generation
+- ✅ Expose actions as JSON route handlers, with optional OpenAPI 3.1 generation
 
 ## Documentation
 

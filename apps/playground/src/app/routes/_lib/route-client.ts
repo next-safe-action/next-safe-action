@@ -10,7 +10,7 @@ export const actionClient = createSafeActionClient();
 export const apiKeyClient = actionClient.use(async ({ next }) => {
 	// Demonstration only: use a real secret store and a constant-time comparison.
 	if ((await headers()).get("x-api-key") !== "demo-key") {
-		// The adapter maps this Next.js access signal to a 401 response.
+		// The route handlers map this Next.js access signal to a 401 response.
 		unauthorized();
 	}
 

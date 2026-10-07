@@ -127,7 +127,7 @@ export class ActionValidationError<ShapedErrors> extends Error {
 	}
 }
 
-// Cross-instance brand: lets adapters recognize thrown validation errors even when a duplicate copy of this
+// Cross-instance brand: lets the routes entry recognize thrown validation errors even when a duplicate copy of this
 // package is loaded, mirroring the `Symbol.for` protocol used for action definitions.
 Object.defineProperty(ActionValidationError.prototype, Symbol.for("next-safe-action.validation-error.v1"), {
 	value: true,

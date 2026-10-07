@@ -1,10 +1,10 @@
-import { createSafeActionClient } from "next-safe-action";
 import { expect, it, vi } from "vitest";
 import { z } from "zod";
-import { createRouter, mergeRouters } from "../index";
-import { generateOpenApiDocument } from "../openapi";
-import type { OpenApiDocumentOptions } from "../openapi";
-import type { RouteOpenApi, Router } from "../types";
+import { createSafeActionClient } from "../index";
+import { createRouter, mergeRouters } from "../routes";
+import { generateOpenApiDocument } from "../routes/openapi";
+import type { OpenApiDocumentOptions } from "../routes/openapi";
+import type { RouteOpenApi, Router } from "../routes/types";
 
 const errors = { serverErrorSchema: { type: "string" }, validationErrorsSchema: { type: "object" } };
 const client = createSafeActionClient();
@@ -303,7 +303,7 @@ it("keeps every error alternative when server errors map to 400", () => {
 	expect(new Set(Object.keys(responses))).toEqual(
 		new Set(["200", "303", "400", "401", "403", "404", "413", "415", "500"])
 	);
-	// Sanitized adapter failures can always produce a 500 httpError.
+	// Sanitized route handler failures can always produce a 500 httpError.
 	expect(responses["500"]!.content["application/json"]!.schema).toEqual({ $ref: "#/components/schemas/HttpError" });
 });
 

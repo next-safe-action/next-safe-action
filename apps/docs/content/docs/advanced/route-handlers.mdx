@@ -3,19 +3,22 @@ title: Route handlers
 description: Expose selected safe actions as JSON API endpoints and generate an OpenAPI 3.1 document for Swagger UI or other viewers.
 ---
 
-The `@next-safe-action/adapter-routes` adapter exposes selected actions as JSON endpoints through a single Next.js catch-all Route Handler. The same validated action keeps working with the React hooks, and external clients (scripts, mobile apps, other services) can call it over HTTP. An optional entry point generates an OpenAPI 3.1 document from your schemas, so you can publish interactive API docs.
+next-safe-action can expose selected actions as JSON endpoints through a single Next.js catch-all Route Handler. The same validated action keeps working with the React hooks, and external clients (scripts, mobile apps, other services) can call it over HTTP. An optional entry point generates an OpenAPI 3.1 document from your schemas, so you can publish interactive API docs.
 
 <Callout title="Requirements">
-- next-safe-action >= 8.8.0
+- next-safe-action >= 9.0.0
 - Next.js >= 15.1.0 (App Router)
-- The adapter has no runtime dependencies.
+- No extra package: route handlers are built into `next-safe-action`.
 </Callout>
 
-## Installation
+## Entry points
 
-```package-install
-next-safe-action @next-safe-action/adapter-routes
-```
+Route handlers are part of the core package, so there is nothing else to install. Import them from two server-only subpath entry points:
+
+- `next-safe-action/routes`: `createRouter()`, `mergeRouters()`, and `createRouteHandlers()`.
+- `next-safe-action/routes/openapi`: `generateOpenApiDocument()`. This entry point is optional, and it adds to your bundle only when you import it.
+
+See [Entry points reference](#entry-points-reference) for the full list of exports.
 
 ## Quick start
 
@@ -48,7 +51,7 @@ export const createUser = actionClient
 The router maps actions to HTTP methods and paths. Put it in its own module, so the catch-all route and the [OpenAPI route](#2-serve-the-document) share it. Next.js rejects extra exports from a `route.ts` file, so the router cannot live there.
 
 ```ts title="src/lib/router.ts"
-import { createRouter } from "@next-safe-action/adapter-routes";
+import { createRouter } from "next-safe-action/routes";
 import { createUser } from "@/app/actions";
 
 export const router = createRouter().post("/users", createUser, { successStatus: 201 });
@@ -62,7 +65,7 @@ export const router = createRouter().post("/users", createUser, { successStatus:
 ### Create the catch-all route
 
 ```ts title="src/app/api/[[...path]]/route.ts"
-import { createRouteHandlers } from "@next-safe-action/adapter-routes";
+import { createRouteHandlers } from "next-safe-action/routes";
 import { router } from "@/lib/router";
 
 export const { POST, PUT, PATCH, DELETE } = createRouteHandlers(router);
@@ -122,7 +125,7 @@ A `"use server"` file can export only async functions. If the router needs a val
 - Concrete segments win over parameters, and this happens before the method is selected. If `POST /users/me` and `DELETE /users/{id}` both exist, `DELETE /users/me` returns `405`: it does not fall through to `/users/{id}`.
 - Duplicate routes, and overlapping templates where neither is more concrete (`/a/{x}` and `/{y}/b`), throw when the route is added.
 - An unknown path returns `404`. A known path with a different method returns `405` with an `Allow` header.
-- Methods that the route file does not export, such as `GET`, are answered by Next.js with its own `405`, outside the adapter's JSON format.
+- Methods that the route file does not export, such as `GET`, are answered by Next.js with its own `405`, outside the route handlers' JSON format.
 - If your catch-all folder has another name, for example `[[...slug]]`, set `pathParam: "slug"`. It must match the folder name.
 
 ## Subrouters
@@ -130,7 +133,7 @@ A `"use server"` file can export only async functions. If the router needs a val
 Pass a `prefix` to `createRouter()` to group related routes, then combine the routers with `mergeRouters()`:
 
 ```ts title="src/lib/router.ts"
-import { createRouter, mergeRouters } from "@next-safe-action/adapter-routes";
+import { createRouter, mergeRouters } from "next-safe-action/routes";
 
 const todos = createRouter({ prefix: "/todos" })
 	.post("/", createTodo) // POST /todos
@@ -192,7 +195,7 @@ The request body is an envelope with only `input` and `prevResult` keys:
 - `mapInput` receives only `input`, after the state validation.
 
 <Callout type="warn">
-`prevResult` is untrusted client data. `stateSchema` checks its shape, not its authenticity or freshness. Never derive permissions, identifiers, or server state from it that the action does not verify again. The adapter provides no session storage, replay protection, or concurrency control. `stateSchema` applies only to HTTP requests: the Server Action transport passes previous results straight from React.
+`prevResult` is untrusted client data. `stateSchema` checks its shape, not its authenticity or freshness. Never derive permissions, identifiers, or server state from it that the action does not verify again. Route handlers provide no session storage, replay protection, or concurrency control. `stateSchema` applies only to HTTP requests: the Server Action transport passes previous results straight from React.
 </Callout>
 
 ## Responses and errors
@@ -204,9 +207,9 @@ The request body is an envelope with only `input` and `prevResult` keys:
 | Server error returned by the action | `500`, or `serverErrorStatus(serverError)` | `{ serverError }` |
 | `redirect()` | `303` | Empty, with a `Location` header |
 | `unauthorized()`, `forbidden()`, `notFound()` | `401`, `403`, `404` | `{ httpError }` |
-| Adapter failure | `4xx` or `500` | `{ httpError: { code, message } }` |
+| Route handler failure | `4xx` or `500` | `{ httpError: { code, message } }` |
 
-The adapter error codes are:
+The route handler error codes are:
 
 | Status | Code | Cause |
 | --- | --- | --- |
@@ -232,7 +235,7 @@ createRouter().post("/usernames", reserveUsername, {
 });
 ```
 
-`successStatus` must be a `2xx` status that allows a body, so `204` and `205` are rejected. Use `headers` to add static response headers. The adapter always controls `Cache-Control` (`no-store`), `Content-Type`, `Content-Length`, and the `Access-Control-*` headers.
+`successStatus` must be a `2xx` status that allows a body, so `204` and `205` are rejected. Use `headers` to add static response headers. The handlers always control `Cache-Control` (`no-store`), `Content-Type`, `Content-Length`, and the `Access-Control-*` headers.
 
 ### Unexpected errors and `onError`
 
@@ -244,7 +247,7 @@ createRouteHandlers(router, {
 });
 ```
 
-The response stays a generic `500`. The adapter does not wait for an async `onError`, and ignores errors that it throws.
+The response stays a generic `500`. The handlers do not wait for an async `onError`, and ignores errors that it throws.
 
 ### JSON serialization
 
@@ -258,7 +261,7 @@ These endpoints are public HTTP APIs. The built-in protections of the Server Act
 
 ### Authentication belongs in middleware
 
-The adapter does no authentication, authorization, or rate limiting. Add them as middleware on the client, like for any other action. The middleware runs for both transports: HTTP requests and Server Action calls. `unauthorized()` and `forbidden()` (which require the [`authInterrupts`](https://nextjs.org/docs/app/api-reference/config/next-config-js/authInterrupts) option) become `401` and `403` responses:
+Route handlers do no authentication, authorization, or rate limiting. Add them as middleware on the client, like for any other action. The middleware runs for both transports: HTTP requests and Server Action calls. `unauthorized()` and `forbidden()` (which require the [`authInterrupts`](https://nextjs.org/docs/app/api-reference/config/next-config-js/authInterrupts) option) become `401` and `403` responses:
 
 ```ts title="src/lib/safe-action.ts"
 import { unauthorized } from "next/navigation";
@@ -271,12 +274,12 @@ export const authClient = createSafeActionClient().use(async ({ next }) => {
 ```
 
 <Callout type="warn" title="Execution order">
-`stateSchema` validation and `mapInput` run **before** the action is called, so before every middleware of the action, including authentication. Treat their input as unauthenticated: keep them pure, do no database work in them, and make sure their result cannot tell anonymous callers anything. If this work must be protected, authenticate in the route file before you call the adapter handlers.
+`stateSchema` validation and `mapInput` run **before** the action is called, so before every middleware of the action, including authentication. Treat their input as unauthenticated: keep them pure, do no database work in them, and make sure their result cannot tell anonymous callers anything. If this work must be protected, authenticate in the route file before you call the route handlers.
 </Callout>
 
 ### Origin check
 
-Browsers send an `Origin` header with every `POST`, `PUT`, `PATCH`, and `DELETE` request. When a request has one, the adapter accepts it only if it is the same origin as the app, or if it is listed in `allowedOrigins`. The literal origin `null` is always rejected. Requests without `Origin` (curl, server-to-server calls) are accepted, and your authentication middleware must handle them.
+Browsers send an `Origin` header with every `POST`, `PUT`, `PATCH`, and `DELETE` request. When a request has one, the handlers accept it only if it is the same origin as the app, or if it is listed in `allowedOrigins`. The literal origin `null` is always rejected. Requests without `Origin` (curl, server-to-server calls) are accepted, and your authentication middleware must handle them.
 
 Like Next.js Server Actions, the same-origin check compares `Origin` with the scheme from `X-Forwarded-Proto` (or the request URL) and the host from `X-Forwarded-Host` (or `Host`). If your proxy terminates TLS without `X-Forwarded-Proto`, or rewrites `Host` without `X-Forwarded-Host`, browser requests fail with `403`: add your public origin to `allowedOrigins`. Make sure your proxy overwrites client-supplied `X-Forwarded-*` headers.
 
@@ -288,7 +291,7 @@ Like Next.js Server Actions, the same-origin check compares `Origin` with the sc
 
 ### Cross-origin browser calls
 
-The adapter does not answer CORS preflights. A browser on another origin must send a preflight before a JSON request, and Next.js answers it without CORS headers, so the browser blocks the call. Same-origin browser calls and non-browser clients (scripts, mobile apps, other services) do not send preflights.
+Route handlers do not answer CORS preflights. A browser on another origin must send a preflight before a JSON request, and Next.js answers it without CORS headers, so the browser blocks the call. Same-origin browser calls and non-browser clients (scripts, mobile apps, other services) do not send preflights.
 
 If you need cross-origin browser calls, answer the preflights and add the CORS response headers in [`proxy.ts`](https://nextjs.org/docs/app/api-reference/file-conventions/proxy), and list the origin in `allowedOrigins` so that the origin check accepts it.
 
@@ -296,7 +299,7 @@ Each entry of `allowedOrigins` must be an exact origin (scheme, host, and port i
 
 ## OpenAPI
 
-The `@next-safe-action/adapter-routes/openapi` entry point generates an OpenAPI 3.1 document from a router. It does not run actions, middleware, input schema factories, `mapInput`, `stateSchema`, or `serverErrorStatus`. You serve the document from a route and point any OpenAPI viewer at it.
+The `next-safe-action/routes/openapi` entry point generates an OpenAPI 3.1 document from a router. It does not run actions, middleware, input schema factories, `mapInput`, `stateSchema`, or `serverErrorStatus`. You serve the document from a route and point any OpenAPI viewer at it.
 
 ### 1. Opt routes in
 
@@ -314,7 +317,7 @@ export const router = createRouter().post("/users", createUser, {
 The core lets you customize the server error and validation error shapes, so the generator cannot guess them. Describe them once in the document options. A route's `openapi` option can override them.
 
 ```ts title="src/app/api/openapi.json/route.ts"
-import { generateOpenApiDocument } from "@next-safe-action/adapter-routes/openapi";
+import { generateOpenApiDocument } from "next-safe-action/routes/openapi";
 import { router } from "@/lib/router";
 
 // Generated once, when the module loads, so configuration errors surface early.
@@ -526,7 +529,7 @@ Returns `{ POST, PUT, PATCH, DELETE }` for the route file.
 			default: "1048576 (1 MiB)",
 		},
 		allowedOrigins: {
-			description: "Other origins that the origin check accepts, in addition to the same origin. The adapter does not send CORS headers.",
+			description: "Other origins that the origin check accepts, in addition to the same origin. The handlers do not send CORS headers.",
 			type: "readonly string[]",
 			default: "[]",
 		},
@@ -539,7 +542,7 @@ Returns `{ POST, PUT, PATCH, DELETE }` for the route file.
 
 ### `generateOpenApiDocument(router, options)`
 
-Returns an OpenAPI 3.1 document object. Import it from `@next-safe-action/adapter-routes/openapi`. Only routes with an `openapi` option are included.
+Returns an OpenAPI 3.1 document object. Import it from `next-safe-action/routes/openapi`. Only routes with an `openapi` option are included.
 
 <TypeTable
 	type={{
@@ -563,16 +566,15 @@ Returns an OpenAPI 3.1 document object. Import it from `@next-safe-action/adapte
 	}}
 />
 
-## Package entry points
+## Entry points reference
 
 | Entry point | Exports | Environment |
 |---|---|---|
-| `@next-safe-action/adapter-routes` | `createRouter`, `mergeRouters`, `createRouteHandlers`, and the types `Router`, `Route`, `RouteConfig`, `RouteOpenApi`, `RouteHandlersOptions`, `OpenApiParameter`, `JsonSchema`, `HttpError` | Server |
-| `@next-safe-action/adapter-routes/openapi` | `generateOpenApiDocument`, `OpenApiDocumentOptions` | Server |
+| `next-safe-action/routes` | `createRouter`, `mergeRouters`, `createRouteHandlers`, and the types `Router`, `Route`, `RouteConfig`, `RouteOpenApi`, `RouteHandlersOptions`, `OpenApiParameter`, `JsonSchema`, `HttpError` | Server |
+| `next-safe-action/routes/openapi` | `generateOpenApiDocument`, `OpenApiDocumentOptions` | Server |
 
 ## See also
 
 - [Middleware guide](/docs/guides/middleware): add authentication and authorization to the client
 - [Framework errors](/docs/advanced/framework-errors): `redirect()`, `notFound()`, `unauthorized()`, and `forbidden()` in actions
 - [Custom validation errors](/docs/advanced/custom-validation-errors): the validation error shapes to describe in `validationErrorsSchema`
-- [`ActionDefinition`](/docs/api/types#actiondefinition): the action description that the router reads

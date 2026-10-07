@@ -37,7 +37,7 @@ export default async function RoutesPage() {
 		<div>
 			<PageHeader
 				title="Route Handlers"
-				description="Expose selected actions as JSON endpoints with @next-safe-action/adapter-routes, and document them with OpenAPI."
+				description="Expose selected actions as JSON endpoints with next-safe-action/routes, and document them with OpenAPI."
 			/>
 			<div className="space-y-6">
 				<ExampleCard

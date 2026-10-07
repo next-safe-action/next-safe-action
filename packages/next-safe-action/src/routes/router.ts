@@ -1,4 +1,4 @@
-import { getActionDefinition } from "next-safe-action";
+import { getActionDefinition } from "../action-definition";
 import type { MutationMethod, Route, RouteAction, Router } from "./types";
 
 export const methods = ["POST", "PUT", "PATCH", "DELETE"] as const satisfies readonly MutationMethod[];

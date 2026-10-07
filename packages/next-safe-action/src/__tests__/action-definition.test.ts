@@ -1,6 +1,7 @@
 import { expect, test, vi } from "vitest";
 import { z } from "zod";
-import { createSafeActionClient, getActionDefinition } from "../index";
+import { getActionDefinition } from "../action-definition";
+import { createSafeActionClient } from "../index";
 
 // ═══════════════════════════════════════════════════════════════════════
 // getActionDefinition runtime tests
