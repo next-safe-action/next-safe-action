@@ -61,9 +61,18 @@ export const ADAPTERS = [
 export const RESIDUAL_PATTERNS: { rule: RuleId; regex: RegExp }[] = [
 	{ rule: "V9-01", regex: /next-safe-action\/stateful-hooks/g },
 	{ rule: "V9-02", regex: new RegExp(`\\b(?:${[...RENAMED_TYPES.keys()].join("|")})\\b`, "g") },
-	{ rule: "V9-03", regex: /\.schema\s*\(/g },
+	// `.schema(`, `.schema<T>(`, and `client["schema"](`. No capture groups: `run.ts` joins these sources.
+	{ rule: "V9-03", regex: /\.schema\s*[(<]|\[\s*["'`]schema["'`]\s*\]\s*[(<]/g },
 ];
 
 export const CODE_EXTENSIONS = [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"];
 export const TEXT_EXTENSIONS = [".md", ".mdx", ".vue", ".svelte", ".astro"];
-export const IGNORED_DIRS = ["node_modules", ".next", "dist", "build", "out", "coverage", ".turbo", ".git"];
+/**
+ * Never scanned, even when tracked by git: dependencies, git internals, and tool caches whose
+ * dot-names no source directory uses. `build`, `out`, `dist`, and `coverage` are not here because
+ * they are valid source directory names (for example the route `src/app/out/page.tsx`); inside git,
+ * `.gitignore` decides about them.
+ */
+export const ALWAYS_IGNORED_DIRS = ["node_modules", ".git", ".next", ".turbo"];
+/** Skipped by the walk outside git, where no `.gitignore` tells build output apart from sources. */
+export const WALK_IGNORED_DIRS = [...ALWAYS_IGNORED_DIRS, "dist", "build", "out", "coverage"];

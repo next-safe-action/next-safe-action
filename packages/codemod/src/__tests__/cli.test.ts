@@ -151,3 +151,41 @@ test("the human summary flags a run without any package.json, and --json leaves 
 	expect(environment.find((e: { file: string }) => e.file === "(not found)").status).toBe("unknown");
 	for (const item of environment.filter((e: { status: string }) => e.status === "ok")) expect(item.fix).toBe("");
 });
+
+test("skips a symlink passed as a path, and reports it", () => {
+	const dir = project();
+	const outside = mkdtempSync(path.join(tmpdir(), "nsa-codemod-outside-"));
+	dirs.push(outside);
+	writeFileSync(path.join(outside, "target.ts"), SOURCE);
+	symlinkSync(path.join(outside, "target.ts"), path.join(dir, "src/link.ts"));
+	const result = run(dir, "v9", "src/link.ts", "--json");
+	expect(result.status).toBe(0);
+	expect(readFileSync(path.join(outside, "target.ts"), "utf8")).toBe(SOURCE);
+	expect(JSON.parse(result.stdout).skipped).toEqual([
+		{ file: "src/link.ts", reason: expect.stringContaining("symlink") },
+	]);
+});
+
+test("inside git, honors .gitignore instead of skipping directories named like build output", () => {
+	const dir = project();
+	writeFiles(dir, {
+		".gitignore": "dist\n",
+		"src/app/out/page.tsx": SOURCE,
+		"src/app/build/page.tsx": SOURCE,
+		"src/app/coverage/page.tsx": SOURCE,
+		"dist/a.js": SOURCE,
+		// Tracked on purpose: these are never scanned, even when committed.
+		"node_modules/x/a.ts": SOURCE,
+		".next/a.js": SOURCE,
+		".turbo/a.js": SOURCE,
+	});
+	gitRepo(dir);
+	expect(run(dir, "v9").status).toBe(0);
+	const content = (file: string) => readFileSync(path.join(dir, file), "utf8");
+	for (const file of ["src/a.ts", "src/app/out/page.tsx", "src/app/build/page.tsx", "src/app/coverage/page.tsx"]) {
+		expect(content(file), file).toBe(MIGRATED);
+	}
+	for (const file of ["dist/a.js", "node_modules/x/a.ts", ".next/a.js", ".turbo/a.js"]) {
+		expect(content(file), file).toBe(SOURCE);
+	}
+});

@@ -1,8 +1,10 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import {
+	type CallExpression,
 	type Expression,
 	type ExportSpecifier,
+	type ImportDeclaration,
 	type ImportSpecifier,
 	Node,
 	Project,
@@ -340,6 +342,46 @@ function lineEndAfter(text: string, pos: number) {
 	return pos;
 }
 
+/**
+ * Edits that remove the `dropped` named imports of `decl`, keeping the rest of it. Without named
+ * imports left, the whole line goes, or only `, { ... }` after a default import.
+ */
+function removeSpecifiers(text: string, decl: ImportDeclaration, dropped: Set<ImportSpecifier>): Edit[] {
+	const elements = decl.getNamedImports();
+	const rule = "V9-02";
+	if (elements.every((e) => dropped.has(e))) {
+		const defaultImport = decl.getDefaultImport();
+		const named = decl.getImportClause()?.getNamedBindings();
+		if (defaultImport && named) return [{ start: defaultImport.getEnd(), end: named.getEnd(), text: "", rule }];
+		return [{ start: decl.getStart(), end: lineEndAfter(text, decl.getEnd()), text: "", rule }];
+	}
+	// A dropped run at the end goes with the comma before it (`{ A, B }` -> `{ A }`, a trailing comma
+	// stays); every other dropped specifier goes with the separator after it.
+	let tail = elements.length;
+	while (dropped.has(elements[tail - 1]!)) tail--;
+	const edits: Edit[] = [];
+	for (let i = 0; i < tail; i++) {
+		if (dropped.has(elements[i]!)) {
+			edits.push({ start: elements[i]!.getStart(), end: elements[i + 1]!.getStart(), text: "", rule });
+		}
+	}
+	if (tail < elements.length) {
+		edits.push({ start: elements[tail - 1]!.getEnd(), end: elements.at(-1)!.getEnd(), text: "", rule });
+	}
+	return edits;
+}
+
+/** `vi.mock(...)`, `jest.mock(...)`, and their `doMock` variants. */
+function isMockCall(call: Node | undefined): call is CallExpression {
+	if (!Node.isCallExpression(call)) return false;
+	const callee = call.getExpression();
+	return (
+		Node.isPropertyAccessExpression(callee) &&
+		["vi", "jest"].includes(callee.getExpression().getText()) &&
+		["mock", "doMock"].includes(callee.getName())
+	);
+}
+
 /** Computes every edit for one file without mutating it. */
 export function analyzeFile(sf: SourceFile): FileAnalysis {
 	const text = sf.getFullText();
@@ -380,6 +422,15 @@ export function analyzeFile(sf: SourceFile): FileAnalysis {
 	]) {
 		if (literal.getLiteralText() !== REMOVED_ENTRY || handledLiterals.has(literal)) continue;
 		edits.push({ start: literal.getStart() + 1, end: literal.getEnd() - 1, text: REPLACEMENT_ENTRY, rule: "V9-01" });
+		const call = literal.getParent();
+		if (isMockCall(call) && call.getArguments()[0] === literal && call.getArguments().length > 1) {
+			manual.push({
+				rule: "V9-01",
+				pos: literal.getStart(),
+				why: `This mock factory used to replace only "${REMOVED_ENTRY}". It now replaces all of "${REPLACEMENT_ENTRY}", so every hook it does not return (for example \`useAction\`) is \`undefined\` in this test file.`,
+				fix: `Spread the real module into the factory: \`...(await vi.importActual("${REPLACEMENT_ENTRY}"))\` with Vitest, or \`...jest.requireActual("${REPLACEMENT_ENTRY}")\` with Jest. If the factory already returns every hook the tests use, ignore this item.`,
+			});
+		}
 	}
 
 	// ---- V9-02: removed type aliases.
@@ -401,6 +452,7 @@ export function analyzeFile(sf: SourceFile): FileAnalysis {
 			return !(Node.isImportSpecifier(decl) && isNsaModule(moduleOf(decl) ?? ""));
 		});
 
+	const dropped = new Set<ImportSpecifier>();
 	const specifiers = [
 		...sf.getDescendantsOfKind(SyntaxKind.ImportSpecifier),
 		...sf.getDescendantsOfKind(SyntaxKind.ExportSpecifier).filter((s) => moduleOf(s) !== undefined),
@@ -428,16 +480,7 @@ export function analyzeFile(sf: SourceFile): FileAnalysis {
 		const localSymbol = spec.getSymbol()?.compilerSymbol;
 		if (nsaImportsOf(to).length > 0) {
 			// The new name is already imported: drop the old specifier, references switch to the existing import.
-			const elements = spec.getParent().getElements();
-			const index = elements.indexOf(spec);
-			const decl = spec.getImportDeclaration();
-			if (elements.length === 1 && !decl.getDefaultImport()) {
-				edits.push({ start: decl.getStart(), end: lineEndAfter(text, decl.getEnd()), text: "", rule: "V9-02" });
-			} else if (index < elements.length - 1) {
-				edits.push({ start: spec.getStart(), end: elements[index + 1]!.getStart(), text: "", rule: "V9-02" });
-			} else {
-				edits.push({ start: elements[index - 1]!.getEnd(), end: spec.getEnd(), text: "", rule: "V9-02" });
-			}
+			dropped.add(spec);
 			if (localSymbol) renameLocal.set(localSymbol, to);
 		} else if (hasConflict(to)) {
 			// Another `to` already exists in this file: import under the old local name instead.
@@ -447,6 +490,10 @@ export function analyzeFile(sf: SourceFile): FileAnalysis {
 			replace(spec.getNameNode(), to, "V9-02");
 			if (localSymbol) renameLocal.set(localSymbol, to);
 		}
+	}
+
+	for (const decl of new Set([...dropped].map((spec) => spec.getImportDeclaration()))) {
+		edits.push(...removeSpecifiers(text, decl, dropped));
 	}
 
 	for (const id of sf.getDescendantsOfKind(SyntaxKind.Identifier)) {
@@ -496,13 +543,29 @@ export function analyzeFile(sf: SourceFile): FileAnalysis {
 	// ---- V9-03: `.schema()` on a safe action client.
 	for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
 		const callee = call.getExpression();
-		if (!Node.isPropertyAccessExpression(callee) || callee.getName() !== "schema") continue;
-		const nameNode = callee.getNameNode();
+		let nameNode: Node;
+		if (Node.isPropertyAccessExpression(callee) && callee.getName() === "schema") {
+			nameNode = callee.getNameNode();
+		} else if (Node.isElementAccessExpression(callee)) {
+			const arg = callee.getArgumentExpression();
+			const isString = Node.isStringLiteral(arg) || Node.isNoSubstitutionTemplateLiteral(arg);
+			if (!isString || arg.getLiteralText() !== "schema") continue;
+			nameNode = arg;
+		} else {
+			continue;
+		}
 		const receiver = callee.getExpression();
 		let kind = resolveExpr(receiver, new Set());
 		if ((kind === "unknown" || kind === "fn") && hasClientType(receiver)) kind = "client";
 		if (kind === "client") {
-			replace(nameNode, "inputSchema", "V9-03");
+			// For `client["schema"]`, only the text between the quotes changes.
+			const quoted = Node.isPropertyAccessExpression(callee) ? 0 : 1;
+			edits.push({
+				start: nameNode.getStart() + quoted,
+				end: nameNode.getEnd() - quoted,
+				text: "inputSchema",
+				rule: "V9-03",
+			});
 		} else if (kind === "unknown" || kind === "fn") {
 			manual.push({
 				rule: "V9-03",

@@ -15,7 +15,13 @@ describe.each(readdirSync(FIXTURES))("fixture %s", (name) => {
 		staged.push(dir);
 		const input = readTree(dir);
 
+		const dry = runV9({ paths: ["."], cwd: dir, write: false });
+		expect(readTree(dir)).toEqual(input);
 		const first = runV9({ paths: ["."], cwd: dir, write: true });
+		// A real run must analyze exactly what a dry run sees, even when one tsconfig group's files
+		// import another group's files.
+		expect(first.report).toEqual(dry.report);
+		expect(first.outputs).toEqual(dry.outputs);
 
 		// Files in `expected` are the migrated version; every other input file must be untouched.
 		const expectedDir = path.join(FIXTURES, name, "expected");
@@ -33,6 +39,8 @@ describe.each(readdirSync(FIXTURES))("fixture %s", (name) => {
 		const second = runV9({ paths: ["."], cwd: dir, write: true });
 		expect(second.report.changes).toEqual([]);
 		expect(readTree(dir)).toEqual(actual);
-		expect(second.report.manual).toEqual(first.report.manual);
+		// A mock factory note belongs to the rewrite of its specifier, so only the rewriting run has it.
+		const lasting = first.report.manual.filter((m) => !m.why.startsWith("This mock factory"));
+		expect(second.report.manual).toEqual(lasting);
 	});
 });

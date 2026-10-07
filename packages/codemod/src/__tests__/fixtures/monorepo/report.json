@@ -1,0 +1,38 @@
+{
+	"changes": [
+		{
+			"rule": "V9-02",
+			"file": "packages/a/src/index.ts",
+			"line": 1,
+			"before": "export type { DVES } from \"next-safe-action\";",
+			"after": "export type { ValidationErrorsFormat } from \"next-safe-action\";"
+		},
+		{
+			"rule": "V9-02",
+			"file": "packages/b/src/use.ts",
+			"line": 1,
+			"before": "import type { DVES } from \"@a/index\";",
+			"after": "import type { ValidationErrorsFormat } from \"@a/index\";"
+		},
+		{
+			"rule": "V9-02",
+			"file": "packages/b/src/use.ts",
+			"line": 3,
+			"before": "export type Format = DVES;",
+			"after": "export type Format = ValidationErrorsFormat;"
+		}
+	],
+	"manual": [],
+	"environment": [
+		{
+			"rule": "V9-04",
+			"file": "(not found)",
+			"package": "next-safe-action",
+			"found": "no package.json in scanned paths",
+			"required": ">=9.0.0",
+			"status": "unknown",
+			"fix": "Run the codemod from the project root, or include the path of the package.json that depends on next-safe-action, so the dependency checks can run."
+		}
+	],
+	"skipped": []
+}

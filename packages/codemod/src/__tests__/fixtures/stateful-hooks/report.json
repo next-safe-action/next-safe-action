@@ -64,7 +64,18 @@
 			"after": "import type { useStateAction as Hook } from \"next-safe-action/hooks\";"
 		}
 	],
-	"manual": [],
+	"manual": [
+		{
+			"rule": "V9-01",
+			"file": "src/forms.ts",
+			"line": 6,
+			"column": 9,
+			"snippet": "vi.mock(\"next-safe-action/hooks\", () => ({ useStateAction: vi.fn() }));",
+			"why": "This mock factory used to replace only \"next-safe-action/stateful-hooks\". It now replaces all of \"next-safe-action/hooks\", so every hook it does not return (for example `useAction`) is `undefined` in this test file.",
+			"fix": "Spread the real module into the factory: `...(await vi.importActual(\"next-safe-action/hooks\"))` with Vitest, or `...jest.requireActual(\"next-safe-action/hooks\")` with Jest. If the factory already returns every hook the tests use, ignore this item.",
+			"docs": "https://next-safe-action.dev/docs/migrations/v8-to-v9#v9-01"
+		}
+	],
 	"environment": [
 		{
 			"rule": "V9-04",

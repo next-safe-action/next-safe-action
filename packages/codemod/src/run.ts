@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { checkEnvironment, type EnvItem } from "./environment";
 import { isCodeFile, listFiles } from "./files";
-import { RENAMED_TYPES, RULES, type RuleId } from "./rules";
+import { NSA_PACKAGE, RESIDUAL_PATTERNS, RULES, type RuleId } from "./rules";
 import {
 	analyzeFile,
 	applyEdits,
@@ -33,7 +33,8 @@ export type RunResult = {
 	scanned: number;
 };
 
-const CANDIDATE = new RegExp(`next-safe-action|\\.schema\\s*\\(|\\b(?:${[...RENAMED_TYPES.keys()].join("|")})\\b`);
+// A file is parsed only if it mentions the package or matches a residual pattern.
+const CANDIDATE = new RegExp([NSA_PACKAGE, ...RESIDUAL_PATTERNS.map((p) => p.regex.source)].join("|"));
 
 function lineStarts(text: string): number[] {
 	const starts = [0];
@@ -109,17 +110,38 @@ function toManual(file: string, pending: PendingManual[], text: string, edits: E
 	});
 }
 
-/** Runs the v9 migration. Never throws for a single bad file: it lands in `skipped`. */
+const errorMessage = (error: unknown) => (error instanceof Error ? error.message.split("\n")[0] : String(error));
+
+/**
+ * Runs the v9 migration. Never throws for a single bad file: it lands in `skipped`. Every file is
+ * analyzed before anything is written, so each tsconfig group sees the original sources of the
+ * others (a real run matches `--dry`) and a failure can never leave a half-written tree.
+ */
 export function runV9({ paths, cwd = process.cwd(), write }: RunOptions): RunResult {
-	const files = listFiles(paths.map((p) => path.resolve(cwd, p)));
+	const { files, symlinks } = listFiles(paths.map((p) => path.resolve(cwd, p)));
 	const rel = (file: string) => path.relative(cwd, file) || path.basename(file);
 	const report: Report = { changes: [], manual: [], environment: [], skipped: [] };
 	const outputs = new Map<string, string>();
+	const writes: { file: string; content: string }[] = [];
+	const skip = (file: string, reason: string) => report.skipped.push({ file: rel(file), reason });
+
+	for (const link of symlinks) {
+		skip(
+			link,
+			"This path is a symlink. It is not followed, so a write cannot leave the project; pass its target instead."
+		);
+	}
 
 	const candidates: string[] = [];
 	for (const file of files) {
 		if (path.basename(file) === "package.json" || [".nvmrc", ".node-version"].includes(path.basename(file))) continue;
-		const text = readFileSync(file, "utf8");
+		let text: string;
+		try {
+			text = readFileSync(file, "utf8");
+		} catch (error) {
+			skip(file, `Could not read this file (${errorMessage(error)}).`);
+			continue;
+		}
 		if (!CANDIDATE.test(text)) continue;
 		if (isCodeFile(file)) {
 			candidates.push(file);
@@ -131,38 +153,49 @@ export function runV9({ paths, cwd = process.cwd(), write }: RunOptions): RunRes
 
 	for (const group of createProjects(candidates).values()) {
 		if (group.configError && group.config) {
-			report.skipped.push({
-				file: rel(group.config),
-				reason: `Could not load this config (${group.configError}); its files were analyzed with default options, so path aliases from it were not applied.`,
-			});
+			skip(
+				group.config,
+				`Could not load this config (${group.configError}); its files were analyzed with default options, so path aliases from it were not applied.`
+			);
 		}
-		const program = group.project.getProgram();
 		for (const file of group.files) {
-			const sf = group.project.getSourceFileOrThrow(file);
-			const raw = readFileSync(file, "utf8");
-			const bom = raw.startsWith("﻿") ? "﻿" : "";
-			const text = sf.getFullText();
-			const syntaxErrors = program.getSyntacticDiagnostics(sf);
-			if (syntaxErrors.length > 0) {
-				const first = syntaxErrors[0]!;
-				const message = first.getMessageText();
-				report.skipped.push({
-					file: rel(file),
-					reason: `Syntax error at line ${first.getLineNumber() ?? "?"}: ${(typeof message === "string" ? message : message.getMessageText()).replace(/\.$/, "")}. Not transformed; leftovers are listed as manual items.`,
-				});
-				report.manual.push(...toManual(rel(file), residualScan(text, []), text, []));
-				continue;
+			try {
+				const sf = group.project.getSourceFileOrThrow(file);
+				const raw = readFileSync(file, "utf8");
+				const bom = raw.startsWith("\uFEFF") ? "\uFEFF" : "";
+				const text = sf.getFullText();
+				const syntaxErrors = group.project.getProgram().getSyntacticDiagnostics(sf);
+				if (syntaxErrors.length > 0) {
+					const first = syntaxErrors[0]!;
+					const message = first.getMessageText();
+					skip(
+						file,
+						`Syntax error at line ${first.getLineNumber() ?? "?"}: ${(typeof message === "string" ? message : message.getMessageText()).replace(/\.$/, "")}. Not transformed; leftovers are listed as manual items.`
+					);
+					report.manual.push(...toManual(rel(file), residualScan(text, []), text, []));
+					continue;
+				}
+				const { edits, manual, explained } = analyzeFile(sf);
+				const output = applyEdits(text, edits);
+				const pending = [...manual, ...residualScan(text, [...edits, ...explained])];
+				const fileManual = toManual(rel(file), pending, output, edits);
+				const fileChanges = edits.length > 0 ? toChanges(rel(file), text, edits) : [];
+				// Only now that the whole file succeeded does it reach the report.
+				report.manual.push(...fileManual);
+				if (edits.length === 0) continue;
+				report.changes.push(...fileChanges);
+				outputs.set(rel(file), output);
+				writes.push({ file, content: bom + output });
+			} catch (error) {
+				skip(
+					file,
+					`The codemod failed while analyzing this file (${errorMessage(error)}). Not transformed; check it by hand and please report the error.`
+				);
 			}
-			const { edits, manual, explained } = analyzeFile(sf);
-			const output = applyEdits(text, edits);
-			const pending = [...manual, ...residualScan(text, [...edits, ...explained])];
-			report.manual.push(...toManual(rel(file), pending, output, edits));
-			if (edits.length === 0) continue;
-			report.changes.push(...toChanges(rel(file), text, edits));
-			outputs.set(rel(file), output);
-			if (write) writeFileSync(file, bom + output);
 		}
 	}
+
+	if (write) for (const { file, content } of writes) writeFileSync(file, content);
 
 	report.environment = checkEnvironment(files, cwd);
 	report.changes.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);

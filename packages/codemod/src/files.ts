@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, lstatSync, readdirSync, statSync } from "node:fs";
+import { existsSync, lstatSync, readdirSync } from "node:fs";
 import path from "node:path";
-import { CODE_EXTENSIONS, IGNORED_DIRS, TEXT_EXTENSIONS } from "./rules";
+import { ALWAYS_IGNORED_DIRS, CODE_EXTENSIONS, TEXT_EXTENSIONS, WALK_IGNORED_DIRS } from "./rules";
 
 const ENV_FILES = ["package.json", ".nvmrc", ".node-version"];
 
@@ -17,7 +17,7 @@ export function gitStatus(dir: string): string | undefined {
 	}
 }
 
-const isIgnored = (file: string) => file.split(/[\\/]/).some((segment) => IGNORED_DIRS.includes(segment));
+const isIgnored = (file: string) => file.split(/[\\/]/).some((segment) => ALWAYS_IGNORED_DIRS.includes(segment));
 
 export const isCodeFile = (file: string) => CODE_EXTENSIONS.some((ext) => file.endsWith(ext));
 
@@ -28,7 +28,7 @@ const isRegularFile = (file: string) => existsSync(file) && lstatSync(file).isFi
 
 function walk(dir: string, out: string[]) {
 	for (const entry of readdirSync(dir, { withFileTypes: true })) {
-		if (IGNORED_DIRS.includes(entry.name)) continue;
+		if (WALK_IGNORED_DIRS.includes(entry.name)) continue;
 		const full = path.join(dir, entry.name);
 		// Symlinks are skipped on purpose: they can loop, and their targets are scanned on their own.
 		if (entry.isDirectory()) walk(full, out);
@@ -38,15 +38,22 @@ function walk(dir: string, out: string[]) {
 
 /**
  * Lists the in-scope files under each path (absolute). Inside a git repo it honors `.gitignore`
- * (tracked plus untracked, non-ignored files); elsewhere it walks the tree. Default ignored
- * directories are dropped either way. A path that names a file is always included.
+ * (tracked plus untracked, non-ignored files), so a tracked `src/app/out/page.tsx` is scanned;
+ * elsewhere it walks the tree and skips the usual build output directories too. A path that names
+ * a file is always included. A path that is itself a symlink is returned in `symlinks` instead.
  */
-export function listFiles(paths: string[]): string[] {
+export function listFiles(paths: string[]): { files: string[]; symlinks: string[] } {
 	const files = new Set<string>();
+	const symlinks: string[] = [];
 	for (const p of paths) {
 		const abs = path.resolve(p);
 		if (!existsSync(abs)) throw new Error(`Path not found: ${p}`);
-		if (statSync(abs).isFile()) {
+		const stat = lstatSync(abs);
+		if (stat.isSymbolicLink()) {
+			symlinks.push(abs);
+			continue;
+		}
+		if (stat.isFile()) {
 			files.add(abs);
 			continue;
 		}
@@ -65,5 +72,5 @@ export function listFiles(paths: string[]): string[] {
 			if (!isIgnored(path.relative(abs, f)) && inScope(f) && isRegularFile(f)) files.add(f);
 		}
 	}
-	return [...files].sort();
+	return { files: [...files].sort(), symlinks };
 }
