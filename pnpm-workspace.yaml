@@ -21,7 +21,7 @@ catalog:
   react-dom: ^19.3.0
   react-hook-form: ^7.89.0
   tailwindcss: ^4
-  tsdown: ^0.22.14
+  tsdown: ^0.23.0
   # TypeScript uses a tilde range on purpose: tsdown's dts generator (rolldown-plugin-dts) only uses the
   # native TypeScript 7 compiler for 7.0.x (peer ~7.0.0). Widen once it supports 7.1.
   typescript: ~7.0.2
