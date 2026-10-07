@@ -12,7 +12,7 @@
 		"fumadocs-core": "^16.14.3",
 		"fumadocs-mdx": "^15.2.3",
 		"fumadocs-ui": "^16.14.3",
-		"lucide-react": "^1.31.0",
+		"lucide-react": "^1.52.0",
 		"motion": "^13.0.0",
 		"next": "catalog:",
 		"next-plausible": "^4.0.0",
