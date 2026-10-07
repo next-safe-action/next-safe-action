@@ -63,7 +63,7 @@
 			"found": "^9.0.0 (declared)",
 			"required": ">=9.0.0",
 			"status": "ok",
-			"fix": "Run `pnpm add next-safe-action@latest` in packages/web."
+			"fix": ""
 		},
 		{
 			"rule": "V9-04",
@@ -81,7 +81,7 @@
 			"found": "^19.0.0 (declared)",
 			"required": ">=19.0.0",
 			"status": "ok",
-			"fix": "Upgrade react and react-dom to 19 or later (the Next.js upgrade codemod does this)."
+			"fix": ""
 		},
 		{
 			"rule": "V9-04",
@@ -90,7 +90,7 @@
 			"found": "^19.0.0 (declared)",
 			"required": ">=19.0.0",
 			"status": "ok",
-			"fix": "Upgrade react and react-dom to 19 or later (the Next.js upgrade codemod does this)."
+			"fix": ""
 		},
 		{
 			"rule": "V9-04",
@@ -99,7 +99,7 @@
 			"found": "20",
 			"required": ">=18.18.0",
 			"status": "ok",
-			"fix": "Pin Node.js 18.18.0 or later in .nvmrc."
+			"fix": ""
 		}
 	],
 	"skipped": []

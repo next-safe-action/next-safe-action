@@ -13,7 +13,7 @@ Commit or stash your changes first, then run from the project root:
 npx @next-safe-action/codemod@latest v9 [paths...] [options]
 ```
 
-`paths` are files or directories (default: the current directory). Pass a directory such as `src` and the `package.json` files outside it are not checked for `V9-04`. Inside a git repository, files ignored by `.gitignore` are skipped. `node_modules`, `.next`, `dist`, `build`, `out`, `coverage`, `.turbo`, and `.git` are always skipped.
+`paths` are files or directories (default: the current directory). Pass a directory such as `src` and the `package.json` files outside it are not checked for `V9-04`: the report then has an `unknown` entry with the file `(not found)`. Inside a git repository, files ignored by `.gitignore` are skipped. `node_modules`, `.next`, `dist`, `build`, `out`, `coverage`, `.turbo`, and `.git` are always skipped.
 
 | Option | Description |
 |---|---|
@@ -80,7 +80,7 @@ type Report = {
 };
 ```
 
-Paths are relative to the current directory. `changes[].line` refers to the original file, `before` and `after` hold the full changed line(s), and `after` is `""` when a line was removed (a merged import). `manual[].line` and `column` refer to the migrated file. `environment` lists every check, including the passing ones (`status: "ok"`) and the running Node.js. `found` is always a string, ending with `(installed)` or `(declared)`. `unknown` means the codemod could not read a version (`workspace:`, `catalog:`, tags, `||` or `>` ranges, or an adapter that is not installed).
+Paths are relative to the current directory. `changes[].line` refers to the original file, `before` and `after` hold the full changed line(s), and `after` is `""` when a line was removed (a merged import). `manual[].line` and `column` refer to the migrated file. `environment` lists every check, including the passing ones (`status: "ok"`) and the running Node.js. `fix` is `""` for a passing check. `found` is always a string, ending with `(installed)` or `(declared)`. `unknown` means the codemod could not read a version (`workspace:`, `catalog:`, tags, `||` or `>` ranges, or an adapter that is not installed).
 
 ## License
 

@@ -84,7 +84,7 @@ Then apply them:
 npx @next-safe-action/codemod@latest v9
 ```
 
-Run both commands from your project root. Without arguments, the codemod scans the current directory. To limit the run to specific files or directories, pass them as arguments, for example `npx @next-safe-action/codemod@latest v9 src`. The V9-04 requirement checks read the `package.json` files that are inside the scanned paths, so a run limited to `src` skips them. See the [codemod reference](#codemod-reference) for all flags.
+Run both commands from your project root. Without arguments, the codemod scans the current directory. To limit the run to specific files or directories, pass them as arguments, for example `npx @next-safe-action/codemod@latest v9 src`. The V9-04 requirement checks read the `package.json` files that are inside the scanned paths, so a run limited to `src` cannot check your dependencies: the report then has an `unknown` entry with the file `(not found)` that tells you to run from the project root. See the [codemod reference](#codemod-reference) for all flags.
 
 </Step>
 <Step>
@@ -185,7 +185,7 @@ npx @next-safe-action/codemod@latest v9 --json > "${TMPDIR:-/tmp}/nsa-v9.json"
 
 The report has four arrays. Consume them in this order:
 
-1. `environment`: one entry per check (rule `V9-04`), including the checks that pass and the running Node.js. Ignore entries with `status: "ok"`: their `fix` text is a generic command. For `status: "upgrade"`, run the command in `fix`, then commit. For `status: "unknown"`, the codemod could not read a version (a `workspace:` or `catalog:` range, a tag, a `||` or `>` range, or an adapter that is not installed). Check that package by hand with the commands in Step 1.
+1. `environment`: one entry per check (rule `V9-04`), including the checks that pass and the running Node.js. Ignore entries with `status: "ok"`: their `fix` is an empty string. For `status: "upgrade"`, run the command in `fix`, then commit. For `status: "unknown"`, the codemod could not read a version (a `workspace:` or `catalog:` range, a tag, a `||` or `>` range, or an adapter that is not installed). Check that package by hand with the commands in Step 1. An entry with `file: "(not found)"` means that the scanned paths had no `package.json` that depends on next-safe-action or an adapter, so no dependency check ran: run the codemod again from the project root, or pass the path of that `package.json`.
 2. `changes`: the edits the codemod made (`rule`, `file`, `line`, `before`, `after`). Review them with `git diff`. No action is needed unless an edit looks wrong.
 3. `manual`: places the codemod found but did not change. For each entry, open `file` at `line`:`column`, read `why`, apply `fix`, and use the section linked in `docs` (`#v9-01` to `#v9-04`) for the exact transformation.
 4. `skipped`: `{ file, reason }` entries for what the codemod could not process: a source file with a syntax error (not transformed, but its leftovers are in `manual`), or a `tsconfig.json` that failed to load (its files were analyzed without its path aliases, so expect more `manual` items). Fix the cause and run the codemod again, or check those files by hand with the detection commands in Step 3.
@@ -410,7 +410,7 @@ All first-party adapters now require `next-safe-action` >= 9.0.0 and the same Ne
 - **React 19:** the hooks use React 19's `useActionState` and `useOptimistic`. v8 had a runtime check that threw a descriptive error when `useActionState` was missing. v9 removes this check, because React 19 is now a hard requirement.
 - **Node.js 18.18:** this is the minimum Node.js version of Next.js 15.1.
 
-**Codemod:** reports only. It never edits `package.json`. It reads every `package.json` in the scanned paths that lists `next-safe-action` or a first-party adapter in `dependencies` or `devDependencies`, and checks `next`, `react`, `react-dom`, `next-safe-action`, each adapter, and `engines.node`. It also checks `.nvmrc`, `.node-version`, and the Node.js that runs the codemod. It prefers the version installed in `node_modules` over the declared range. An adapter passes when its installed release has a `next-safe-action` peer dependency of 9.0.0 or higher. The report says which checks are met, and the fix text of a failed check has the install command for your package manager.
+**Codemod:** reports only. It never edits `package.json`. It reads every `package.json` in the scanned paths that lists `next-safe-action` or a first-party adapter in `dependencies` or `devDependencies`, and checks `next`, `react`, `react-dom`, `next-safe-action`, each adapter, and `engines.node`. It also checks `.nvmrc`, `.node-version`, and the Node.js that runs the codemod. It prefers the version installed in `node_modules` over the declared range. An adapter passes when its installed release has a `next-safe-action` peer dependency of 9.0.0 or higher. The report says which checks are met, and the fix text of a failed check has the install command for your package manager. When the scanned paths have no such `package.json` (for example a run limited to `src`), the report has one `unknown` entry with the file `(not found)` instead.
 
 **Manual steps:** update your dependencies as described in [Update dependencies](#update-dependencies). If you must stay on Next.js 14 or 15.0, stay on next-safe-action v8.
 
@@ -527,12 +527,12 @@ type CodemodReport = {
 	// Dependency and runtime checks (rule V9-04), including the ones that pass.
 	environment: Array<{
 		rule: string; // "V9-04"
-		file: string; // the checked file, or "(current Node.js runtime)"
+		file: string; // the checked file, "(current Node.js runtime)", or "(not found)" when no package.json was scanned
 		package: string; // a package name, or "node"
 		found: string; // always a string, see below
 		required: string; // for example ">=15.1.0"
 		status: "ok" | "upgrade" | "unknown";
-		fix: string; // always set, also when status is "ok"
+		fix: string; // "" when status is "ok"
 	}>;
 	// Files and configs that the codemod could not process.
 	skipped: Array<{
@@ -593,6 +593,10 @@ Rename `.schema()` to `.inputSchema()`. See [V9-03](#v9-03).
 ### The codemod refuses to run
 
 The git working tree has uncommitted changes, and untracked files count too (a report file that you wrote inside the repository is one). Commit or stash them and run the codemod again. To preview without writing files, use `--dry` or `--print`, which do not need a clean tree. Use `--force` only if you can review the result some other way.
+
+### The codemod says `Path not found`
+
+A path that you passed does not exist. Check the spelling and run the codemod from your project root.
 
 ### The codemod reported manual items, but the exit code is 0
 

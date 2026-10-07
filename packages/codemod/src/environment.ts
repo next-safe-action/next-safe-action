@@ -89,6 +89,7 @@ const REACT_FIX = "Upgrade react and react-dom to 19 or later (the Next.js upgra
 /** V9-04: environment checks. Reports only, never writes package.json. */
 export function checkEnvironment(files: string[], cwd: string): EnvItem[] {
 	const items: EnvItem[] = [];
+	let checkedManifests = 0;
 	const rel = (file: string) => path.relative(cwd, file) || ".";
 	const versionCheck = (version: Version | undefined, required: string): EnvStatus =>
 		version === undefined ? "unknown" : satisfies(version, parseVersion(required)!) ? "ok" : "upgrade";
@@ -98,6 +99,7 @@ export function checkEnvironment(files: string[], cwd: string): EnvItem[] {
 		if (!manifest) continue;
 		const deps = { ...record(manifest.devDependencies), ...record(manifest.dependencies) };
 		if (![NSA_PACKAGE, ...ADAPTERS].some((name) => name in deps)) continue;
+		checkedManifests++;
 		const dir = path.dirname(file);
 		const install = installCommand(dir);
 		const where = rel(dir) === "." ? "" : ` in ${rel(dir)}`;
@@ -164,6 +166,18 @@ export function checkEnvironment(files: string[], cwd: string): EnvItem[] {
 		}
 	}
 
+	if (checkedManifests === 0) {
+		items.push({
+			rule: "V9-04",
+			file: "(not found)",
+			package: NSA_PACKAGE,
+			found: "no package.json in scanned paths",
+			required: `>=${ENV_REQUIREMENTS[NSA_PACKAGE]}`,
+			status: "unknown",
+			fix: "Run the codemod from the project root, or include the path of the package.json that depends on next-safe-action, so the dependency checks can run.",
+		});
+	}
+
 	for (const file of files.filter((f) => [".nvmrc", ".node-version"].includes(path.basename(f)))) {
 		const value = readFileSync(file, "utf8").trim().split(/\s/)[0] ?? "";
 		items.push({
@@ -186,5 +200,6 @@ export function checkEnvironment(files: string[], cwd: string): EnvItem[] {
 		status: versionCheck(parseVersion(process.version), ENV_REQUIREMENTS.node),
 		fix: `Use Node.js ${ENV_REQUIREMENTS.node} or later.`,
 	});
-	return items;
+	// `fix` stays in the JSON shape, but a passing check has nothing to fix.
+	return items.map((item) => (item.status === "ok" ? { ...item, fix: "" } : item));
 }

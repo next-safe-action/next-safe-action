@@ -52,7 +52,7 @@ test("prefers the installed version and the installed adapter's peer range", () 
 			pkg: "next-safe-action",
 			found: "9.0.0 (installed)",
 			status: "ok",
-			fix: "Run `npm install next-safe-action@latest`.",
+			fix: "",
 		},
 		{
 			pkg: "next",
@@ -70,7 +70,28 @@ test("prefers the installed version and the installed adapter's peer range", () 
 			pkg: "@next-safe-action/adapter-better-auth",
 			found: "0.2.0 (installed, peer next-safe-action >= 9.0.0)",
 			status: "ok",
-			fix: "Run `npm install @next-safe-action/adapter-better-auth@latest`.",
+			fix: "",
 		},
 	]);
+});
+
+test("reports an unknown dependency check when no package.json is in the scanned files", () => {
+	const dir = mkdtempSync(path.join(tmpdir(), "nsa-codemod-env-"));
+	dirs.push(dir);
+	writeFiles(dir, { "src/a.ts": "export {};\n" });
+	const items = checkEnvironment([path.join(dir, "src/a.ts")], dir);
+	expect(items.find((i) => i.file === "(not found)")).toMatchObject({
+		package: "next-safe-action",
+		found: "no package.json in scanned paths",
+		status: "unknown",
+	});
+	expect(items.every((i) => i.status !== "ok" || i.fix === "")).toBe(true);
+});
+
+test("a package.json that does not depend on next-safe-action still counts as not found", () => {
+	const dir = mkdtempSync(path.join(tmpdir(), "nsa-codemod-env-"));
+	dirs.push(dir);
+	writeFiles(dir, { "package.json": JSON.stringify({ dependencies: { next: "^15.1.0" } }) });
+	const items = checkEnvironment([path.join(dir, "package.json")], dir);
+	expect(items.some((i) => i.file === "(not found)")).toBe(true);
 });

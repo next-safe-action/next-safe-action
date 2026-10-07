@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { statSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { gitStatus } from "./files";
@@ -99,6 +99,10 @@ function main(argv: string[]): number {
 	const write = !values.dry && !values.print;
 
 	try {
+		// Before the git check, so a typo shows this message instead of a raw `stat` error.
+		for (const target of targets) {
+			if (!existsSync(path.resolve(target))) throw new Error(`Path not found: ${target}`);
+		}
 		if (write && !values.force) {
 			for (const target of targets) {
 				const abs = path.resolve(target);

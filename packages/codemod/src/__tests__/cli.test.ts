@@ -125,3 +125,29 @@ test("rejects unknown transforms and flags", () => {
 	expect(run(dir, "v9", "--nope").status).toBe(1);
 	expect(run(dir, "--help").status).toBe(0);
 });
+
+test("a missing path prints a friendly error before the git check", () => {
+	const dir = project();
+	gitRepo(dir);
+	for (const args of [
+		["v9", "nope"],
+		["v9", "nope", "--dry"],
+	]) {
+		const result = run(dir, ...args);
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("Path not found: nope");
+		expect(result.stderr).not.toContain("ENOENT");
+	}
+});
+
+test("the human summary flags a run without any package.json, and --json leaves fix empty for passing checks", () => {
+	const dir = project();
+	const human = run(dir, "v9", "src", "--dry");
+	expect(human.status).toBe(0);
+	expect(human.stdout).toContain("no package.json in scanned paths");
+	expect(human.stdout).toContain("Run the codemod from the project root");
+
+	const { environment } = JSON.parse(run(dir, "v9", "src", "--dry", "--json").stdout);
+	expect(environment.find((e: { file: string }) => e.file === "(not found)").status).toBe("unknown");
+	for (const item of environment.filter((e: { status: string }) => e.status === "ok")) expect(item.fix).toBe("");
+});

@@ -72,7 +72,17 @@
 			"docs": "https://next-safe-action.dev/docs/migrations/v8-to-v9#v9-01"
 		}
 	],
-	"environment": [],
+	"environment": [
+		{
+			"rule": "V9-04",
+			"file": "(not found)",
+			"package": "next-safe-action",
+			"found": "no package.json in scanned paths",
+			"required": ">=9.0.0",
+			"status": "unknown",
+			"fix": "Run the codemod from the project root, or include the path of the package.json that depends on next-safe-action, so the dependency checks can run."
+		}
+	],
 	"skipped": [
 		{
 			"file": "src/broken.ts",
