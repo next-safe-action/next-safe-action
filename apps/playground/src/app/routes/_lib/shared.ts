@@ -8,3 +8,7 @@ export const todoBodySchema = z.object({
 	title: z.string().min(1).optional(),
 	done: z.boolean().optional(),
 });
+
+export const inviteBodySchema = z.object({
+	email: z.email(),
+});

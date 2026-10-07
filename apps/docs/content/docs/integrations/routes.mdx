@@ -125,6 +125,30 @@ A `"use server"` file can export only async functions. If the router needs a val
 - Methods that the route file does not export, such as `GET`, are answered by Next.js with its own `405`, outside the adapter's JSON format.
 - If your catch-all folder has another name, for example `[[...slug]]`, set `pathParam: "slug"`. It must match the folder name.
 
+## Subrouters
+
+Pass a `prefix` to `createRouter()` to group related routes, then combine the routers with `mergeRouters()`:
+
+```ts title="src/lib/router.ts"
+import { createRouter, mergeRouters } from "@next-safe-action/adapter-routes";
+
+const todos = createRouter({ prefix: "/todos" })
+	.post("/", createTodo) // POST /todos
+	.patch("/{id}", updateTodo, { mapInput: ({ input, params }) => ({ ...(input as object), id: params.id }) });
+
+const orgs = createRouter({ prefix: "/orgs/{orgId}" }).post("/invite", invite, {
+	mapInput: ({ input, params }) => ({ ...(input as object), orgId: params.orgId }),
+});
+
+export const router = mergeRouters(todos, orgs).post("/ping", ping);
+```
+
+- The prefix follows the same rules as a path. A route path is joined to it, and the route `/` maps to the prefix itself.
+- A prefix can have parameters. They are typed in `mapInput` together with the route parameters, and they make `mapInput` required, like any other parameter.
+- `mergeRouters()` returns a new router with no prefix. Routes keep their full paths and the argument order. A merged router is still a normal router, so you can add more routes to it or merge it again.
+- The duplicate and ambiguity checks apply across all merged routers. Two routers derived from the same base router both contain the base routes, so merging them throws.
+- Prefixes do not nest: `mergeRouters()` never adds a prefix. To share a segment such as `/v1`, include it in each prefix.
+
 ## Input and `mapInput`
 
 By default, the parsed JSON body is the action input, unchanged. An empty body becomes `undefined`. Path parameters and query values are **not** added to the input: use `mapInput` for them (it is required when the path has parameters).
@@ -387,9 +411,9 @@ Overrides can use document references such as `{ "$ref": "#/components/schemas/c
 
 ## API reference
 
-### `createRouter()`
+### `createRouter(options?)`
 
-Returns an empty, immutable `Router`. Its methods add one route each and return a new router:
+Returns an empty, immutable `Router`. `options.prefix` is joined to every route path, see [Subrouters](#subrouters). Its methods add one route each and return a new router:
 
 ```ts
 router.post(path, action, config?)
@@ -430,6 +454,10 @@ router.delete(path, action, config?)
 		},
 	}}
 />
+
+### `mergeRouters(...routers)`
+
+Returns a new router with no prefix that contains the routes of every argument, in order. Throws on duplicate or ambiguous routes across the routers.
 
 ### `RouteOpenApi`
 
@@ -539,7 +567,7 @@ Returns an OpenAPI 3.1 document object. Import it from `@next-safe-action/adapte
 
 | Entry point | Exports | Environment |
 |---|---|---|
-| `@next-safe-action/adapter-routes` | `createRouter`, `createRouteHandlers`, and the types `Router`, `Route`, `RouteConfig`, `RouteOpenApi`, `RouteHandlersOptions`, `OpenApiParameter`, `JsonSchema`, `HttpError` | Server |
+| `@next-safe-action/adapter-routes` | `createRouter`, `mergeRouters`, `createRouteHandlers`, and the types `Router`, `Route`, `RouteConfig`, `RouteOpenApi`, `RouteHandlersOptions`, `OpenApiParameter`, `JsonSchema`, `HttpError` | Server |
 | `@next-safe-action/adapter-routes/openapi` | `generateOpenApiDocument`, `OpenApiDocumentOptions` | Server |
 
 ## See also

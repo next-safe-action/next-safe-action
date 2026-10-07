@@ -1,30 +1,18 @@
-import { createRouter } from "@next-safe-action/adapter-routes";
+import { mergeRouters } from "@next-safe-action/adapter-routes";
 import { z } from "zod";
 import { routeCounter } from "../_actions/counter-action";
 import { createReport } from "../_actions/create-report-action";
 import { reserveUsername } from "../_actions/reserve-username-action";
 import { addToTotal } from "../_actions/running-total-action";
-import { updateTodo } from "../_actions/update-todo-action";
-import { todoBodySchema, USERNAME_TAKEN } from "./shared";
+import { USERNAME_TAKEN } from "./shared";
+import { orgsRouter, todosRouter } from "./subrouters";
 
 // One router, shared by the catch-all route handler and the OpenAPI route, so both always describe the same endpoints.
 // Paths are relative to the catch-all folder: "/counter" is served at /api/routes/counter.
-export const router = createRouter()
+// mergeRouters() combines the subrouters into a router with no prefix, and more routes can be chained onto it.
+export const router = mergeRouters(todosRouter, orgsRouter)
 	.post("/counter", routeCounter, {
 		openapi: { operationId: "incrementCounter", summary: "Increment the cookie counter", tags: ["counter"] },
-	})
-	.patch("/todos/{id}", updateTodo, {
-		// Merge the path parameter into the JSON body. It is spread last, so the URL always wins over a body `id`.
-		// The merged value still goes through the action's input schema, like any other input.
-		mapInput: ({ input, params }) => ({ ...(input as object), id: params.id }),
-		openapi: {
-			operationId: "updateTodo",
-			summary: "Update a todo",
-			tags: ["todos"],
-			// `mapInput` changes the input shape, so the HTTP body and the parameters are documented explicitly.
-			requestBodySchema: z.toJSONSchema(todoBodySchema, { io: "input" }),
-			parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
-		},
 	})
 	.post("/usernames", reserveUsername, {
 		successStatus: 201,

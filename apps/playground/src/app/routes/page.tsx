@@ -9,18 +9,29 @@ import { HttpDemo } from "./_components/http-demo";
 import { RunningTotalDemo } from "./_components/running-total-demo";
 
 export default async function RoutesPage() {
-	const [router, client, handler, openapi, counter, updateTodo, reserveUsername, runningTotal, createReport] =
-		await Promise.all([
-			readAndHighlightFile("routes/_lib/router.ts"),
-			readAndHighlightFile("routes/_lib/route-client.ts"),
-			readAndHighlightFile("api/routes/[[...path]]/route.ts"),
-			readAndHighlightFile("api/openapi.json/route.ts"),
-			readAndHighlightFile("routes/_actions/counter-action.ts"),
-			readAndHighlightFile("routes/_actions/update-todo-action.ts"),
-			readAndHighlightFile("routes/_actions/reserve-username-action.ts"),
-			readAndHighlightFile("routes/_actions/running-total-action.ts"),
-			readAndHighlightFile("routes/_actions/create-report-action.ts"),
-		]);
+	const [
+		router,
+		subrouters,
+		client,
+		handler,
+		openapi,
+		counter,
+		updateTodo,
+		reserveUsername,
+		runningTotal,
+		createReport,
+	] = await Promise.all([
+		readAndHighlightFile("routes/_lib/router.ts"),
+		readAndHighlightFile("routes/_lib/subrouters.ts"),
+		readAndHighlightFile("routes/_lib/route-client.ts"),
+		readAndHighlightFile("api/routes/[[...path]]/route.ts"),
+		readAndHighlightFile("api/openapi.json/route.ts"),
+		readAndHighlightFile("routes/_actions/counter-action.ts"),
+		readAndHighlightFile("routes/_actions/update-todo-action.ts"),
+		readAndHighlightFile("routes/_actions/reserve-username-action.ts"),
+		readAndHighlightFile("routes/_actions/running-total-action.ts"),
+		readAndHighlightFile("routes/_actions/create-report-action.ts"),
+	]);
 
 	return (
 		<div>
@@ -35,7 +46,7 @@ export default async function RoutesPage() {
 				>
 					<div className="space-y-4">
 						{[
-							{ label: "Router: HTTP methods, paths and per-route options", source: router },
+							{ label: "Router: HTTP methods, paths, per-route options and merged subrouters", source: router },
 							{ label: "Action clients, with auth middleware", source: client },
 							{ label: "Catch-all route handler: /api/routes/[[...path]]", source: handler },
 							{ label: "OpenAPI document: GET /api/openapi.json", source: openapi },
@@ -75,6 +86,30 @@ export default async function RoutesPage() {
 						{
 							label: "PATCH /todos/2 (body id ignored)",
 							request: { method: "PATCH", path: "/todos/2", body: { id: "999", done: false } },
+						},
+					]}
+				/>
+				<HttpDemo
+					title="Subrouters"
+					description="createRouter({ prefix }) groups the routes of a feature, and mergeRouters() combines the subrouters in router.ts. The prefix /orgs/{orgId} has a parameter, so mapInput is required and params.orgId is typed."
+					source={subrouters}
+					testId="subrouter-http-result"
+					requests={[
+						{
+							label: "POST /todos",
+							request: { method: "POST", path: "/todos", body: { title: "Try subrouters" } },
+						},
+						{
+							label: "POST /orgs/acme/invites (body orgId ignored)",
+							request: {
+								method: "POST",
+								path: "/orgs/acme/invites",
+								body: { orgId: "other", email: "ada@example.com" },
+							},
+						},
+						{
+							label: "POST /orgs/acme/invites (invalid email)",
+							request: { method: "POST", path: "/orgs/acme/invites", body: { email: "not-an-email" } },
 						},
 					]}
 				/>

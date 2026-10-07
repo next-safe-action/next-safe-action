@@ -64,7 +64,15 @@ test("the OpenAPI route documents every registered operation", async ({ request 
 		Object.values(operations as Record<string, { operationId: string }>).map((operation) => operation.operationId)
 	);
 	expect(operationIds.toSorted()).toEqual(
-		["addToTotal", "createReport", "incrementCounter", "reserveUsername", "updateTodo"].toSorted()
+		[
+			"addToTotal",
+			"createReport",
+			"createTodo",
+			"incrementCounter",
+			"inviteMember",
+			"reserveUsername",
+			"updateTodo",
+		].toSorted()
 	);
 	expect((await request.get("/api/docs")).headers()["content-type"]).toContain("text/html");
 });
@@ -76,6 +84,51 @@ test("mapInput merges the path parameter over the body", async ({ request }) => 
 	const invalid = await request.patch("/api/routes/todos/7", { data: { title: "" } });
 	expect(invalid.status()).toBe(400);
 	expect(await invalid.json()).toHaveProperty("validationErrors.title");
+});
+
+test("subrouters serve their routes under the prefix", async ({ request }) => {
+	// The route "/" of the /todos subrouter is served at the prefix itself.
+	const created = await request.post("/api/routes/todos", { data: { title: "Ship it" } });
+	expect(created.status()).toBe(201);
+	expect(await created.json()).toEqual({ data: { id: expect.any(String), title: "Ship it", done: false } });
+	// Both /todos routes come from the same subrouter: the template /todos only allows POST.
+	const wrongMethod = await request.put("/api/routes/todos", { data: { title: "Ship it" } });
+	expect(wrongMethod.status()).toBe(405);
+	expect(wrongMethod.headers()["allow"]).toBe("POST");
+	expect((await request.post("/api/routes/todos/7", { data: {} })).status()).toBe(405);
+});
+
+test("a prefix parameter reaches mapInput and wins over the body", async ({ request }) => {
+	const invited = await request.post("/api/routes/orgs/acme/invites", {
+		data: { orgId: "other", email: "ada@example.com" },
+	});
+	expect(invited.status()).toBe(201);
+	expect(await invited.json()).toEqual({ data: { orgId: "acme", email: "ada@example.com", role: "member" } });
+	const invalid = await request.post("/api/routes/orgs/acme/invites", { data: { email: "not-an-email" } });
+	expect(invalid.status()).toBe(400);
+	expect(await invalid.json()).toHaveProperty("validationErrors.email");
+	expect((await request.post("/api/routes/orgs/acme", { data: {} })).status()).toBe(404);
+});
+
+test("the OpenAPI document lists subrouter routes under their full paths", async ({ request }) => {
+	const document = await (await request.get("/api/openapi.json")).json();
+	expect(Object.keys(document.paths)).toEqual(
+		expect.arrayContaining(["/todos", "/todos/{id}", "/orgs/{orgId}/invites"])
+	);
+	expect(document.paths["/orgs/{orgId}/invites"].post.parameters).toEqual([
+		{ name: "orgId", in: "path", required: true, schema: { type: "string" } },
+	]);
+});
+
+test("the subrouter demo calls the merged router from the browser", async ({ page }) => {
+	await page.goto("/routes");
+	const result = page.getByTestId("subrouter-http-result");
+	await page.getByRole("button", { name: "POST /orgs/acme/invites (body orgId ignored)" }).click();
+	await expect(result).toContainText("Response: HTTP 201");
+	await expect(result).toContainText('"orgId": "acme"');
+	await page.getByRole("button", { name: "POST /todos" }).click();
+	await expect(result).toContainText("Response: HTTP 201");
+	await expect(result).toContainText('"title": "Try subrouters"');
 });
 
 test("serverErrorStatus maps an expected server error to 409", async ({ request }) => {

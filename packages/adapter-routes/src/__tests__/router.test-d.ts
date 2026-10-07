@@ -1,8 +1,9 @@
 import { createSafeActionClient } from "next-safe-action";
 import { expectTypeOf, test } from "vitest";
 import { z } from "zod";
-import { createRouter } from "../index";
+import { createRouteHandlers, createRouter, mergeRouters } from "../index";
 import type { Router } from "../index";
+import { generateOpenApiDocument } from "../openapi";
 
 const client = createSafeActionClient({ handleServerError: () => ({ code: "ERROR" as const }) });
 const update = client.inputSchema(z.object({ id: z.string(), title: z.string() })).action(async () => "ok");
@@ -55,4 +56,29 @@ test("serverErrorStatus receives the action's server error type", () => {
 			return 409;
 		},
 	});
+});
+
+test("prefix parameters are typed and require mapInput", () => {
+	createRouter({ prefix: "/orgs/{org}" }).put("/todos/{id}", update, {
+		mapInput: ({ params }) => {
+			expectTypeOf(params).toEqualTypeOf<Readonly<Record<"org" | "id", string>>>();
+			return { id: params.id, title: params.org };
+		},
+	});
+	// @ts-expect-error: the prefix has a parameter, so mapInput is required.
+	createRouter({ prefix: "/orgs/{org}" }).post("/todos", noInput);
+	createRouter({ prefix: "/todos" }).post("/", noInput);
+});
+
+test("prefixed routers chain, merge and reach the handlers and OpenAPI", () => {
+	const todos = createRouter({ prefix: "/todos" }).post("/", noInput);
+	expectTypeOf(todos).toEqualTypeOf<Router<"/todos">>();
+	const api = mergeRouters(todos, createRouter().post("/ping", noInput));
+	expectTypeOf(api).toEqualTypeOf<Router>();
+	mergeRouters(createRouter({ prefix: "/orgs/{org}" }));
+	createRouteHandlers(createRouter({ prefix: "/orgs/{org}" }));
+	// The merged router has no prefix.
+	api.post("/todos/{id}", update, { mapInput: ({ params }) => ({ id: params.id, title: "" }) });
+	createRouteHandlers(todos);
+	generateOpenApiDocument(todos, { info: { title: "t", version: "1" } });
 });

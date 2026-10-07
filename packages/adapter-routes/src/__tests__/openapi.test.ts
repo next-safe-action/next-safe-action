@@ -1,7 +1,7 @@
 import { createSafeActionClient } from "next-safe-action";
 import { expect, it, vi } from "vitest";
 import { z } from "zod";
-import { createRouter } from "../index";
+import { createRouter, mergeRouters } from "../index";
 import { generateOpenApiDocument } from "../openapi";
 import type { OpenApiDocumentOptions } from "../openapi";
 import type { RouteOpenApi, Router } from "../types";
@@ -345,4 +345,14 @@ it("emits only document-resolvable references for recursive zod schemas with ide
 	const components = JSON.stringify(document.components);
 	expect(components).not.toContain('"$id"');
 	expect(components).not.toContain('"$defs"');
+});
+
+it("documents prefixed and merged routes under their full paths", () => {
+	const create = client
+		.inputSchema(z.string())
+		.outputSchema(z.string())
+		.action(async () => "ok");
+	const todos = createRouter({ prefix: "/todos" }).post("/", create, { openapi: { operationId: "createTodo" } });
+	const document = generate(mergeRouters(todos));
+	expect(Object.keys(document.paths)).toEqual(["/todos"]);
 });

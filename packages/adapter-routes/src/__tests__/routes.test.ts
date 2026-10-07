@@ -1,7 +1,7 @@
 import { ActionValidationError, createSafeActionClient, returnServerError } from "next-safe-action";
 import { expect, it, vi } from "vitest";
 import { z } from "zod";
-import { createRouteHandlers, createRouter } from "../index";
+import { createRouteHandlers, createRouter, mergeRouters } from "../index";
 import type { MutationMethod, RouteHandlersOptions, Router } from "../types";
 
 const client = createSafeActionClient({ handleServerError: () => ({ code: "CUSTOM" }) });
@@ -13,7 +13,7 @@ function users(config: Record<string, unknown> = {}, run?: (input: unknown) => P
 	return createRouter().post("/users", echo(run), config);
 }
 async function call(
-	router: Router,
+	router: Pick<Router, "routes">,
 	method: MutationMethod = "POST",
 	path = ["users"],
 	body: string | undefined = "{}",
@@ -70,6 +70,53 @@ it("rejects duplicates, ambiguous paths, unsupported configurations and non-acti
 	for (const path of ["users", "/users/", "/a//b", "/a/*", "/a/..", "/a/%2F"])
 		expect(() => createRouter().post(path as "/", echo())).toThrow("Invalid route");
 	expect(() => createRouteHandlers({} as Router)).toThrow("createRouter()");
+});
+
+it("joins router prefixes to route paths and merges routers", async () => {
+	const todos = createRouter({ prefix: "/todos" })
+		.post("/", echo())
+		.put("/{id}", echo(), { mapInput: async ({ input, params }) => ({ input, id: params.id }) });
+	const orgs = createRouter({ prefix: "/orgs/{org}" }).post("/invite", echo(), { mapInput: ({ params }) => params });
+	const api = mergeRouters(todos, orgs).post("/ping", echo());
+	expect(api.routes.map(({ method, path }) => method + " " + path)).toEqual([
+		"POST /todos",
+		"PUT /todos/{id}",
+		"POST /orgs/{org}/invite",
+		"POST /ping",
+	]);
+	// Merging copies routes: the source routers stay unchanged.
+	expect(todos.routes).toHaveLength(2);
+	expect(await (await call(api, "PUT", ["todos", "1"])).json()).toEqual({ data: { input: {}, id: "1" } });
+	expect(await (await call(api, "POST", ["orgs", "acme", "invite"])).json()).toEqual({ data: { org: "acme" } });
+	expect((await call(api, "POST", ["todos"])).status).toBe(200);
+	expect(createRouter({ prefix: "/" }).post("/", echo()).routes[0]!.path).toBe("/");
+	expect(createRouter().post("/", echo()).routes[0]!.path).toBe("/");
+});
+
+it("validates prefixes and checks merged routes like added ones", () => {
+	for (const prefix of ["todos", "/todos/", "/a//b", "/a/*"])
+		expect(() => createRouter({ prefix: prefix as "/" })).toThrow("Invalid route");
+	// The route path is validated on its own, so it cannot glue onto the last prefix segment.
+	expect(() => createRouter({ prefix: "/todos" }).post("s" as "/", echo())).toThrow("Invalid route");
+	// Checks run on the joined path, so a prefix parameter needs mapInput and cannot repeat in the route path.
+	expect(() => createRouter({ prefix: "/orgs/{org}" }).post("/invite", echo(), {} as never)).toThrow(
+		"path parameters require mapInput"
+	);
+	expect(() => createRouter({ prefix: "/orgs/{org}" }).post("/{org}", echo(), { mapInput: passInput })).toThrow(
+		"Duplicate path parameter"
+	);
+	const base = createRouter().post("/users", echo());
+	expect(() => mergeRouters(base.post("/a", echo()), base.post("/b", echo()))).toThrow(
+		"Duplicate or ambiguous route: POST /users"
+	);
+	expect(() =>
+		mergeRouters(
+			createRouter({ prefix: "/{id}" }).post("/edit", echo(), { mapInput: passInput }),
+			createRouter({ prefix: "/users" }).put("/{id}", echo(), { mapInput: passInput })
+		)
+	).toThrow("ambiguous");
+	expect(() => mergeRouters({} as Router)).toThrow("createRouter()");
+	expect(mergeRouters().routes).toEqual([]);
 });
 
 it("rejects invalid JSON, non-JSON bodies and oversized streams", async () => {

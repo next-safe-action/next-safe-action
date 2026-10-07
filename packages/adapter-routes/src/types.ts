@@ -60,11 +60,12 @@ export type RouteConfig<Action extends RouteAction, Path extends string> = {
 
 type RouteConfigArgs<Action extends RouteAction, Path extends string> =
 	{} extends RouteConfig<Action, Path> ? [config?: RouteConfig<Action, Path>] : [config: RouteConfig<Action, Path>];
-type AddRoute = <Path extends string, Action extends RouteAction>(
+// Config types are derived from the full path, so `{param}` segments in the router prefix are typed too.
+type AddRoute<Prefix extends string> = <Path extends string, Action extends RouteAction>(
 	path: Path,
 	action: Action,
-	...config: RouteConfigArgs<Action, Path>
-) => Router;
+	...config: RouteConfigArgs<Action, `${Prefix}${Path}`>
+) => Router<Prefix>;
 
 /** A compiled route, as stored by the router. */
 export type Route = Readonly<{
@@ -83,13 +84,16 @@ export type Route = Readonly<{
 	}>;
 }>;
 
-/** An immutable route table. Each method returns a new router with the route added. */
-export type Router = Readonly<{
+/**
+ * An immutable route table. Each method returns a new router with the route added, with the router prefix joined to
+ * its path.
+ */
+export type Router<Prefix extends string = ""> = Readonly<{
 	routes: readonly Route[];
-	post: AddRoute;
-	put: AddRoute;
-	patch: AddRoute;
-	delete: AddRoute;
+	post: AddRoute<Prefix>;
+	put: AddRoute<Prefix>;
+	patch: AddRoute<Prefix>;
+	delete: AddRoute<Prefix>;
 }>;
 
 export type RouteHandlersOptions = {

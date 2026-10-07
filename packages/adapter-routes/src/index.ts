@@ -2,7 +2,7 @@ import { ActionValidationError, inspectFrameworkError } from "next-safe-action";
 import { isParameter, methods } from "./router";
 import type { HttpError, RouteContext, RouteHandlersOptions, Router } from "./types";
 
-export { createRouter } from "./router";
+export { createRouter, mergeRouters } from "./router";
 export type * from "./types";
 
 class PreparationError extends Error {
@@ -94,7 +94,7 @@ const accessErrors: Record<number, [code: string, message: string]> = {
 	403: ["FORBIDDEN", "Forbidden"],
 	404: ["NOT_FOUND", "Not found"],
 };
-export function createRouteHandlers(router: Router, options: RouteHandlersOptions = {}) {
+export function createRouteHandlers(router: Pick<Router, "routes">, options: RouteHandlersOptions = {}) {
 	if (!Array.isArray((router as Partial<Router> | undefined)?.routes))
 		throw new TypeError("createRouteHandlers expects a router from createRouter()");
 	// Concrete templates are matched before parameterized ones. Node 18 does not support toSorted.

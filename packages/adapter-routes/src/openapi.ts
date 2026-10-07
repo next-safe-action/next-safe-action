@@ -28,7 +28,7 @@ function response(description: string, schema: JsonSchema) {
 	return { description, content: { "application/json": { schema } } };
 }
 
-export function generateOpenApiDocument(router: Router, options: OpenApiDocumentOptions) {
+export function generateOpenApiDocument(router: Pick<Router, "routes">, options: OpenApiDocumentOptions) {
 	const schemas: Record<string, JsonSchema> = {};
 	const paths: Record<string, Record<string, unknown>> = {};
 	const operationIds = new Set<string>();

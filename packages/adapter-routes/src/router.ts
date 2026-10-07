@@ -58,22 +58,45 @@ function compile(method: MutationMethod, path: string, action: RouteAction, conf
 	});
 }
 
-function router(routes: readonly Route[]): Router {
-	const add =
-		(method: MutationMethod) =>
-		(path: string, action: RouteAction, config?: Route["config"]): Router => {
-			const route = compile(method, path, action, config);
-			if (routes.some((existing) => conflicts(existing, route)))
-				throw new TypeError("Duplicate or ambiguous route: " + method + " " + path);
-			return router(Object.freeze([...routes, route]));
-		};
+function append(routes: readonly Route[], route: Route): readonly Route[] {
+	if (routes.some((existing) => conflicts(existing, route)))
+		throw new TypeError("Duplicate or ambiguous route: " + route.method + " " + route.path);
+	return Object.freeze([...routes, route]);
+}
+
+function router(routes: readonly Route[], prefix: string): Router<any> {
+	const add = (method: MutationMethod) => (path: string, action: RouteAction, config?: Route["config"]) => {
+		// The relative path is validated on its own first, so "s" cannot glue onto the prefix as "/todoss".
+		segments(path);
+		return router(
+			append(routes, compile(method, path === "/" ? prefix || "/" : prefix + path, action, config)),
+			prefix
+		);
+	};
 	return Object.freeze({ routes, post: add("POST"), put: add("PUT"), patch: add("PATCH"), delete: add("DELETE") });
 }
 
 /**
  * Creates an empty router. Add actions with `.post()`, `.put()`, `.patch()` and `.delete()`, then pass the router
- * to `createRouteHandlers()` and, optionally, to `generateOpenApiDocument()`.
+ * to `createRouteHandlers()` and, optionally, to `generateOpenApiDocument()`. With a `prefix`, every route path is
+ * joined to it: `createRouter({ prefix: "/todos" }).post("/", action)` serves `POST /todos`.
  */
-export function createRouter(): Router {
-	return router(Object.freeze([]));
+export function createRouter<Prefix extends string = "">(options: { prefix?: Prefix } = {}): Router<Prefix> {
+	const prefix = options.prefix ?? "";
+	if (prefix) segments(prefix);
+	return router(Object.freeze([]), prefix === "/" ? "" : prefix);
+}
+
+/**
+ * Combines routers into one unprefixed router. Routes keep their full paths and the argument order, and the same
+ * duplicate and ambiguity checks as `.post()` apply across routers.
+ */
+export function mergeRouters(...routers: Pick<Router, "routes">[]): Router {
+	let routes: readonly Route[] = Object.freeze([]);
+	for (const source of routers) {
+		if (!Array.isArray((source as Partial<Router> | undefined)?.routes))
+			throw new TypeError("mergeRouters expects routers from createRouter()");
+		for (const route of source.routes) routes = append(routes, route);
+	}
+	return router(routes, "");
 }
