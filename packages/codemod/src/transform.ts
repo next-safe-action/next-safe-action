@@ -392,47 +392,6 @@ export function analyzeFile(sf: SourceFile): FileAnalysis {
 	const replace = (node: Node, newText: string, rule: RuleId) =>
 		edits.push({ start: node.getStart(), end: node.getEnd(), text: newText, rule });
 
-	// ---- V9-01: removed entry point, in any string literal (imports, exports, import(), require(), vi.mock()...).
-	const handledLiterals = new Set<Node>();
-	const hooksImports = sf
-		.getImportDeclarations()
-		.filter(
-			(d) => d.getModuleSpecifierValue() === REPLACEMENT_ENTRY && !d.getDefaultImport() && !d.getNamespaceImport()
-		);
-	for (const decl of sf.getImportDeclarations()) {
-		if (decl.getModuleSpecifierValue() !== REMOVED_ENTRY) continue;
-		if (decl.getDefaultImport() || decl.getNamespaceImport() || decl.getNamedImports().length === 0) continue;
-		const target = hooksImports.find((d) => d.isTypeOnly() === decl.isTypeOnly() && d.getNamedImports().length > 0);
-		if (!target) continue;
-		// Merge into the existing hooks import instead of leaving two declarations for the same module.
-		const existing = new Set(target.getNamedImports().map((s) => s.getText()));
-		const toAdd = decl
-			.getNamedImports()
-			.map((s) => s.getText())
-			.filter((s) => !existing.has(s));
-		const last = target.getNamedImports().at(-1)!;
-		if (toAdd.length > 0)
-			edits.push({ start: last.getEnd(), end: last.getEnd(), text: `, ${toAdd.join(", ")}`, rule: "V9-01" });
-		edits.push({ start: decl.getStart(), end: lineEndAfter(text, decl.getEnd()), text: "", rule: "V9-01" });
-		handledLiterals.add(decl.getModuleSpecifier());
-	}
-	for (const literal of [
-		...sf.getDescendantsOfKind(SyntaxKind.StringLiteral),
-		...sf.getDescendantsOfKind(SyntaxKind.NoSubstitutionTemplateLiteral),
-	]) {
-		if (literal.getLiteralText() !== REMOVED_ENTRY || handledLiterals.has(literal)) continue;
-		edits.push({ start: literal.getStart() + 1, end: literal.getEnd() - 1, text: REPLACEMENT_ENTRY, rule: "V9-01" });
-		const call = literal.getParent();
-		if (isMockCall(call) && call.getArguments()[0] === literal && call.getArguments().length > 1) {
-			manual.push({
-				rule: "V9-01",
-				pos: literal.getStart(),
-				why: `This mock factory used to replace only "${REMOVED_ENTRY}". It now replaces all of "${REPLACEMENT_ENTRY}", so every hook it does not return (for example \`useAction\`) is \`undefined\` in this test file.`,
-				fix: `Spread the real module into the factory: \`...(await vi.importActual("${REPLACEMENT_ENTRY}"))\` with Vitest, or \`...jest.requireActual("${REPLACEMENT_ENTRY}")\` with Jest. If the factory already returns every hook the tests use, ignore this item.`,
-			});
-		}
-	}
-
 	// ---- V9-02: removed type aliases.
 	const renameLocal = new Map<ts.Symbol, string | null>(); // local import symbol -> new name, or null when kept aliased
 	const nsaImportsOf = (name: string) =>
@@ -506,6 +465,12 @@ export function analyzeFile(sf: SourceFile): FileAnalysis {
 			if (parent.getAliasNode() === id) explain(id);
 			continue;
 		}
+		// `export { Local as DVES }`: the alias is this module's public name. Consumers keep importing it
+		// unchanged (traceNsaExport never follows a rename), so it stays even when `Local` is renamed.
+		if (Node.isExportSpecifier(parent) && parent.getAliasNode() === id && parent.getNameNode().getText() !== from) {
+			explain(id);
+			continue;
+		}
 
 		// `nsa.DVES` through a namespace import, and `import("next-safe-action").DVES`.
 		if (Node.isQualifiedName(parent) && parent.getRight() === id && isNsaNamespace(parent.getLeft())) {
@@ -538,6 +503,54 @@ export function analyzeFile(sf: SourceFile): FileAnalysis {
 		if (trace === "nsa") replace(id, to, "V9-02");
 		else if (trace === "other") explain(id);
 		// "unknown": left for the residual scan, which reports it.
+	}
+
+	// ---- V9-01: removed entry point, in any string literal (imports, exports, import(), require(), vi.mock()...).
+	// Runs after V9-02, whose dropped specifiers decide which hooks import can take the merge.
+	const handledLiterals = new Set<Node>();
+	const hooksImports = sf
+		.getImportDeclarations()
+		.filter(
+			(d) => d.getModuleSpecifierValue() === REPLACEMENT_ENTRY && !d.getDefaultImport() && !d.getNamespaceImport()
+		);
+	for (const decl of sf.getImportDeclarations()) {
+		if (decl.getModuleSpecifierValue() !== REMOVED_ENTRY) continue;
+		if (decl.getDefaultImport() || decl.getNamespaceImport() || decl.getNamedImports().length === 0) continue;
+		// A hooks import that V9-02 removes entirely cannot take the merge: its deletion would swallow the insertion.
+		const target = hooksImports.find(
+			(d) =>
+				d.isTypeOnly() === decl.isTypeOnly() &&
+				d.getNamedImports().length > 0 &&
+				!d.getNamedImports().every((s) => dropped.has(s))
+		);
+		if (!target) continue;
+		// Merge into the existing hooks import instead of leaving two declarations for the same module.
+		const existing = new Set(target.getNamedImports().map((s) => s.getText()));
+		const toAdd = decl
+			.getNamedImports()
+			.map((s) => s.getText())
+			.filter((s) => !existing.has(s));
+		const last = target.getNamedImports().at(-1)!;
+		if (toAdd.length > 0)
+			edits.push({ start: last.getEnd(), end: last.getEnd(), text: `, ${toAdd.join(", ")}`, rule: "V9-01" });
+		edits.push({ start: decl.getStart(), end: lineEndAfter(text, decl.getEnd()), text: "", rule: "V9-01" });
+		handledLiterals.add(decl.getModuleSpecifier());
+	}
+	for (const literal of [
+		...sf.getDescendantsOfKind(SyntaxKind.StringLiteral),
+		...sf.getDescendantsOfKind(SyntaxKind.NoSubstitutionTemplateLiteral),
+	]) {
+		if (literal.getLiteralText() !== REMOVED_ENTRY || handledLiterals.has(literal)) continue;
+		edits.push({ start: literal.getStart() + 1, end: literal.getEnd() - 1, text: REPLACEMENT_ENTRY, rule: "V9-01" });
+		const call = literal.getParent();
+		if (isMockCall(call) && call.getArguments()[0] === literal && call.getArguments().length > 1) {
+			manual.push({
+				rule: "V9-01",
+				pos: literal.getStart(),
+				why: `This mock factory used to replace only "${REMOVED_ENTRY}". It now replaces all of "${REPLACEMENT_ENTRY}", so every hook it does not return (for example \`useAction\`) is \`undefined\` in this test file.`,
+				fix: `Spread the real module into the factory: \`...(await vi.importActual("${REPLACEMENT_ENTRY}"))\` with Vitest, or \`...jest.requireActual("${REPLACEMENT_ENTRY}")\` with Jest. If the factory already returns every hook the tests use, ignore this item.`,
+			});
+		}
 	}
 
 	// ---- V9-03: `.schema()` on a safe action client.

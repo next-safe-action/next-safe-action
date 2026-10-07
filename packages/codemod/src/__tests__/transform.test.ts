@@ -180,3 +180,43 @@ test('handles `.schema<T>(` and `client["schema"](`, and reports an undecidable 
 		"V9-03 src/actions.ts:5:33",
 	]);
 });
+
+test("merges a stateful-hooks import into a hooks import that the type renames keep", () => {
+	const dir = project({
+		"src/form.ts": [
+			'import { type HookSafeActionFn } from "next-safe-action/hooks";',
+			'import { type SingleInputActionFn, useAction } from "next-safe-action/hooks";',
+			'import { useStateAction } from "next-safe-action/stateful-hooks";',
+			"export type A = HookSafeActionFn<string, undefined, unknown, unknown>;",
+			"export type B = SingleInputActionFn<string, undefined, unknown, unknown>;",
+			"export const hooks = [useAction, useStateAction];",
+			"",
+		].join("\n"),
+	});
+	const { report } = runV9({ paths: ["src"], cwd: dir, write: true });
+	expect(report.manual).toEqual([]);
+	expect(readFileSync(path.join(dir, "src/form.ts"), "utf8")).toBe(
+		[
+			'import { type SingleInputActionFn, useAction, useStateAction } from "next-safe-action/hooks";',
+			"export type A = SingleInputActionFn<string, undefined, unknown, unknown>;",
+			"export type B = SingleInputActionFn<string, undefined, unknown, unknown>;",
+			"export const hooks = [useAction, useStateAction];",
+			"",
+		].join("\n")
+	);
+});
+
+test("keeps a local module's public alias, so its consumers still resolve", () => {
+	const dir = project({
+		"src/types.ts": 'import type { DVES as Local } from "next-safe-action";\nexport type { Local as DVES };\n',
+		"src/use.ts": 'import type { DVES } from "./types";\nexport type A = DVES;\n',
+	});
+	const { report } = runV9({ paths: ["src"], cwd: dir, write: true });
+	expect(report.manual).toEqual([]);
+	expect(readFileSync(path.join(dir, "src/types.ts"), "utf8")).toBe(
+		'import type { ValidationErrorsFormat as Local } from "next-safe-action";\nexport type { Local as DVES };\n'
+	);
+	expect(readFileSync(path.join(dir, "src/use.ts"), "utf8")).toBe(
+		'import type { DVES } from "./types";\nexport type A = DVES;\n'
+	);
+});
