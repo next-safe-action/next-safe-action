@@ -1,0 +1,581 @@
+---
+title: Route handlers
+description: Expose selected safe actions as JSON API endpoints and generate an OpenAPI 3.1 document for Swagger UI or other viewers.
+---
+
+next-safe-action can expose selected actions as JSON endpoints through a single Next.js catch-all Route Handler. The same validated action keeps working with the React hooks, and external clients (scripts, mobile apps, other services) can call it over HTTP. An optional entry point generates an OpenAPI 3.1 document from your schemas, so you can publish interactive API docs.
+
+<Callout title="Requirements">
+- next-safe-action >= 9.0.0
+- Next.js >= 15.1.0 (App Router)
+- Node.js >= 18.18
+- No extra package: route handlers are built into `next-safe-action`.
+</Callout>
+
+## Entry points
+
+Route handlers are part of the core package, so there is nothing else to install. Import them from two server-only subpath entry points:
+
+- `next-safe-action/routes`: `createRouter()`, `mergeRouters()`, and `createRouteHandlers()`.
+- `next-safe-action/routes/openapi`: `generateOpenApiDocument()`. This entry point is optional, and it adds to your bundle only when you import it.
+
+See [Entry points reference](#entry-points-reference) for the full list of exports.
+
+## Quick start
+
+<Steps>
+<Step>
+
+### Define an action
+
+Route actions are ordinary actions. Nothing on the client or the action marks them as HTTP endpoints:
+
+```ts title="src/app/actions.ts"
+"use server";
+
+import { z } from "zod";
+import { actionClient } from "@/lib/safe-action";
+
+export const createUser = actionClient
+	.inputSchema(z.object({ name: z.string().min(1) }))
+	.outputSchema(z.object({ id: z.string(), name: z.string() }))
+	.action(async ({ parsedInput }) => {
+		return { id: crypto.randomUUID(), name: parsedInput.name };
+	});
+```
+
+</Step>
+<Step>
+
+### Create a router
+
+The router maps actions to HTTP methods and paths. Put it in its own module, so the catch-all route and the [OpenAPI route](#2-serve-the-document) share it. Next.js rejects extra exports from a `route.ts` file, so the router cannot live there.
+
+```ts title="src/lib/router.ts"
+import { createRouter } from "next-safe-action/routes";
+import { createUser } from "@/app/actions";
+
+export const router = createRouter().post("/users", createUser, { successStatus: 201 });
+```
+
+`createRouter()` returns an immutable router. `.post()`, `.put()`, `.patch()`, and `.delete()` each return a new router with one more route. Every route is checked when it is added, so a bad path, a bad status, a duplicate route, or a value that is not a safe action throws when the module loads, not on the first request.
+
+</Step>
+<Step>
+
+### Create the catch-all route
+
+```ts title="src/app/api/[[...path]]/route.ts"
+import { createRouteHandlers } from "next-safe-action/routes";
+import { router } from "@/lib/router";
+
+export const { POST, PUT, PATCH, DELETE } = createRouteHandlers(router);
+```
+
+Route paths are relative to the catch-all folder, so `/users` is served at `/api/users`. Use an optional catch-all (`[[...path]]`) so that a route with path `/` can match the folder root.
+
+</Step>
+<Step>
+
+### Call it
+
+<Tabs items={["curl", "fetch"]}>
+<Tab value="curl">
+
+```sh
+curl -i -X POST http://localhost:3000/api/users \
+	-H "Content-Type: application/json" \
+	-d '{"name":"Ada"}'
+# HTTP/1.1 201 Created
+# {"data":{"id":"5f0c...","name":"Ada"}}
+```
+
+</Tab>
+<Tab value="fetch">
+
+```ts
+const response = await fetch("/api/users", {
+	method: "POST",
+	headers: { "Content-Type": "application/json" },
+	body: JSON.stringify({ name: "Ada" }),
+});
+
+const result = await response.json(); // { data: { id: "5f0c...", name: "Ada" } }
+```
+
+</Tab>
+</Tabs>
+
+The response body is the normal [action result](/docs/concepts/action-result). Invalid input returns `400` with `{ validationErrors }`.
+
+</Step>
+</Steps>
+
+Only the actions in the router are reachable over HTTP. There is no global registry, and defining an action never exposes it by itself. The same action keeps working as a Server Action, for example with `useAction`.
+
+<Callout title='"use server" files'>
+A `"use server"` file can export only async functions. If the router needs a value that the action also uses, such as a schema or an error message, put that value in a separate module and import it in both places.
+</Callout>
+
+## Paths and routing
+
+- A path starts with `/` and has no trailing slash. Use `/` for the catch-all root.
+- Parameters are complete segments with unique identifier names, for example `/users/{id}`. Wildcards, `%` escapes, `?`, `#`, `.`, and `..` segments are rejected.
+- A path with parameters requires [`mapInput`](#input-and-mapinput), because parameters reach the action only through it. TypeScript requires it, and the router throws without it.
+- A parameter value that is empty, `.`, `..`, or contains an encoded slash (`%2F`) does not match, so the request gets `404`.
+- Concrete segments win over parameters, and this happens before the method is selected. If `POST /users/me` and `DELETE /users/{id}` both exist, `DELETE /users/me` returns `405`: it does not fall through to `/users/{id}`.
+- Duplicate routes, and overlapping templates where neither is more concrete (`/a/{x}` and `/{y}/b`), throw when the route is added.
+- An unknown path returns `404`. A known path with a different method returns `405` with an `Allow` header.
+- Methods that the route file does not export, such as `GET`, are answered by Next.js with its own `405`, outside the route handlers' JSON format.
+- If your catch-all folder has another name, for example `[[...slug]]`, set `pathParam: "slug"`. It must match the folder name.
+
+## Subrouters
+
+Pass a `prefix` to `createRouter()` to group related routes, then combine the routers with `mergeRouters()`:
+
+```ts title="src/lib/router.ts"
+import { createRouter, mergeRouters } from "next-safe-action/routes";
+
+const todos = createRouter({ prefix: "/todos" })
+	.post("/", createTodo) // POST /todos
+	.patch("/{id}", updateTodo, { mapInput: ({ input, params }) => ({ ...(input as object), id: params.id }) });
+
+const orgs = createRouter({ prefix: "/orgs/{orgId}" }).post("/invite", invite, {
+	mapInput: ({ input, params }) => ({ ...(input as object), orgId: params.orgId }),
+});
+
+export const router = mergeRouters(todos, orgs).post("/ping", ping);
+```
+
+- The prefix follows the same rules as a path. A route path is joined to it, and the route `/` maps to the prefix itself.
+- A prefix can have parameters. They are typed in `mapInput` together with the route parameters, and they make `mapInput` required, like any other parameter.
+- `mergeRouters()` returns a new router with no prefix. Routes keep their full paths and the argument order. A merged router is still a normal router, so you can add more routes to it or merge it again.
+- The duplicate and ambiguity checks apply across all merged routers. Two routers derived from the same base router both contain the base routes, so merging them throws.
+- Prefixes do not nest: `mergeRouters()` never adds a prefix. To share a segment such as `/v1`, include it in each prefix.
+
+## Input and `mapInput`
+
+By default, the parsed JSON body is the action input, unchanged. An empty body becomes `undefined`. Path parameters and query values are **not** added to the input: use `mapInput` for them (it is required when the path has parameters).
+
+Use `mapInput` to build the input from the body, the path parameters, and the request:
+
+```ts title="src/lib/router.ts"
+export const router = createRouter().patch("/users/{id}", updateUser, {
+	// Spread the body first, so the path parameter always wins.
+	mapInput: ({ input, params, request }) => ({
+		...(input as object),
+		id: params.id,
+		notify: new URL(request.url).searchParams.get("notify") === "true",
+	}),
+});
+```
+
+`params` is typed from the path, so `params.id` exists here and a misspelled name is a type error. The return type is checked against the action's input type. The returned value still goes through the action's input validation. `mapInput` can be async.
+
+Actions with bind argument schemas (`bindArgsSchemas`) and bound functions (`action.bind(...)`) cannot be routed: the router throws.
+
+## Stateful actions
+
+An action defined with `stateAction()` needs a `stateSchema` route option: a Standard Schema for the previous result that the client sends back. TypeScript requires it for stateful actions and rejects it for the others.
+
+```ts title="src/lib/router.ts"
+export const router = createRouter().post("/counter", addToCounter, {
+	stateSchema: z.object({ data: z.object({ count: z.number() }).optional() }),
+});
+```
+
+The request body is an envelope with only `input` and `prevResult` keys:
+
+```json
+{ "input": { "amount": 1 }, "prevResult": { "data": { "count": 3 } } }
+```
+
+- The body must be a JSON object, so send at least `{}`. Other keys are rejected.
+- A missing `prevResult` becomes `{}`. A present one is validated once with `stateSchema`, and schema transforms apply.
+- An invalid envelope or previous result returns `400` with the `INVALID_STATE` code.
+- `mapInput` receives only `input`, after the state validation.
+
+<Callout type="warn">
+`prevResult` is untrusted client data. `stateSchema` checks its shape, not its authenticity or freshness. Never derive permissions, identifiers, or server state from it that the action does not verify again. Route handlers provide no session storage, replay protection, or concurrency control. `stateSchema` applies only to HTTP requests: the Server Action transport passes previous results straight from React.
+</Callout>
+
+## Responses and errors
+
+| Outcome | Status | Body |
+| --- | --- | --- |
+| Success | `200`, or `successStatus` | `{ data }`, or `{}` for a void action or a middleware that did not call `next()` |
+| Input validation failure (returned or thrown) | `400` | `{ validationErrors }` |
+| Server error returned by the action | `500`, or `serverErrorStatus(serverError)` | `{ serverError }` |
+| `redirect()` | `303` | Empty, with a `Location` header |
+| `unauthorized()`, `forbidden()`, `notFound()` | `401`, `403`, `404` | `{ httpError }` |
+| Route handler failure | `4xx` or `500` | `{ httpError: { code, message } }` |
+
+The route handler error codes are:
+
+| Status | Code | Cause |
+| --- | --- | --- |
+| `400` | `INVALID_JSON` | The body is not valid UTF-8 JSON. |
+| `400` | `INVALID_STATE` | Invalid stateful envelope or previous result. |
+| `400` | `INVALID_PATH` | The `pathParam` segment is not a catch-all array. |
+| `401` | `UNAUTHORIZED` | The action or its middleware called `unauthorized()`. |
+| `403` | `FORBIDDEN` | The action or its middleware called `forbidden()`. |
+| `403` | `ORIGIN_NOT_ALLOWED` | See [Origin check](#origin-check). |
+| `404` | `NOT_FOUND` | No endpoint matches the path, or the action or its middleware called `notFound()`. |
+| `405` | `METHOD_NOT_ALLOWED` | The path exists, but not for this method. |
+| `413` | `BODY_TOO_LARGE` | The body is larger than `maxBodyBytes`. |
+| `415` | `UNSUPPORTED_MEDIA_TYPE` | A `Content-Type` that is not JSON, or a non-empty body without `Content-Type`. |
+| `500` | `INTERNAL_ERROR` | Any unexpected failure (sanitized). |
+
+### Status codes for server errors
+
+Map the `serverError` value (the output of your `handleServerError`, or a value from [`returnServerError()`](/docs/api/error-classes)) to a status with `serverErrorStatus`. Its argument has the action's server error type, and it must return a `4xx` or `5xx` status:
+
+```ts
+createRouter().post("/usernames", reserveUsername, {
+	serverErrorStatus: (error) => (error === USERNAME_TAKEN ? 409 : 500),
+});
+```
+
+`successStatus` must be a `2xx` status that allows a body, so `204` and `205` are rejected. Use `headers` to add static response headers. The handlers always control `Cache-Control` (`no-store`), `Content-Type`, `Content-Length`, and the `Access-Control-*` headers.
+
+### Unexpected errors and `onError`
+
+Unexpected throws, `mapInput` and `serverErrorStatus` failures, invalid status values, and values that JSON cannot serialize (such as `BigInt` or circular objects) become a generic `500 INTERNAL_ERROR`. Some of these happen outside the action, so they do not reach `handleServerError`. Pass `onError` to log the original error:
+
+```ts
+createRouteHandlers(router, {
+	onError: (error, { request }) => console.error("Route action failed", request.url, error),
+});
+```
+
+The response stays a generic `500`. The handlers do not wait for an async `onError`, and ignores errors that it throws.
+
+### JSON serialization
+
+Responses use `JSON.stringify`, not React Flight: `Date` values become strings, `Map` and `Set` become `{}`, and `undefined` properties are omitted. Use an output schema and JSON-compatible values to keep a stable HTTP contract.
+
+`updateTag()` and `refresh()` from `next/cache` work only inside a Server Action, so they do not work when the action runs through a route handler. Use `revalidateTag()` or `revalidatePath()` in actions that you expose.
+
+## Security
+
+These endpoints are public HTTP APIs. The built-in protections of the Server Action transport do not apply to them.
+
+### Authentication belongs in middleware
+
+Route handlers do no authentication, authorization, or rate limiting. Add them as middleware on the client, like for any other action. The middleware runs for both transports: HTTP requests and Server Action calls. `unauthorized()` and `forbidden()` (which require the [`authInterrupts`](https://nextjs.org/docs/app/api-reference/config/next-config-js/authInterrupts) option) become `401` and `403` responses:
+
+```ts title="src/lib/safe-action.ts"
+import { unauthorized } from "next/navigation";
+
+export const authClient = createSafeActionClient().use(async ({ next }) => {
+	const session = await getSession(); // Reads a cookie or the Authorization header.
+	if (!session) unauthorized();
+	return next({ ctx: { session } });
+});
+```
+
+<Callout type="warn" title="Execution order">
+`stateSchema` validation and `mapInput` run **before** the action is called, so before every middleware of the action, including authentication. Treat their input as unauthenticated: keep them pure, do no database work in them, and make sure their result cannot tell anonymous callers anything. If this work must be protected, authenticate in the route file before you call the route handlers.
+</Callout>
+
+### Origin check
+
+Browsers send an `Origin` header with every `POST`, `PUT`, `PATCH`, and `DELETE` request. When a request has one, the handlers accept it only if it is the same origin as the app, or if it is listed in `allowedOrigins`. The literal origin `null` is always rejected. Requests without `Origin` (curl, server-to-server calls) are accepted, and your authentication middleware must handle them.
+
+Like Next.js Server Actions, the same-origin check compares `Origin` with the scheme from `X-Forwarded-Proto` (or the request URL) and the host from `X-Forwarded-Host` (or `Host`). If your proxy terminates TLS without `X-Forwarded-Proto`, or rewrites `Host` without `X-Forwarded-Host`, browser requests fail with `403`: add your public origin to `allowedOrigins`. Make sure your proxy overwrites client-supplied `X-Forwarded-*` headers.
+
+### Request bodies
+
+- A `Content-Type` must be `application/json` or `application/*+json`, even for an empty body, so an empty cross-site form post cannot run an action. An empty body without `Content-Type` is accepted, and a non-empty body requires one.
+- The default body limit is 1 MiB. Set `maxBodyBytes` to change it. The limit also applies to streamed bodies without `Content-Length`.
+- Invalid UTF-8 and invalid JSON return `400`.
+
+### Cross-origin browser calls
+
+Route handlers do not answer CORS preflights. A browser on another origin must send a preflight before a JSON request, and Next.js answers it without CORS headers, so the browser blocks the call. Same-origin browser calls and non-browser clients (scripts, mobile apps, other services) do not send preflights.
+
+If you need cross-origin browser calls, answer the preflights and add the CORS response headers in [`proxy.ts`](https://nextjs.org/docs/app/api-reference/file-conventions/proxy), and list the origin in `allowedOrigins` so that the origin check accepts it.
+
+Each entry of `allowedOrigins` must be an exact origin (scheme, host, and port if not the default, with no path or trailing slash). Wildcards are not supported. Invalid entries throw when `createRouteHandlers` runs.
+
+## OpenAPI
+
+The `next-safe-action/routes/openapi` entry point generates an OpenAPI 3.1 document from a router. It does not run actions, middleware, input schema factories, `mapInput`, `stateSchema`, or `serverErrorStatus`. You serve the document from a route and point any OpenAPI viewer at it.
+
+### 1. Opt routes in
+
+Only routes with an `openapi` option are documented:
+
+```ts title="src/lib/router.ts"
+export const router = createRouter().post("/users", createUser, {
+	successStatus: 201,
+	openapi: { operationId: "createUser", summary: "Create a user", tags: ["users"] },
+});
+```
+
+### 2. Serve the document
+
+The core lets you customize the server error and validation error shapes, so the generator cannot guess them. Describe them once in the document options. A route's `openapi` option can override them.
+
+```ts title="src/app/api/openapi.json/route.ts"
+import { generateOpenApiDocument } from "next-safe-action/routes/openapi";
+import { router } from "@/lib/router";
+
+// Generated once, when the module loads, so configuration errors surface early.
+const document = generateOpenApiDocument(router, {
+	info: { title: "My API", version: "1.0.0" },
+	// Route paths are relative to the catch-all folder, so the server URL includes it.
+	servers: [{ url: "/api" }],
+	// Describe your real handleServerError output and validation errors format.
+	serverErrorSchema: { type: "string" },
+	validationErrorsSchema: { type: "object" },
+});
+
+export function GET() {
+	return Response.json(document);
+}
+```
+
+A static route such as `/api/openapi.json` takes priority over the catch-all, so do not add a route with the same path. The document lists every documented route: protect the route if your API is private.
+
+### 3. Add a viewer
+
+Any OpenAPI 3.1 viewer can read the document. This route loads [Scalar](https://scalar.com) from jsDelivr, pinned to an exact version with Subresource Integrity, so it needs no npm package:
+
+```ts title="src/app/api/docs/route.ts"
+const html = `<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>API reference</title>
+	</head>
+	<body>
+		<div id="app"></div>
+		<script
+			src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.72.1/dist/browser/standalone.js"
+			integrity="sha384-U11tb2XnKvmwt8RlTvnwUnYgrN+ur4Xyh9htLhjajWNR/Oyl5AX5DEz00qRmlrmK"
+			crossorigin="anonymous"
+		></script>
+		<script>
+			Scalar.createApiReference("#app", { url: "/api/openapi.json" });
+		</script>
+	</body>
+</html>`;
+
+export function GET() {
+	return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8" } });
+}
+```
+
+Open `/api/docs`. Its test requests are same-origin, so the origin check accepts them. When you change the version, update the `integrity` hash too. If your app sets a Content Security Policy, allow the CDN or install the viewer from npm (`@scalar/api-reference`) and serve it yourself. Swagger UI (`swagger-ui-dist`) and Redoc work with the same document URL.
+
+### Schema conversion
+
+The generator reads JSON Schema from your Standard Schema validators through [Standard JSON Schema](https://standardschema.dev/json-schema) (`~standard.jsonSchema`, available from Zod 4.2), with the Draft 2020-12 target. The input schema and `stateSchema` are converted on the input side, and the output schema on the output side. When a validator cannot be converted, or the action has no output schema, pass a JSON Schema override in `openapi`: `requestBodySchema`, `prevResultSchema`, or `outputSchema`.
+
+Generation throws a `TypeError` that names the operation when:
+
+- The action has no output schema and no `outputSchema` override. For a void action, pass `outputSchema: false`.
+- The server error or validation errors schema is missing from both the document options and the route.
+- The action uses an input schema factory and has no `requestBodySchema`.
+- The route uses `mapInput` without both `requestBodySchema` and `parameters` (an empty array is valid). The generator cannot know the shape that `mapInput` accepts.
+- The route uses `serverErrorStatus` without a non-empty `serverErrorStatuses` list. List every status that the mapper can return, including `500` if it can fall back to it.
+- The `operationId` is duplicated, or is not an identifier (letters, digits, and underscores, with no leading digit).
+- Two schemas get the same component name (see [Components](#components)).
+
+For a `mapInput` route, describe the HTTP request yourself:
+
+```ts
+openapi: {
+	operationId: "updateUser",
+	requestBodySchema: { type: "object", required: ["name"], properties: { name: { type: "string" } } },
+	parameters: [
+		{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } },
+		{ name: "notify", in: "query", schema: { type: "boolean" } },
+	],
+}
+```
+
+### Request body and parameters
+
+- The request body is documented as required when the action has an input schema or a `requestBodySchema`. Optionality cannot be detected without running the validator, so set `requestBodyRequired: false` for input that can be omitted.
+- For stateful actions, the generated body is the `{ input, prevResult }` envelope, and it is always required. A `requestBodySchema` override describes the complete envelope.
+- `parameters` documents the path, query, header, and cookie parameters that `mapInput` reads. Each entry needs a `schema`, `(name, in)` pairs must be unique, path parameters must exist in the template, and every template parameter must be listed with `required: true`.
+
+### Components
+
+Every schema becomes a component in `components.schemas`: `createUser_Input`, `createUser_Output`, `createUser_ServerError`, and so on, plus a shared `HttpError`. The generator flattens each schema so that viewers resolve every reference against the document:
+
+- `$id` and `$schema` are removed.
+- Each `$defs` entry becomes its own component named `<component>_<key>`, for example `createUser_Input_Address`. Zod emits `$defs` for recursive schemas and for schemas registered with `.meta({ id })`.
+- Local references (`#`, `#/$defs/...`) are rewritten to `#/components/schemas/...`.
+
+Overrides can use document references such as `{ "$ref": "#/components/schemas/createUser_Output" }`: they are kept unchanged.
+
+## API reference
+
+### `createRouter(options?)`
+
+Returns an empty, immutable `Router`. `options.prefix` is joined to every route path, see [Subrouters](#subrouters). Its methods add one route each and return a new router:
+
+```ts
+router.post(path, action, config?)
+router.put(path, action, config?)
+router.patch(path, action, config?)
+router.delete(path, action, config?)
+```
+
+`path` is a template relative to the catch-all folder, for example `/users/{id}`. `action` is an action created with `action()` or `stateAction()`. `router.routes` lists the routes in the order they were added. The route config is:
+
+<TypeTable
+	type={{
+		mapInput: {
+			description: "Builds the action input from the parsed body, the typed path parameters, and the request. Its return type must match the action input. Required when the path has parameters. Runs before middleware.",
+			type: "(args: { input: unknown; params: Readonly<Record<Param, string>>; request: Request }) => Input | Promise<Input>",
+		},
+		stateSchema: {
+			description: "Standard Schema for prevResult. Required for stateAction(), not allowed otherwise. Runs before middleware.",
+			type: "StandardSchemaV1",
+		},
+		successStatus: {
+			description: "Success status. A 2xx status other than 204 and 205.",
+			type: "number",
+			default: "200",
+		},
+		headers: {
+			description: "Static headers added to every response of this route.",
+			type: "HeadersInit",
+		},
+		serverErrorStatus: {
+			description: "Maps a returned serverError to a 4xx or 5xx status.",
+			type: "(error: ServerError) => number",
+			default: "() => 500",
+		},
+		openapi: {
+			description: "Opts the route into OpenAPI generation. See RouteOpenApi.",
+			type: "RouteOpenApi",
+		},
+	}}
+/>
+
+### `mergeRouters(...routers)`
+
+Returns a new router with no prefix that contains the routes of every argument, in order. Throws on duplicate or ambiguous routes across the routers.
+
+### `RouteOpenApi`
+
+<TypeTable
+	type={{
+		operationId: {
+			description: "Unique identifier (letters, digits, underscores). Also the prefix of the component names.",
+			type: "string",
+			required: true,
+		},
+		summary: { description: "Operation summary.", type: "string" },
+		description: { description: "Operation description.", type: "string" },
+		tags: { description: "Operation tags.", type: "string[]" },
+		outputSchema: {
+			description: "JSON Schema for data. Overrides the converted output schema.",
+			type: "JsonSchema",
+		},
+		requestBodySchema: {
+			description: "JSON Schema for the complete request body. Overrides the converted input schema. Required with mapInput or an input schema factory.",
+			type: "JsonSchema",
+		},
+		requestBodyRequired: {
+			description: "Whether the request body is required.",
+			type: "boolean",
+			default: "true when there is an input schema or requestBodySchema",
+		},
+		prevResultSchema: {
+			description: "JSON Schema for prevResult. Overrides the converted stateSchema.",
+			type: "JsonSchema",
+		},
+		parameters: {
+			description: "The path, query, header, and cookie parameters. Required with mapInput.",
+			type: "OpenApiParameter[]",
+		},
+		serverErrorStatuses: {
+			description: "Every status that serverErrorStatus can return, including 500 if it can. Required with serverErrorStatus.",
+			type: "number[]",
+		},
+		serverErrorSchema: {
+			description: "JSON Schema for serverError. When set, overrides the document option.",
+			type: "JsonSchema",
+		},
+		validationErrorsSchema: {
+			description: "JSON Schema for validationErrors. When set, overrides the document option.",
+			type: "JsonSchema",
+		},
+	}}
+/>
+
+`OpenApiParameter` is `{ name, in: "path" | "query" | "header" | "cookie", schema, required?, description?, deprecated? }`, and `JsonSchema` is `boolean | Record<string, unknown>`.
+
+### `createRouteHandlers(router, options?)`
+
+Returns `{ POST, PUT, PATCH, DELETE }` for the route file.
+
+<TypeTable
+	type={{
+		pathParam: {
+			description: "Name of the catch-all segment. Must match the folder name.",
+			type: "string",
+			default: '"path"',
+		},
+		maxBodyBytes: {
+			description: "Maximum request body size in bytes.",
+			type: "number",
+			default: "1048576 (1 MiB)",
+		},
+		allowedOrigins: {
+			description: "Other origins that the origin check accepts, in addition to the same origin. The handlers do not send CORS headers.",
+			type: "readonly string[]",
+			default: "[]",
+		},
+		onError: {
+			description: "Receives the original error behind every sanitized 500 response. It cannot change or delay the response.",
+			type: "(error: unknown, context: { request: Request }) => void | Promise<void>",
+		},
+	}}
+/>
+
+### `generateOpenApiDocument(router, options)`
+
+Returns an OpenAPI 3.1 document object. Import it from `next-safe-action/routes/openapi`. Only routes with an `openapi` option are included.
+
+<TypeTable
+	type={{
+		info: {
+			description: "The OpenAPI info object.",
+			type: "{ title: string; version: string; description?: string }",
+			required: true,
+		},
+		servers: {
+			description: "The OpenAPI servers. Include the catch-all folder path in the URL, for example /api.",
+			type: "{ url: string; description?: string }[]",
+		},
+		serverErrorSchema: {
+			description: "Default JSON Schema for serverError. Required unless every documented route sets its own.",
+			type: "JsonSchema",
+		},
+		validationErrorsSchema: {
+			description: "Default JSON Schema for validationErrors. Required unless every documented route sets its own.",
+			type: "JsonSchema",
+		},
+	}}
+/>
+
+## Entry points reference
+
+| Entry point | Exports | Environment |
+|---|---|---|
+| `next-safe-action/routes` | `createRouter`, `mergeRouters`, `createRouteHandlers`, and the types `Router`, `Route`, `RouteConfig`, `RouteOpenApi`, `RouteHandlersOptions`, `OpenApiParameter`, `JsonSchema`, `HttpError` | Server |
+| `next-safe-action/routes/openapi` | `generateOpenApiDocument`, `OpenApiDocumentOptions` | Server |
+
+## See also
+
+- [Middleware guide](/docs/guides/middleware): add authentication and authorization to the client
+- [Framework errors](/docs/advanced/framework-errors): `redirect()`, `notFound()`, `unauthorized()`, and `forbidden()` in actions
+- [Custom validation errors](/docs/advanced/custom-validation-errors): the validation error shapes to describe in `validationErrorsSchema`

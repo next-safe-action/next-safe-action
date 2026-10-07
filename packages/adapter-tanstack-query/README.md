@@ -39,10 +39,11 @@ npm i @next-safe-action/adapter-tanstack-query @tanstack/react-query next-safe-a
 
 ## Requirements
 
-- `next-safe-action` >= 8.1.10
+- `next-safe-action` >= 9.0.0
 - `@tanstack/react-query` >= 5.0.0
-- `next` >= 14.0.0
-- `react` >= 18.2.0
+- `next` >= 15.1.0
+- `react` >= 19.0.0
+- Node.js >= 18.18
 
 ## Usage
 

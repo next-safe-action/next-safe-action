@@ -14,14 +14,25 @@
 - ✅ Input/output validation using multiple validation libraries
 - ✅ Advanced server error handling
 - ✅ Optimistic updates
+- ✅ Expose actions as JSON route handlers, with optional OpenAPI 3.1 generation
 
 ## Documentation
 
 **Explore the documentation for the current stable version of the library on the [next-safe-action website](https://next-safe-action.dev).** ✨
 
-## Migrate from v7 to v8
+## Migrate from v8 to v9
 
-Check out the [v7 to v8 migration guide](https://next-safe-action.dev/docs/migrations/v7-to-v8) to learn how to update your code for v8.
+Check out the [v8 to v9 migration guide](https://next-safe-action.dev/docs/migrations/v8-to-v9) to learn how to update your code for v9. A codemod handles most of the changes:
+
+```bash
+npx @next-safe-action/codemod@latest v9
+```
+
+## Requirements
+
+- Next.js >= `15.1.0` (App Router)
+- React >= `19.0.0`
+- Node.js >= `18.18`
 
 ## Installation
 

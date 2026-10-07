@@ -1,7 +1,12 @@
 import { defineConfig } from "tsdown";
 
 export default defineConfig({
-	entry: ["src/index.ts", "src/hooks.ts", "src/stateful-hooks.ts"],
+	entry: {
+		"index": "src/index.ts",
+		"hooks": "src/hooks.ts",
+		"routes": "src/routes/index.ts",
+		"routes/openapi": "src/routes/openapi.ts",
+	},
 	format: ["esm"],
 	clean: true,
 	sourcemap: true,

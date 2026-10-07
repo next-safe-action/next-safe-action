@@ -44,7 +44,7 @@ function fireCallback<A>(cb: ((arg: A) => unknown) | undefined, arg: A) {
  * @param safeActionFn The action function
  * @param opts Optional configuration: `initResult` for initial state, plus callbacks
  *
- * {@link https://next-safe-action.dev/docs/execute-actions/hooks/useaction See docs for more information}
+ * {@link https://next-safe-action.dev/docs/guides/hooks See docs for more information}
  */
 export const useAction = <
 	ServerError,
@@ -83,7 +83,7 @@ export const useAction = <
  * @param safeActionFn The action function
  * @param utils Required `currentData` and `updateFn`, optional `initResult` for initial state, and optional callbacks
  *
- * {@link https://next-safe-action.dev/docs/execute-actions/hooks/useoptimisticaction See docs for more information}
+ * {@link https://next-safe-action.dev/docs/guides/optimistic-updates See docs for more information}
  */
 export const useOptimisticAction = <
 	ServerError,
@@ -114,7 +114,7 @@ export const useOptimisticAction = <
 		setOptimisticValue
 	);
 
-	// Cast rationale: same as `useAction` — runtime consistency guaranteed by
+	// Cast rationale: same as `useAction`: runtime consistency guaranteed by
 	// `getActionStatus` + `getActionShorthandStatusObject`. The double assertion
 	// is needed because TypeScript can't verify overlap between the widened object
 	// and the distributed intersection-over-union (`UseActionHookReturn & { optimisticState }`).
@@ -191,11 +191,14 @@ type StateActionStrategies<ServerError, Schema extends StandardSchemaV1 | undefi
 /**
  * Shared implementation behind `useStateAction` and `useOptimisticStateAction`.
  *
- * Owns every concurrency invariant of the stateful path: the React 19 guard, the FIFO resolver
+ * Owns every concurrency invariant of the stateful path: the FIFO resolver
  * queue that keeps `executeAsync` promises aligned with dispatch order, the reset generation that
  * marks uncancellable in-flight dispatches stale, the `queueMicrotask` double-apply that keeps a
  * dispatch visible inside an ambient transition, and the reset masking of `useActionState`'s
  * pending flag. `strategies` is the only extension point; the exported `useStateAction` passes none.
+ * `strategies` is read directly and listed in the callback deps, never mirrored into a ref during
+ * render: `useOptimisticStateAction` builds it once with `useMemo(..., [])`, so the callbacks (and the
+ * action handed to `useActionState`) keep a stable identity.
  */
 const useStateActionInternal = <
 	ServerError,
@@ -210,13 +213,6 @@ const useStateActionInternal = <
 	} & HookBaseOptions<ServerError, Schema, ShapedErrors, Data>,
 	strategies?: StateActionStrategies<ServerError, Schema, ShapedErrors, Data>
 ): UseStateActionHookReturn<ServerError, Schema, ShapedErrors, Data, InitR> => {
-	if (typeof React.useActionState !== "function") {
-		throw new Error(
-			"useStateAction requires React 19+ (Next.js 15+). " +
-				"For older versions, use React's useActionState directly with your safe action."
-		);
-	}
-
 	// ─── Refs ────────────────────────────────────────────────────────────
 
 	// `initResult` is captured once at mount, mirroring React's `useActionState` initialState:
@@ -245,11 +241,6 @@ const useStateActionInternal = <
 	const resetGenerationRef = React.useRef(0);
 	// Bumped once per dispatch, so each dispatch can be told apart from the commits it produces.
 	const dispatchIdRef = React.useRef(0);
-
-	// Mutable ref assigned every render, so passing strategies never destabilizes the
-	// `useCallback` deps of `wrappedAction` / `dispatchWithResolver` / `formAction`.
-	const strategiesRef = React.useRef(strategies);
-	strategiesRef.current = strategies;
 
 	// ─── State ────────────────────────────────────────────────────────────
 
@@ -336,7 +327,7 @@ const useStateActionInternal = <
 
 			// Applied after the reset override so a `reset` still wins: the override carries the
 			// mount baseline, which is already the confirmed state the strategy would substitute.
-			const effectivePrevResult = strategiesRef.current?.resolvePrevResult?.(basePrevResult) ?? basePrevResult;
+			const effectivePrevResult = strategies?.resolvePrevResult?.(basePrevResult) ?? basePrevResult;
 
 			try {
 				// Never store `undefined`, mirroring `useActionBase`'s `setResult(res ?? {})`. The
@@ -345,7 +336,7 @@ const useStateActionInternal = <
 				// from a replay, so `onSuccess`/`onSettled` would re-fire on every unrelated re-render.
 				const result = (await safeActionFn(effectivePrevResult, input)) ?? {};
 				if (!staleAfterReset()) {
-					strategiesRef.current?.onDispatchSettled?.({ result }, input, dispatchId);
+					strategies?.onDispatchSettled?.({ result }, input, dispatchId);
 				}
 				asyncResolver?.resolve(result);
 				return result;
@@ -353,7 +344,7 @@ const useStateActionInternal = <
 				if (FrameworkErrorHandler.isNavigationError(e)) {
 					if (!staleAfterReset()) {
 						setNavigationError(e);
-						strategiesRef.current?.onDispatchSettled?.({ navigationError: e }, input, dispatchId);
+						strategies?.onDispatchSettled?.({ navigationError: e }, input, dispatchId);
 					}
 					asyncResolver?.reject(e);
 					return {};
@@ -370,7 +361,7 @@ const useStateActionInternal = <
 				}
 
 				setThrownError(e as Error);
-				strategiesRef.current?.onDispatchSettled?.({ thrownError: e as Error }, input, dispatchId);
+				strategies?.onDispatchSettled?.({ thrownError: e as Error }, input, dispatchId);
 
 				// This throw reaches an error boundary, and React drops every action still queued
 				// behind it without ever invoking `wrappedAction` for them. Their `executeAsync`
@@ -382,11 +373,12 @@ const useStateActionInternal = <
 				throw e;
 			}
 		},
-		[safeActionFn]
+		[safeActionFn, strategies]
 	);
 
 	// ─── Core useActionState ──────────────────────────────────────────────
 
+	// oxlint-disable-next-line react/refs -- mount-captured `initResult`, never written after mount (see AGENTS.md)
 	const [rawResult, dispatcher, isExecuting] = React.useActionState(wrappedAction, initResultRef.current);
 
 	// ─── execute ──────────────────────────────────────────────────────────
@@ -401,7 +393,7 @@ const useStateActionInternal = <
 			startTransition(() => {
 				// Must run inside this transition: React only holds an optimistic value for as long
 				// as the Action that scheduled it is pending.
-				strategiesRef.current?.onTransitionStart?.(
+				strategies?.onTransitionStart?.(
 					input as InferInputOrDefault<Schema, undefined>,
 					resetGenerationRef.current,
 					dispatchIdRef.current
@@ -414,7 +406,7 @@ const useStateActionInternal = <
 				dispatcher(input as InferInputOrDefault<Schema, undefined>);
 			});
 		},
-		[beginDispatch, dispatcher]
+		[beginDispatch, dispatcher, strategies]
 	);
 
 	const execute = React.useCallback(
@@ -448,7 +440,7 @@ const useStateActionInternal = <
 		(input: InferInputOrDefault<Schema, undefined>) => {
 			beginDispatch(input as InferInputOrDefault<Schema, void>);
 			// React already supplies the transition on this path, so the seam is called directly.
-			strategiesRef.current?.onTransitionStart?.(input, resetGenerationRef.current, dispatchIdRef.current);
+			strategies?.onTransitionStart?.(input, resetGenerationRef.current, dispatchIdRef.current);
 			asyncResolversRef.current.push({
 				resolver: null,
 				generation: resetGenerationRef.current,
@@ -456,7 +448,7 @@ const useStateActionInternal = <
 			});
 			dispatcher(input);
 		},
-		[beginDispatch, dispatcher]
+		[beginDispatch, dispatcher, strategies]
 	);
 
 	// ─── reset ────────────────────────────────────────────────────────────
@@ -465,7 +457,7 @@ const useStateActionInternal = <
 		// Mark every dispatch enqueued so far as stale (see `resetGenerationRef`).
 		const generation = ++resetGenerationRef.current;
 		prevResultOverrideRef.current = initResultRef.current;
-		strategiesRef.current?.onReset?.(generation);
+		strategies?.onReset?.(generation);
 
 		const apply = () => {
 			setIsIdle(true);
@@ -485,7 +477,7 @@ const useStateActionInternal = <
 			if (generation !== resetGenerationRef.current) return;
 			apply();
 		});
-	}, []);
+	}, [strategies]);
 
 	// ─── Status ───────────────────────────────────────────────────────────
 
@@ -493,6 +485,7 @@ const useStateActionInternal = <
 	// not provided) so the idle branch's runtime value matches its declared type in both phases:
 	// at mount and after reset. This is also the intuitive contract for `reset`: return to the
 	// initial state.
+	// oxlint-disable-next-line react/refs -- mount-captured `initResult`, never written after mount (see AGENTS.md)
 	const result = isReset ? initResultRef.current : (rawResult ?? {});
 
 	// `useActionState`'s pending flag can't be cancelled: after a mid-flight `reset` it stays
@@ -529,7 +522,7 @@ const useStateActionInternal = <
 
 	// ─── Return ───────────────────────────────────────────────────────────
 
-	// Cast rationale: same as `useAction` — runtime consistency guaranteed by
+	// Cast rationale: same as `useAction`: runtime consistency guaranteed by
 	// `getActionStatus` + `getActionShorthandStatusObject`. The double assertion
 	// through `unknown` is needed because TypeScript can't verify overlap between
 	// the widened object and the distributed intersection-over-union.
@@ -549,17 +542,15 @@ const useStateActionInternal = <
 
 /**
  * Use the stateful action from a Client Component via hook. Used for actions defined with
- * [`stateAction`](https://next-safe-action.dev/docs/define-actions/instance-methods#action--stateaction).
+ * [`stateAction`](https://next-safe-action.dev/docs/api/safe-action-client#stateaction).
  *
  * Provides full lifecycle control: callbacks, status tracking, navigation error handling,
  * `executeAsync`, `reset`, and `formAction` for `<form action={formAction}>` integration.
  *
- * Requires React 19+ (Next.js 15+). On older versions, a runtime error is thrown with guidance.
- *
  * @param safeActionFn The stateful action function created with `.stateAction()`.
  * @param opts Optional configuration: `initResult` for initial state, plus all hook options and callbacks.
  *
- * {@link https://next-safe-action.dev/docs/execute-actions/hooks/usestateaction See docs for more information}
+ * {@link https://next-safe-action.dev/docs/guides/hooks#usestateaction See docs for more information}
  */
 export const useStateAction = <
 	ServerError,
@@ -594,12 +585,10 @@ export const useStateAction = <
  * running was rendered before that action wrote, so it is the older value for the server base even
  * though its identity is newer.
  *
- * Requires React 19+ (Next.js 15+). On older versions, a runtime error is thrown with guidance.
- *
  * @param safeActionFn The stateful action function created with `.stateAction()`.
  * @param utils Required `currentState` and `updateFn`, optional `initResult` and callbacks.
  *
- * {@link https://next-safe-action.dev/docs/execute-actions/hooks/useoptimisticstateaction See docs for more information}
+ * {@link https://next-safe-action.dev/docs/guides/coordinating-mutations See docs for more information}
  */
 export const useOptimisticStateAction = <
 	ServerError,
@@ -625,11 +614,11 @@ export const useOptimisticStateAction = <
 	//
 	// Two different "last confirmed" values are tracked, because they answer different questions:
 	//
-	//   `lastConfirmedRef`  — what the USER SEES. Advances only when `useActionState` commits.
+	//   `lastConfirmedRef`:  what the USER SEES. Advances only when `useActionState` commits.
 	//                         React withholds that commit until the whole queue drains and drops
 	//                         every optimistic payload in the same commit, so a base derived from
 	//                         it can never double-apply a payload that is still attached.
-	//   `lastServerDataRef` — what the SERVER GETS. Advances the moment a dispatch settles, before
+	//   `lastServerDataRef`: what the SERVER GETS. Advances the moment a dispatch settles, before
 	//                         any commit, because the next queued dispatch runs immediately and
 	//                         needs its predecessor's domain state.
 	//
@@ -789,6 +778,7 @@ export const useOptimisticStateAction = <
 	// not only StrictMode's double invoke) would otherwise leave state that never committed where
 	// the next event handler reads it, and `resolvePrevResult` would send it to the server. Every
 	// write is deferred to the layout effect below, which only runs for a render that committed.
+	/* oxlint-disable react/refs -- pure render-time reads; every ref write is deferred to the layout effect below */
 	const propChanged = utils.currentState !== lastPropRef.current;
 	const committedData = (base.result as { data?: unknown }).data as State | undefined;
 	const committedIsFresh = base.result !== supersededResultRef.current && !ignoreCommittedDataRef.current;
@@ -802,6 +792,7 @@ export const useOptimisticStateAction = <
 	// Derived, never assigned during render, for the same reason as `confirmed`: an abandoned
 	// concurrent render must not leave a cut behind that no commit ever agreed to.
 	const acked = propChanged ? settledIdRef.current : ackedThroughRef.current;
+	/* oxlint-enable react/refs */
 
 	React.useLayoutEffect(() => {
 		if (propChanged) {
@@ -824,6 +815,7 @@ export const useOptimisticStateAction = <
 	const [frame, addOptimistic] = React.useOptimistic<
 		{ generation: number; acked: number; state: State },
 		{ generation: number; dispatchId: number; input: InferInputOrDefault<Schema, undefined> }
+		// oxlint-disable-next-line react/refs -- `confirmed` and `acked` are derived from refs that are only written in the layout effect
 	>({ generation, acked, state: confirmed }, (current, payload) =>
 		payload.generation === current.generation && payload.dispatchId > current.acked
 			? {
@@ -837,7 +829,7 @@ export const useOptimisticStateAction = <
 		addOptimisticRef.current = addOptimistic;
 	});
 
-	// Cast rationale: same as `useOptimisticAction` — runtime consistency is guaranteed by
+	// Cast rationale: same as `useOptimisticAction`: runtime consistency is guaranteed by
 	// `getActionStatus` + `getActionShorthandStatusObject`, but TypeScript can't verify overlap
 	// between the widened object and the distributed intersection-over-union.
 	return {

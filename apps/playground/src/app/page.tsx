@@ -6,6 +6,7 @@ import {
 	ListTodoIcon,
 	MousePointerClickIcon,
 	NavigationIcon,
+	RouteIcon,
 	ShieldAlertIcon,
 	SparklesIcon,
 	WifiOffIcon,
@@ -74,6 +75,12 @@ const pages = [
 		description: "mutationOptions adapter for type-safe TanStack Query mutations",
 		href: "/tanstack-query",
 		icon: ZapIcon,
+	},
+	{
+		title: "Route Handlers",
+		description: "JSON endpoints and OpenAPI docs from the same actions",
+		href: "/routes",
+		icon: RouteIcon,
 	},
 	{
 		title: "Navigation & Framework",

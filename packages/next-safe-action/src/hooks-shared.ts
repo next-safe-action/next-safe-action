@@ -18,7 +18,9 @@ import type { InferInputOrDefault, StandardSchemaV1 } from "./standard-schema";
  * Extracts common state management, execution logic, and callback wiring.
  *
  * @param onTransitionStart Optional callback invoked inside `startTransition` before the action runs.
- *   Used by `useOptimisticAction` to call `setOptimisticValue`.
+ *   Used by `useOptimisticAction` to call `setOptimisticValue`. It is read directly (it is a dep of
+ *   `execute`/`executeAsync`), never mirrored into a ref during render: the only caller passes the
+ *   `useOptimistic` dispatcher, whose identity is stable, so the callbacks stay stable too.
  */
 export function useActionBase<ServerError, Schema extends StandardSchemaV1 | undefined, ShapedErrors, Data>(
 	safeActionFn: SingleInputActionFn<ServerError, Schema, ShapedErrors, Data>,
@@ -32,7 +34,7 @@ export function useActionBase<ServerError, Schema extends StandardSchemaV1 | und
 	isTransitioning: boolean;
 	// Exposed as `NormalizeActionResult<...>` so that void-returning actions
 	// surface `data: undefined` rather than `data: void | undefined`. The
-	// internal `useState` still holds the raw `SafeActionResult` union — the
+	// internal `useState` still holds the raw `SafeActionResult` union, the
 	// type-only narrowing happens once at this boundary via a cast.
 	result: NormalizeActionResult<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>;
 	clientInput: InferInputOrDefault<Schema, void> | undefined;
@@ -50,6 +52,7 @@ export function useActionBase<ServerError, Schema extends StandardSchemaV1 | und
 
 	const [isTransitioning, startTransition] = React.useTransition();
 	const [result, setResult] = React.useState<SafeActionResult<ServerError, Schema, ShapedErrors, Data>>(
+		// oxlint-disable-next-line react/refs -- mount-captured `initResult`, never written after mount
 		initResultRef.current
 	);
 	const [clientInput, setClientInput] = React.useState<InferInputOrDefault<Schema, void>>();
@@ -97,10 +100,6 @@ export function useActionBase<ServerError, Schema extends StandardSchemaV1 | und
 		});
 	}, []);
 
-	// Stable ref for the transition start callback to avoid destabilizing execute/executeAsync.
-	const onTransitionStartRef = React.useRef(onTransitionStart);
-	onTransitionStartRef.current = onTransitionStart;
-
 	const status = getActionStatus<ServerError, Schema, ShapedErrors, Data>({
 		isExecuting,
 		result,
@@ -122,7 +121,7 @@ export function useActionBase<ServerError, Schema extends StandardSchemaV1 | und
 			beginExecution(thisRequestId, input);
 
 			startTransition(() => {
-				onTransitionStartRef.current?.(input as InferInputOrDefault<Schema, undefined>);
+				onTransitionStart?.(input as InferInputOrDefault<Schema, undefined>);
 
 				safeActionFn(input as InferInputOrDefault<Schema, undefined>)
 					.then((res) => {
@@ -149,7 +148,7 @@ export function useActionBase<ServerError, Schema extends StandardSchemaV1 | und
 					});
 			});
 		},
-		[beginExecution, safeActionFn]
+		[beginExecution, onTransitionStart, safeActionFn]
 	);
 
 	const executeAsync = React.useCallback(
@@ -160,7 +159,7 @@ export function useActionBase<ServerError, Schema extends StandardSchemaV1 | und
 				beginExecution(thisRequestId, input);
 
 				startTransition(() => {
-					onTransitionStartRef.current?.(input as InferInputOrDefault<Schema, undefined>);
+					onTransitionStart?.(input as InferInputOrDefault<Schema, undefined>);
 
 					safeActionFn(input as InferInputOrDefault<Schema, undefined>)
 						.then((res) => {
@@ -192,7 +191,7 @@ export function useActionBase<ServerError, Schema extends StandardSchemaV1 | und
 				});
 			});
 		},
-		[beginExecution, safeActionFn]
+		[beginExecution, onTransitionStart, safeActionFn]
 	);
 
 	const reset = React.useCallback(() => {
@@ -251,7 +250,7 @@ export function useActionBase<ServerError, Schema extends StandardSchemaV1 | und
 		isTransitioning,
 		// `result` and `executeAsync` are structurally compatible with
 		// `NormalizeActionResult<SafeActionResult<...>>` for every concrete `Data`
-		// the runtime ever produces — `NormalizeActionResult` only drops the
+		// the runtime ever produces, `NormalizeActionResult` only drops the
 		// `{ data: void }` branch, which the action builder never emits (see
 		// `buildResultAndRunCallbacks` in `action-builder.ts`). TypeScript can't
 		// verify this while `Data` is still a free generic, so the cast is

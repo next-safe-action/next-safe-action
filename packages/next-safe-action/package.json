@@ -18,9 +18,13 @@
 			"types": "./dist/hooks.d.mts",
 			"default": "./dist/hooks.mjs"
 		},
-		"./stateful-hooks": {
-			"types": "./dist/stateful-hooks.d.mts",
-			"default": "./dist/stateful-hooks.mjs"
+		"./routes": {
+			"types": "./dist/routes.d.mts",
+			"default": "./dist/routes.mjs"
+		},
+		"./routes/openapi": {
+			"types": "./dist/routes/openapi.d.mts",
+			"default": "./dist/routes/openapi.mjs"
 		}
 	},
 	"typesVersions": {
@@ -31,8 +35,11 @@
 			"hooks": [
 				"./dist/hooks.d.mts"
 			],
-			"stateful-hooks": [
-				"./dist/stateful-hooks.d.mts"
+			"routes": [
+				"./dist/routes.d.mts"
+			],
+			"routes/openapi": [
+				"./dist/routes/openapi.d.mts"
 			]
 		}
 	},
@@ -62,12 +69,17 @@
 		"actions",
 		"react actions",
 		"next actions",
-		"server actions"
+		"server actions",
+		"route handlers",
+		"routes",
+		"rest",
+		"json",
+		"openapi"
 	],
 	"author": "Edoardo Ranghieri",
 	"license": "MIT",
 	"engines": {
-		"node": ">=18.17"
+		"node": ">=18.18"
 	},
 	"devDependencies": {
 		"@testing-library/dom": "catalog:",
@@ -88,9 +100,9 @@
 		"zod": "catalog:"
 	},
 	"peerDependencies": {
-		"next": ">= 14.0.0",
-		"react": ">= 18.2.0",
-		"react-dom": ">= 18.2.0"
+		"next": ">= 15.1.0",
+		"react": ">= 19.0.0",
+		"react-dom": ">= 19.0.0"
 	},
 	"repository": {
 		"type": "git",

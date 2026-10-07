@@ -1,0 +1,63 @@
+{
+	"name": "@next-safe-action/codemod",
+	"version": "0.0.0",
+	"private": false,
+	"description": "Codemods to migrate next-safe-action projects to new major versions.",
+	"type": "module",
+	"bin": {
+		"next-safe-action-codemod": "./dist/cli.mjs"
+	},
+	"files": [
+		"dist"
+	],
+	"funding": [
+		{
+			"type": "github",
+			"url": "https://github.com/sponsors/TheEdoRan"
+		},
+		{
+			"type": "paypal",
+			"url": "https://www.paypal.com/donate/?hosted_button_id=ES9JRPSC66XKW"
+		}
+	],
+	"scripts": {
+		"test": "tsdown && vitest run",
+		"lint": "tsc --noEmit && oxlint --type-aware .",
+		"build": "tsdown"
+	},
+	"keywords": [
+		"next",
+		"nextjs",
+		"next-safe-action",
+		"next safe action",
+		"server actions",
+		"codemod",
+		"migration",
+		"upgrade",
+		"ts-morph"
+	],
+	"author": "Edoardo Ranghieri",
+	"license": "MIT",
+	"dependencies": {
+		"ts-morph": "28.0.0"
+	},
+	"devDependencies": {
+		"@types/node": "catalog:",
+		"oxlint": "catalog:",
+		"oxlint-tsgolint": "catalog:",
+		"tsdown": "catalog:",
+		"typescript": "catalog:",
+		"vitest": "catalog:"
+	},
+	"engines": {
+		"node": ">=18.18"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/next-safe-action/next-safe-action.git",
+		"directory": "packages/codemod"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

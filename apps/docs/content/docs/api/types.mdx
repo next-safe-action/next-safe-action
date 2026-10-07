@@ -9,7 +9,7 @@ This page documents all the TypeScript types exported by next-safe-action. Types
 
 ### `SafeActionResult`
 
-The result object returned by every action execution. Modeled as a **discriminated union** so that at most one of `data`, `serverError`, and `validationErrors` is populated — checking one field narrows the others to `undefined`.
+The result object returned by every action execution. Modeled as a **discriminated union** so that at most one of `data`, `serverError`, and `validationErrors` is populated: checking one field narrows the others to `undefined`.
 
 ```ts
 type SafeActionResult<ServerError, Schema, ShapedErrors, Data> =

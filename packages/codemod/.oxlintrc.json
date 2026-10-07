@@ -1,0 +1,16 @@
+{
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+	"extends": ["../../.oxlintrc.base.json"],
+	"plugins": ["oxc", "eslint", "unicorn", "typescript"],
+	"categories": {
+		"correctness": "error",
+		"suspicious": "warn"
+	},
+	"ignorePatterns": ["src/__tests__/fixtures/**"],
+	"rules": {
+		"typescript/consistent-type-imports": "error",
+		"typescript/no-unsafe-type-assertion": "off",
+		"unicorn/no-array-sort": "off",
+		"unicorn/require-module-specifiers": "off"
+	}
+}

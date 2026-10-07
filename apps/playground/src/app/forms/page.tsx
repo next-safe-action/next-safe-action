@@ -9,6 +9,7 @@ import { StatefulFormDemo } from "./_components/stateful-form-demo";
 
 async function BindArgumentsSection({ source }: { source: SourceCode }) {
 	await connection();
+	// oxlint-disable-next-line react/purity -- request-time Server Component, rendered after connection()
 	const randomAge = Math.floor(Math.random() * 200);
 	const randomUserId = crypto.randomUUID();
 

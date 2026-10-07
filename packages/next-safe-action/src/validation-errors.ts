@@ -127,6 +127,12 @@ export class ActionValidationError<ShapedErrors> extends Error {
 	}
 }
 
+// Cross-instance brand: lets the routes entry recognize thrown validation errors even when a duplicate copy of this
+// package is loaded, mirroring the `Symbol.for` protocol used for action definitions.
+Object.defineProperty(ActionValidationError.prototype, Symbol.for("next-safe-action.validation-error.v1"), {
+	value: true,
+});
+
 // This class is internally used to throw validation errors in action's server code function, using
 // `returnValidationErrors`.
 export class ActionBindArgsValidationError extends Error {
@@ -143,7 +149,7 @@ export class ActionBindArgsValidationError extends Error {
  * @param schema Input schema
  * @param validationErrors Validation errors object
  *
- * {@link https://next-safe-action.dev/docs/define-actions/validation-errors#returnvalidationerrors See docs for more information}
+ * {@link https://next-safe-action.dev/docs/api/validation-utilities#returnvalidationerrors See docs for more information}
  */
 export function returnValidationErrors<
 	Schema extends StandardSchemaV1 | (() => Promise<StandardSchemaV1>),
@@ -167,7 +173,7 @@ export function formatValidationErrors<VE extends ValidationErrors<any>>(validat
  * Emulation of `zod`'s [`flatten`](https://zod.dev/ERROR_HANDLING?id=flattening-errors) function.
  * @param {ValidationErrors} [validationErrors] Validation errors object
  *
- * {@link https://next-safe-action.dev/docs/define-actions/validation-errors#flattenvalidationerrorsutility-function See docs for more information}
+ * {@link https://next-safe-action.dev/docs/api/validation-utilities#flattenvalidationerrors See docs for more information}
  */
 export function flattenValidationErrors<VE extends ValidationErrors<any>>(validationErrors: VE) {
 	const flattened: FlattenedValidationErrors<VE> = {

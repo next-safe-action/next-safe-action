@@ -60,7 +60,7 @@
 	"license": "MIT",
 	"devDependencies": {
 		"@types/node": "catalog:",
-		"better-auth": "^1.6.26",
+		"better-auth": "^1.7.7",
 		"next": "catalog:",
 		"next-safe-action": "workspace:*",
 		"oxlint": "catalog:",
@@ -73,10 +73,10 @@
 	"peerDependencies": {
 		"better-auth": ">= 1.5.0",
 		"next": ">= 15.1.0",
-		"next-safe-action": ">= 8.4.0"
+		"next-safe-action": ">= 9.0.0"
 	},
 	"engines": {
-		"node": ">=18.17"
+		"node": ">=18.18"
 	},
 	"repository": {
 		"type": "git",

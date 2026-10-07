@@ -87,7 +87,7 @@ test("destructured fields narrow together on if (validationErrors)", () => {
 // ─── Idle branch and fresh-object assignability ────────────────────────────
 
 test("empty object assigns to Result (idle branch)", () => {
-	// The successful compilation IS the assertion — `{}` must be assignable
+	// The successful compilation IS the assertion, `{}` must be assignable
 	// to Result so that `useAction`'s `useState<Result>({})` initializer works.
 	const _idle: Result = {};
 	void _idle;
@@ -111,29 +111,29 @@ test("fresh object literals assign for each branch", () => {
 //
 // These tests pin the mutual exclusivity contract. Without them, a regression
 // that widens `SafeActionResult` back into a flat object (where all three fields
-// are independently optional) would silently re-admit compound literals —
+// are independently optional) would silently re-admit compound literals,
 // defeating the narrowing guarantee users depend on.
 
 test("compound {data, serverError} literal is rejected", () => {
-	// @ts-expect-error — success and server error branches are mutually exclusive
+	// @ts-expect-error: success and server error branches are mutually exclusive
 	const _bad: Result = { data: { id: "x" }, serverError: "oops" };
 	void _bad;
 });
 
 test("compound {data, validationErrors} literal is rejected", () => {
-	// @ts-expect-error — success and validation error branches are mutually exclusive
+	// @ts-expect-error: success and validation error branches are mutually exclusive
 	const _bad: Result = { data: { id: "x" }, validationErrors: { name: { _errors: ["required"] } } as Shape };
 	void _bad;
 });
 
 test("compound {serverError, validationErrors} literal is rejected", () => {
-	// @ts-expect-error — server error and validation error branches are mutually exclusive
+	// @ts-expect-error: server error and validation error branches are mutually exclusive
 	const _bad: Result = { serverError: "oops", validationErrors: { name: { _errors: ["required"] } } as Shape };
 	void _bad;
 });
 
 test("all-three-fields literal is rejected", () => {
-	// @ts-expect-error — no branch of the union accepts all three fields populated
+	// @ts-expect-error: no branch of the union accepts all three fields populated
 	const _bad: Result = {
 		data: { id: "x" },
 		serverError: "oops",
@@ -243,7 +243,7 @@ test("the canonical user DX case: await action() destructured + narrowed", async
 // ─── Void-returning actions ───────────────────────────────────────────────
 //
 // When `Data = void`, the runtime never emits `{ data: undefined }` separately
-// from the idle `{}` — see `buildResultAndRunCallbacks` in action-builder.ts,
+// from the idle `{}`, see `buildResultAndRunCallbacks` in action-builder.ts,
 // which only sets `data` when `middlewareResult.data !== undefined`.
 //
 // `NormalizeActionResult` is NOT applied at the `SafeActionFn` return level
@@ -278,7 +278,7 @@ test("void-returning action: error branches still narrow and leave data as undef
 });
 
 test("void-returning action: runtime `{}` still assigns to the result type", () => {
-	// The successful compilation IS the assertion — the runtime idle/success
+	// The successful compilation IS the assertion, the runtime idle/success
 	// shape must remain compatible with the type.
 	const _idle: VoidResult = {};
 	void _idle;
@@ -318,7 +318,7 @@ test("default SafeActionResult (Data=unknown) keeps the success branch", () => {
 	// other branches' `undefined`, which simplifies to `unknown`.
 	expectTypeOf<typeof r.data>().toEqualTypeOf<unknown>();
 	// A fresh object with an arbitrary `data` value must still be assignable
-	// through the success branch — this fails if the success branch has been
+	// through the success branch, this fails if the success branch has been
 	// incorrectly collapsed for non-void Data.
 	const _success: R = { data: { anything: true } };
 	void _success;

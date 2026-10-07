@@ -152,7 +152,7 @@
   }
   ```
 
-  Destructured narrowing works end-to-end: checking any one of the three fields propagates to the other two. No hook API changes are required — `useAction().result` narrows automatically.
+  Destructured narrowing works end-to-end: checking any one of the three fields propagates to the other two. No hook API changes are required: `useAction().result` narrows automatically.
 
   ### Runtime behavior change (compound-error precedence)
 
@@ -221,7 +221,7 @@
   - Use `Pick`/`Omit`/`Partial` on `UseActionHookReturn` and expected a flat shape. These utilities now distribute over the union.
   - Build custom wrappers that manually construct a value of type `UseActionHookReturn` (e.g. a test helper). The value must match exactly one branch of the union rather than the previous flat shape.
 
-  The `result` object on each branch is now narrowed — for example, on the `"hasSucceeded"` branch, `result.data` is typed as `Data` (not `Data | undefined`). This is strictly more information than before, and existing code that reads it without narrowing continues to compile.
+  The `result` object on each branch is now narrowed: for example, on the `"hasSucceeded"` branch, `result.data` is typed as `Data` (not `Data | undefined`). This is strictly more information than before, and existing code that reads it without narrowing continues to compile.
 
 ## 8.4.0
 
@@ -303,23 +303,23 @@
 
   The monolithic `actionBuilder` function has been broken into focused helper functions:
 
-  - `validateMetadata()` — metadata schema validation
-  - `validateInputs()` — bind args + main input validation with early return on errors
-  - `executeServerCode()` — server code execution with output validation
-  - `handleExecutionError()` — error classification and handling
+  - `validateMetadata()`: metadata schema validation
+  - `validateInputs()`: bind args + main input validation with early return on errors
+  - `executeServerCode()`: server code execution with output validation
+  - `handleExecutionError()`: error classification and handling
 
   #### Minor improvements
 
-  - `FrameworkErrorHandler.getNavigationKind()` — simplified conditional chain, `getAccessFallbackHTTPStatus()` is now called once instead of three times.
-  - `mapToHookFormErrors` (adapter) — reversed the `_errors`/object check order with an early `continue` to avoid processing `_errors` keys as nested objects.
+  - `FrameworkErrorHandler.getNavigationKind()`: simplified conditional chain, `getAccessFallbackHTTPStatus()` is now called once instead of three times.
+  - `mapToHookFormErrors` (adapter): reversed the `_errors`/object check order with an early `continue` to avoid processing `_errors` keys as nested objects.
 
   #### New tests
 
-  - `bind-args-validation-errors.test.ts` — bind args validation error handling
-  - `hooks-race-conditions.test.tsx` — rapid execution race condition scenarios
-  - `metadata.test.ts` — metadata schema validation
-  - `middleware-edge-cases.test.ts` — middleware edge cases
-  - `output-schema.test.ts` — output schema validation
+  - `bind-args-validation-errors.test.ts`: bind args validation error handling
+  - `hooks-race-conditions.test.tsx`: rapid execution race condition scenarios
+  - `metadata.test.ts`: metadata schema validation
+  - `middleware-edge-cases.test.ts`: middleware edge cases
+  - `output-schema.test.ts`: output schema validation
 
   74 type tests across 8 files
 
