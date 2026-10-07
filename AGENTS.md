@@ -20,24 +20,24 @@ next-safe-action is a TypeScript library for type-safe, validated Next.js Server
 
 | Category | Technology | Version |
 |---|---|---|
-| Language | TypeScript | ^6.0.3 |
-| Runtime | Node.js | >=18.18 |
-| Package manager | pnpm (with catalogs) | 11.7.0 |
-| Framework | Next.js | ^16.3.1 |
-| UI library | React | ^19 |
-| Monorepo orchestration | Turborepo | ^2.10.10 |
-| Bundler | tsdown (Rolldown + Oxc) | ^0.22.14 |
-| Test framework | Vitest | ^4.1.10 |
-| Browser test framework | Playwright (Chromium) | 1.61.1 |
-| Formatter | Oxfmt | ^0.63.0 |
-| Linter | Oxlint (type-aware) | ^1.74.0 |
-| Validation | Zod ^4.4.3, Yup ^1.7.1 (Standard Schema v1) | - |
+| Language | TypeScript (native `tsgo` compiler, no JS API or tsserver) | ~7.0.2 |
+| Runtime | Node.js | >=18.18 for the published packages; ^22.18.0, ^24.11.0 or >=26 for development (`.node-version`: 24) |
+| Package manager | pnpm (with catalogs) | 11.28.5 |
+| Framework | Next.js | ^16.3.8 |
+| UI library | React | ^19.3.0 |
+| Monorepo orchestration | Turborepo | ^2.11.7 |
+| Bundler | tsdown (Rolldown + Oxc) | ^0.23.0 |
+| Test framework | Vitest | ^5.0.3 |
+| Browser test framework | Playwright (Chromium) | 1.63.0 |
+| Formatter | Oxfmt | ^0.72.0 |
+| Linter | Oxlint (type-aware, oxlint-tsgolint ^7.0.2003) | 1.87.0 |
+| Validation | Zod ^4.6.5, Yup ^1.7.1 (Standard Schema v1) | - |
 | CSS framework | Tailwind CSS v4 | ^4 |
-| Component library | shadcn/ui (Radix UI + CVA) | ^4.16.2 |
-| Docs framework | Fumadocs (core + MDX + UI) | ^16.14.3 |
-| Forms | react-hook-form + @hookform/resolvers | ^7.85.0 / ^5.7.1 |
-| Data fetching | TanStack Query (React Query) | ^5.101.4 |
-| Versioning | Changesets | ^2.31.1 |
+| Component library | shadcn/ui (Radix UI + CVA) | ^4.21.3 |
+| Docs framework | Fumadocs (core + UI / MDX) | ^16.16.2 / ^15.4.6 |
+| Forms | react-hook-form + @hookform/resolvers | ^7.89.0 / ^5.9.1 |
+| Data fetching | TanStack Query (React Query) | ^5.104.1 |
+| Versioning | Changesets (CLI, `changesets/action` v2 in the release workflow) | ^3.0.3 |
 
 ## Commands
 
@@ -68,8 +68,8 @@ All commands run from the repository root unless noted.
 ## Code Style
 
 - **Formatter**: Oxfmt, tabs (tabWidth 2), printWidth 120, semicolons, double quotes, trailing commas (es5), import sorting, Tailwind CSS class sorting. Config in `.oxfmtrc.json`.
-- **Linter**: Oxlint with type-aware checking via `oxlint-tsgolint`. Shared base config in `.oxlintrc.base.json`, package overrides in per-package `.oxlintrc.json`. Plugins: oxc, eslint, unicorn, typescript, react, react-perf (library packages), plus nextjs (app packages).
-- **TypeScript**: strict mode with `noUncheckedIndexedAccess`. Library lint runs `tsc --noEmit && oxlint --type-aware .`.
+- **Linter**: Oxlint with type-aware checking via `oxlint-tsgolint`. Shared base config in `.oxlintrc.base.json`, package overrides in per-package `.oxlintrc.json`. Plugins: oxc, eslint, unicorn, typescript, react, react-perf (library packages), plus nextjs (app packages). The React Compiler rule `react/refs` is off in the core package, because the hooks read refs during render on purpose (see the hook architecture notes below); the playground only exempts its shadcn-generated files and two request-time Server Components.
+- **TypeScript**: strict mode with `noUncheckedIndexedAccess`. Library lint runs `tsc --noEmit && oxlint --type-aware .`. The catalog pins TypeScript with a tilde (`~7.0.2`) because tsdown's dts generator (`rolldown-plugin-dts`, peer `~7.0.0`) only supports the native compiler for 7.0.x; widen it once 7.1 is supported.
 - Prefer explicit type imports/exports (enforced by Oxlint).
 - **CSS**: Tailwind v4 with CSS-first configuration (no tailwind.config file), PostCSS via `@tailwindcss/postcss`.
 - **Punctuation**: Never use em dashes. Use commas, colons, or other appropriate punctuation instead.
