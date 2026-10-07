@@ -9,8 +9,8 @@ catalog:
   "@testing-library/dom": ^10.4.2
   "@testing-library/react": ^16.3.3
   "@types/node": ^24
-  "@types/react": ^19
-  "@types/react-dom": ^19
+  "@types/react": ^19.3.0
+  "@types/react-dom": ^19.3.0
   jsdom: ^30.1.2
   next: ^16.3.8
   oxfmt: ^0.63.0
@@ -18,8 +18,8 @@ catalog:
   # Unpin both once the repo moves to TypeScript 7.
   oxlint: 1.74.0
   oxlint-tsgolint: ^0.25.0
-  react: ^19
-  react-dom: ^19
+  react: ^19.3.0
+  react-dom: ^19.3.0
   react-hook-form: ^7.89.0
   tailwindcss: ^4
   tsdown: ^0.22.14
