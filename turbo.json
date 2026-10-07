@@ -1,6 +1,7 @@
 {
 	"$schema": "https://v2-11-7.turborepo.dev/schema.json",
 	"ui": "stream-with-experimental-timestamps",
+	"agentGuidance": false,
 	"tasks": {
 		"build": {
 			"dependsOn": ["^build"],
