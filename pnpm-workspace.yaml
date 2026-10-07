@@ -12,7 +12,7 @@ catalog:
   "@types/react": ^19
   "@types/react-dom": ^19
   jsdom: ^30
-  next: ^16.3.1
+  next: ^16.3.8
   oxfmt: ^0.63.0
   # oxlint is pinned: 1.75.0+ requires oxlint-tsgolint 7.x, which is the TypeScript 7 line.
   # Unpin both once the repo moves to TypeScript 7.
