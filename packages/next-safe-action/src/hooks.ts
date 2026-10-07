@@ -196,6 +196,9 @@ type StateActionStrategies<ServerError, Schema extends StandardSchemaV1 | undefi
  * marks uncancellable in-flight dispatches stale, the `queueMicrotask` double-apply that keeps a
  * dispatch visible inside an ambient transition, and the reset masking of `useActionState`'s
  * pending flag. `strategies` is the only extension point; the exported `useStateAction` passes none.
+ * `strategies` is read directly and listed in the callback deps, never mirrored into a ref during
+ * render: `useOptimisticStateAction` builds it once with `useMemo(..., [])`, so the callbacks (and the
+ * action handed to `useActionState`) keep a stable identity.
  */
 const useStateActionInternal = <
 	ServerError,
@@ -238,11 +241,6 @@ const useStateActionInternal = <
 	const resetGenerationRef = React.useRef(0);
 	// Bumped once per dispatch, so each dispatch can be told apart from the commits it produces.
 	const dispatchIdRef = React.useRef(0);
-
-	// Mutable ref assigned every render, so passing strategies never destabilizes the
-	// `useCallback` deps of `wrappedAction` / `dispatchWithResolver` / `formAction`.
-	const strategiesRef = React.useRef(strategies);
-	strategiesRef.current = strategies;
 
 	// ─── State ────────────────────────────────────────────────────────────
 
@@ -329,7 +327,7 @@ const useStateActionInternal = <
 
 			// Applied after the reset override so a `reset` still wins: the override carries the
 			// mount baseline, which is already the confirmed state the strategy would substitute.
-			const effectivePrevResult = strategiesRef.current?.resolvePrevResult?.(basePrevResult) ?? basePrevResult;
+			const effectivePrevResult = strategies?.resolvePrevResult?.(basePrevResult) ?? basePrevResult;
 
 			try {
 				// Never store `undefined`, mirroring `useActionBase`'s `setResult(res ?? {})`. The
@@ -338,7 +336,7 @@ const useStateActionInternal = <
 				// from a replay, so `onSuccess`/`onSettled` would re-fire on every unrelated re-render.
 				const result = (await safeActionFn(effectivePrevResult, input)) ?? {};
 				if (!staleAfterReset()) {
-					strategiesRef.current?.onDispatchSettled?.({ result }, input, dispatchId);
+					strategies?.onDispatchSettled?.({ result }, input, dispatchId);
 				}
 				asyncResolver?.resolve(result);
 				return result;
@@ -346,7 +344,7 @@ const useStateActionInternal = <
 				if (FrameworkErrorHandler.isNavigationError(e)) {
 					if (!staleAfterReset()) {
 						setNavigationError(e);
-						strategiesRef.current?.onDispatchSettled?.({ navigationError: e }, input, dispatchId);
+						strategies?.onDispatchSettled?.({ navigationError: e }, input, dispatchId);
 					}
 					asyncResolver?.reject(e);
 					return {};
@@ -363,7 +361,7 @@ const useStateActionInternal = <
 				}
 
 				setThrownError(e as Error);
-				strategiesRef.current?.onDispatchSettled?.({ thrownError: e as Error }, input, dispatchId);
+				strategies?.onDispatchSettled?.({ thrownError: e as Error }, input, dispatchId);
 
 				// This throw reaches an error boundary, and React drops every action still queued
 				// behind it without ever invoking `wrappedAction` for them. Their `executeAsync`
@@ -375,7 +373,7 @@ const useStateActionInternal = <
 				throw e;
 			}
 		},
-		[safeActionFn]
+		[safeActionFn, strategies]
 	);
 
 	// ─── Core useActionState ──────────────────────────────────────────────
@@ -394,7 +392,7 @@ const useStateActionInternal = <
 			startTransition(() => {
 				// Must run inside this transition: React only holds an optimistic value for as long
 				// as the Action that scheduled it is pending.
-				strategiesRef.current?.onTransitionStart?.(
+				strategies?.onTransitionStart?.(
 					input as InferInputOrDefault<Schema, undefined>,
 					resetGenerationRef.current,
 					dispatchIdRef.current
@@ -407,7 +405,7 @@ const useStateActionInternal = <
 				dispatcher(input as InferInputOrDefault<Schema, undefined>);
 			});
 		},
-		[beginDispatch, dispatcher]
+		[beginDispatch, dispatcher, strategies]
 	);
 
 	const execute = React.useCallback(
@@ -441,7 +439,7 @@ const useStateActionInternal = <
 		(input: InferInputOrDefault<Schema, undefined>) => {
 			beginDispatch(input as InferInputOrDefault<Schema, void>);
 			// React already supplies the transition on this path, so the seam is called directly.
-			strategiesRef.current?.onTransitionStart?.(input, resetGenerationRef.current, dispatchIdRef.current);
+			strategies?.onTransitionStart?.(input, resetGenerationRef.current, dispatchIdRef.current);
 			asyncResolversRef.current.push({
 				resolver: null,
 				generation: resetGenerationRef.current,
@@ -449,7 +447,7 @@ const useStateActionInternal = <
 			});
 			dispatcher(input);
 		},
-		[beginDispatch, dispatcher]
+		[beginDispatch, dispatcher, strategies]
 	);
 
 	// ─── reset ────────────────────────────────────────────────────────────
@@ -458,7 +456,7 @@ const useStateActionInternal = <
 		// Mark every dispatch enqueued so far as stale (see `resetGenerationRef`).
 		const generation = ++resetGenerationRef.current;
 		prevResultOverrideRef.current = initResultRef.current;
-		strategiesRef.current?.onReset?.(generation);
+		strategies?.onReset?.(generation);
 
 		const apply = () => {
 			setIsIdle(true);
@@ -478,7 +476,7 @@ const useStateActionInternal = <
 			if (generation !== resetGenerationRef.current) return;
 			apply();
 		});
-	}, []);
+	}, [strategies]);
 
 	// ─── Status ───────────────────────────────────────────────────────────
 
