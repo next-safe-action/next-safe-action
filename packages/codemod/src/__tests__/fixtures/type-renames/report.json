@@ -1,0 +1,144 @@
+{
+	"changes": [
+		{
+			"rule": "V9-02",
+			"file": "src/already.ts",
+			"line": 1,
+			"before": "import type { DVES, ValidationErrorsFormat } from \"next-safe-action\";",
+			"after": "import type { ValidationErrorsFormat } from \"next-safe-action\";"
+		},
+		{
+			"rule": "V9-02",
+			"file": "src/already.ts",
+			"line": 3,
+			"before": "export type A = DVES | ValidationErrorsFormat;",
+			"after": "export type A = ValidationErrorsFormat | ValidationErrorsFormat;"
+		},
+		{
+			"rule": "V9-02",
+			"file": "src/barrel.ts",
+			"line": 1,
+			"before": "export type { HookSafeStateActionFn } from \"next-safe-action/hooks\";",
+			"after": "export type { SingleInputStateActionFn } from \"next-safe-action/hooks\";"
+		},
+		{
+			"rule": "V9-02",
+			"file": "src/barrel.ts",
+			"line": 2,
+			"before": "export type { DVES as ErrorsFormat } from \"next-safe-action\";",
+			"after": "export type { ValidationErrorsFormat as ErrorsFormat } from \"next-safe-action\";"
+		},
+		{
+			"rule": "V9-02",
+			"file": "src/conflict.ts",
+			"line": 1,
+			"before": "import type { SafeActionUtils } from \"next-safe-action\";",
+			"after": "import type { ActionCallbacks as SafeActionUtils } from \"next-safe-action\";"
+		},
+		{
+			"rule": "V9-02",
+			"file": "src/consumer.ts",
+			"line": 1,
+			"before": "import type { ErrorsFormat, HookSafeStateActionFn } from \"./barrel\";",
+			"after": "import type { ErrorsFormat, SingleInputStateActionFn } from \"./barrel\";"
+		},
+		{
+			"rule": "V9-02",
+			"file": "src/consumer.ts",
+			"line": 3,
+			"before": "export type A = HookSafeStateActionFn<string, undefined, undefined, unknown>;",
+			"after": "export type A = SingleInputStateActionFn<string, undefined, undefined, unknown>;"
+		},
+		{
+			"rule": "V9-02",
+			"file": "src/reexport-consumer.ts",
+			"line": 1,
+			"before": "import type { StateServerCodeFn } from \"./reexport-local\";",
+			"after": "import type { StatefulServerCodeFn } from \"./reexport-local\";"
+		},
+		{
+			"rule": "V9-02",
+			"file": "src/reexport-consumer.ts",
+			"line": 3,
+			"before": "export type S = StateServerCodeFn<string, undefined, object, undefined, [], undefined, unknown>;",
+			"after": "export type S = StatefulServerCodeFn<string, undefined, object, undefined, [], undefined, unknown>;"
+		},
+		{
+			"rule": "V9-02",
+			"file": "src/reexport-local.ts",
+			"line": 1,
+			"before": "import type { StateServerCodeFn } from \"next-safe-action\";",
+			"after": "import type { StatefulServerCodeFn } from \"next-safe-action\";"
+		},
+		{
+			"rule": "V9-02",
+			"file": "src/reexport-local.ts",
+			"line": 3,
+			"before": "export type { StateServerCodeFn };",
+			"after": "export type { StatefulServerCodeFn };"
+		},
+		{
+			"rule": "V9-02",
+			"file": "src/types.ts",
+			"line": 1,
+			"before": "import type { DVES, SafeActionUtils as Callbacks } from \"next-safe-action\";",
+			"after": "import type { ValidationErrorsFormat, ActionCallbacks as Callbacks } from \"next-safe-action\";"
+		},
+		{
+			"rule": "V9-02",
+			"file": "src/types.ts",
+			"line": 2,
+			"before": "import { type HookSafeActionFn, useAction } from \"next-safe-action/hooks\";",
+			"after": "import { type SingleInputActionFn, useAction } from \"next-safe-action/hooks\";"
+		},
+		{
+			"rule": "V9-02",
+			"file": "src/types.ts",
+			"line": 6,
+			"before": "export type Shape = DVES;",
+			"after": "export type Shape = ValidationErrorsFormat;"
+		},
+		{
+			"rule": "V9-02",
+			"file": "src/types.ts",
+			"line": 8,
+			"before": "export type Fn = HookSafeActionFn<string, undefined, undefined, unknown>;",
+			"after": "export type Fn = SingleInputActionFn<string, undefined, undefined, unknown>;"
+		},
+		{
+			"rule": "V9-02",
+			"file": "src/types.ts",
+			"line": 9,
+			"before": "export type Fn2 = nsa.StateServerCodeFn<string, undefined, object, undefined, [], undefined, unknown>;",
+			"after": "export type Fn2 = nsa.StatefulServerCodeFn<string, undefined, object, undefined, [], undefined, unknown>;"
+		},
+		{
+			"rule": "V9-02",
+			"file": "src/types.ts",
+			"line": 10,
+			"before": "export type Imp = import(\"next-safe-action\").DVES;",
+			"after": "export type Imp = import(\"next-safe-action\").ValidationErrorsFormat;"
+		},
+		{
+			"rule": "V9-02",
+			"file": "src/types.ts",
+			"line": 11,
+			"before": "export const fnOrShape = (shape: DVES): Shape => shape;",
+			"after": "export const fnOrShape = (shape: ValidationErrorsFormat): Shape => shape;"
+		}
+	],
+	"manual": [
+		{
+			"rule": "V9-02",
+			"file": "src/types.ts",
+			"line": 5,
+			"column": 23,
+			"snippet": "// TODO: document why DVES is used here.",
+			"why": "Found `DVES` where the codemod cannot rewrite it safely (a comment, a string, JSDoc, a non-JS file, an unparsable file, or an identifier it could not trace to \"next-safe-action\").",
+			"fix": "If it refers to the next-safe-action type, rename `DVES` to `ValidationErrorsFormat` (same generic parameters).",
+			"docs": "https://next-safe-action.dev/docs/migrations/v8-to-v9#v9-02"
+		}
+	],
+	"environment": [],
+	"skipped": []
+}

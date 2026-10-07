@@ -1,0 +1,70 @@
+{
+	"changes": [
+		{
+			"rule": "V9-01",
+			"file": "src/form.tsx",
+			"line": 3,
+			"before": "import { useAction } from \"next-safe-action/hooks\";",
+			"after": "import { useAction, useStateAction } from \"next-safe-action/hooks\";"
+		},
+		{
+			"rule": "V9-01",
+			"file": "src/form.tsx",
+			"line": 4,
+			"before": "import { useStateAction } from \"next-safe-action/stateful-hooks\";",
+			"after": ""
+		},
+		{
+			"rule": "V9-01",
+			"file": "src/forms.ts",
+			"line": 1,
+			"before": "export { useStateAction } from 'next-safe-action/stateful-hooks';",
+			"after": "export { useStateAction } from 'next-safe-action/hooks';"
+		},
+		{
+			"rule": "V9-01",
+			"file": "src/forms.ts",
+			"line": 3,
+			"before": "export const load = () => import(\"next-safe-action/stateful-hooks\");",
+			"after": "export const load = () => import(\"next-safe-action/hooks\");"
+		},
+		{
+			"rule": "V9-01",
+			"file": "src/forms.ts",
+			"line": 4,
+			"before": "const cjs = require(\"next-safe-action/stateful-hooks\");",
+			"after": "const cjs = require(\"next-safe-action/hooks\");"
+		},
+		{
+			"rule": "V9-01",
+			"file": "src/forms.ts",
+			"line": 6,
+			"before": "vi.mock(\"next-safe-action/stateful-hooks\", () => ({ useStateAction: vi.fn() }));",
+			"after": "vi.mock(\"next-safe-action/hooks\", () => ({ useStateAction: vi.fn() }));"
+		},
+		{
+			"rule": "V9-01",
+			"file": "src/forms.ts",
+			"line": 7,
+			"before": "jest.mock(`next-safe-action/stateful-hooks`);",
+			"after": "jest.mock(`next-safe-action/hooks`);"
+		},
+		{
+			"rule": "V9-01",
+			"file": "src/legacy.jsx",
+			"line": 1,
+			"before": "import { useStateAction } from \"next-safe-action/stateful-hooks\";",
+			"after": "import { useStateAction } from \"next-safe-action/hooks\";"
+		},
+		{
+			"rule": "V9-01",
+			"file": "src/module.mts",
+			"line": 1,
+			"before": "import type { useStateAction as Hook } from \"next-safe-action/stateful-hooks\";",
+			"after": "import type { useStateAction as Hook } from \"next-safe-action/hooks\";"
+		}
+	],
+	"manual": [],
+	"environment": [],
+	"skipped": []
+}

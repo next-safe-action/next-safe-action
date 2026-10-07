@@ -1,0 +1,8 @@
+{
+	"compilerOptions": {
+		"strict": true,
+		"module": "esnext",
+		"moduleResolution": "bundler",
+		"jsx": "preserve"
+	}
+}

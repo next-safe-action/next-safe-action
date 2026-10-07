@@ -1,0 +1,81 @@
+{
+	"changes": [
+		{
+			"rule": "V9-03",
+			"file": "src/actions/alias.ts",
+			"line": 6,
+			"before": "export const a = ac.schema(z.object({ id: z.string() })).action(async () => \"ok\");",
+			"after": "export const a = ac.inputSchema(z.object({ id: z.string() })).action(async () => \"ok\");"
+		},
+		{
+			"rule": "V9-03",
+			"file": "src/actions/barrel.ts",
+			"line": 6,
+			"before": "export const b = authClient.schema(z.string()).action(async ({ parsedInput }) => parsedInput);",
+			"after": "export const b = authClient.inputSchema(z.string()).action(async ({ parsedInput }) => parsedInput);"
+		},
+		{
+			"rule": "V9-03",
+			"file": "src/actions/chained.ts",
+			"line": 9,
+			"before": "\t.schema(z.string())",
+			"after": "\t.inputSchema(z.string())"
+		},
+		{
+			"rule": "V9-03",
+			"file": "src/actions/default-import.ts",
+			"line": 4,
+			"before": "export const g = client.schema(z.string()).action(async () => null);",
+			"after": "export const g = client.inputSchema(z.string()).action(async () => null);"
+		},
+		{
+			"rule": "V9-03",
+			"file": "src/actions/direct.ts",
+			"line": 5,
+			"before": "export const e = createSafeActionClient().schema(z.string());",
+			"after": "export const e = createSafeActionClient().inputSchema(z.string());"
+		},
+		{
+			"rule": "V9-03",
+			"file": "src/actions/direct.ts",
+			"line": 6,
+			"before": "export const f = nsa.createSafeActionClient().bindArgsSchemas([]).schema(z.string());",
+			"after": "export const f = nsa.createSafeActionClient().bindArgsSchemas([]).inputSchema(z.string());"
+		},
+		{
+			"rule": "V9-03",
+			"file": "src/actions/namespace.ts",
+			"line": 6,
+			"before": "export const n = lib.actionClient.schema(z.string()).action(async () => null);",
+			"after": "export const n = lib.actionClient.inputSchema(z.string()).action(async () => null);"
+		},
+		{
+			"rule": "V9-03",
+			"file": "src/actions/shadowed.ts",
+			"line": 11,
+			"before": "export const d = actionClient.schema(z.string()).action(async () => null);",
+			"after": "export const d = actionClient.inputSchema(z.string()).action(async () => null);"
+		},
+		{
+			"rule": "V9-03",
+			"file": "src/actions/typed.ts",
+			"line": 5,
+			"before": "\treturn client.schema(z.string());",
+			"after": "\treturn client.inputSchema(z.string());"
+		}
+	],
+	"manual": [
+		{
+			"rule": "V9-03",
+			"file": "src/actions/wrapper.ts",
+			"line": 4,
+			"column": 31,
+			"snippet": "export const w = makeClient().schema(z.string()).action(async () => null);",
+			"why": "`.schema()` was removed from the safe action client, and the codemod could not prove whether this receiver is a client: its chain does not resolve to `createSafeActionClient()` from \"next-safe-action\" (for example a wrapper function, a parameter without a `SafeActionClient` type, or a dynamic value).",
+			"fix": "If the receiver is a next-safe-action client, replace `.schema(` with `.inputSchema(`. Otherwise ignore this item.",
+			"docs": "https://next-safe-action.dev/docs/migrations/v8-to-v9#v9-03"
+		}
+	],
+	"environment": [],
+	"skipped": []
+}

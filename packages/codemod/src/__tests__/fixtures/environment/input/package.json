@@ -1,0 +1,13 @@
+{
+	"private": true,
+	"engines": {
+		"node": ">=18.0.0"
+	},
+	"dependencies": {
+		"@next-safe-action/adapter-react-hook-form": "workspace:*",
+		"next": "^14.2.0",
+		"next-safe-action": "catalog:",
+		"react": "^18.3.1",
+		"react-dom": "18.3.1"
+	}
+}

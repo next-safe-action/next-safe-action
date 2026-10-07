@@ -1,0 +1,15 @@
+{
+	"$schema": "https://v2-10-12.turborepo.dev/schema.json",
+	"extends": ["//"],
+	"tasks": {
+		"test": {
+			"inputs": [
+				"$TURBO_DEFAULT$",
+				"$TURBO_ROOT$/packages/next-safe-action/package.json",
+				"$TURBO_ROOT$/packages/next-safe-action/src/*.ts",
+				"$TURBO_ROOT$/packages/adapter-*/package.json",
+				"$TURBO_ROOT$/apps/docs/content/docs/migrations/v8-to-v9.mdx"
+			]
+		}
+	}
+}

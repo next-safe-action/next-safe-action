@@ -381,6 +381,31 @@ importers:
         specifier: 'catalog:'
         version: 4.4.3
 
+  packages/codemod:
+    dependencies:
+      ts-morph:
+        specifier: 28.0.0
+        version: 28.0.0
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.3
+      oxlint:
+        specifier: 'catalog:'
+        version: 1.74.0(oxlint-tsgolint@0.25.0)
+      oxlint-tsgolint:
+        specifier: 'catalog:'
+        version: 0.25.0
+      tsdown:
+        specifier: 'catalog:'
+        version: 0.22.14(typescript@6.0.3)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.10(@types/node@24.13.3)(jsdom@30.0.1(@noble/hashes@2.3.0))(vite@8.2.1(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
+
   packages/next-safe-action:
     devDependencies:
       '@testing-library/dom':
@@ -2604,6 +2629,9 @@ packages:
 
   '@ts-morph/common@0.27.0':
     resolution: {integrity: sha512-Wf29UqxWDpc+i61k3oIOzcUfQt79PIT9y/MWfAGlrkjg6lBC1hwDECLXPVJAhWjiGbfBCxZd65F/LIZF3+jeJQ==}
+
+  '@ts-morph/common@0.29.0':
+    resolution: {integrity: sha512-35oUmphHbJvQ/+UTwFNme/t2p3FoKiGJ5auTjjpNTop2dyREspirjMy82PLSC1pnDJ8ah1GU98hwpVt64YXQsg==}
 
   '@turbo/darwin-64@2.10.12':
     resolution: {integrity: sha512-9nKgKoF6ZOUsM+or0OtNf+TTJSfGvDNP7ZFv/ZGWVwOSCkumyctQiTeHwB4UNljHTnC41AqylgbunLDHoccNrA==}
@@ -5419,6 +5447,9 @@ packages:
   ts-morph@26.0.0:
     resolution: {integrity: sha512-ztMO++owQnz8c/gIENcM9XfCEzgoGphTv+nKpYNM1bgsdOVC/jRZuEBf6N+mLLDNg68Kl+GgUZfOySaRiG1/Ug==}
 
+  ts-morph@28.0.0:
+    resolution: {integrity: sha512-Wp3tnZ2bzwxyTZMtgWVzXDfm7lB1Drz+y9DmmYH/L702PQhPyVrp3pkou3yIz4qjS14GY9kcpmLiOOMvl8oG1g==}
+
   tsconfig-paths@4.2.0:
     resolution: {integrity: sha512-NoZ4roiN7LnbKn9QqE1amc9DJfzvZXxF4xDavcOWt1BPkdx+m+0gJuPM+S0vCe7zTJMYUP0R8pO2XMr+Y8oLIg==}
     engines: {node: '>=6'}
@@ -7758,6 +7789,12 @@ snapshots:
       fast-glob: 3.3.3
       minimatch: 10.2.6
       path-browserify: 1.0.1
+
+  '@ts-morph/common@0.29.0':
+    dependencies:
+      minimatch: 10.2.6
+      path-browserify: 1.0.1
+      tinyglobby: 0.2.17
 
   '@turbo/darwin-64@2.10.12':
     optional: true
@@ -10726,6 +10763,11 @@ snapshots:
   ts-morph@26.0.0:
     dependencies:
       '@ts-morph/common': 0.27.0
+      code-block-writer: 13.0.3
+
+  ts-morph@28.0.0:
+    dependencies:
+      '@ts-morph/common': 0.29.0
       code-block-writer: 13.0.3
 
   tsconfig-paths@4.2.0:

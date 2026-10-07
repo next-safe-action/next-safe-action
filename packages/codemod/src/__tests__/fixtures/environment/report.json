@@ -1,0 +1,106 @@
+{
+	"changes": [],
+	"manual": [],
+	"environment": [
+		{
+			"rule": "V9-04",
+			"file": "package.json",
+			"package": "next-safe-action",
+			"found": "catalog: (declared)",
+			"required": ">=9.0.0",
+			"status": "unknown",
+			"fix": "Could not read a version from \"catalog:\"; make sure it resolves to next-safe-action 9.0.0 or later."
+		},
+		{
+			"rule": "V9-04",
+			"file": "package.json",
+			"package": "next",
+			"found": "^14.2.0 (declared)",
+			"required": ">=15.1.0",
+			"status": "upgrade",
+			"fix": "Upgrade Next.js to 15.1.0 or later, for example with `npx @next/codemod@latest upgrade latest`."
+		},
+		{
+			"rule": "V9-04",
+			"file": "package.json",
+			"package": "react",
+			"found": "^18.3.1 (declared)",
+			"required": ">=19.0.0",
+			"status": "upgrade",
+			"fix": "Upgrade react and react-dom to 19 or later (the Next.js upgrade codemod does this)."
+		},
+		{
+			"rule": "V9-04",
+			"file": "package.json",
+			"package": "react-dom",
+			"found": "18.3.1 (declared)",
+			"required": ">=19.0.0",
+			"status": "upgrade",
+			"fix": "Upgrade react and react-dom to 19 or later (the Next.js upgrade codemod does this)."
+		},
+		{
+			"rule": "V9-04",
+			"file": "package.json",
+			"package": "@next-safe-action/adapter-react-hook-form",
+			"found": "workspace:* (declared)",
+			"required": "a release with peer next-safe-action >=9.0.0",
+			"status": "unknown",
+			"fix": "Could not confirm a next-safe-action v9 compatible release (not installed, or the version is not readable); run `pnpm add @next-safe-action/adapter-react-hook-form@latest`."
+		},
+		{
+			"rule": "V9-04",
+			"file": "package.json",
+			"package": "node",
+			"found": "engines.node >=18.0.0",
+			"required": ">=18.18.0",
+			"status": "upgrade",
+			"fix": "Raise `engines.node` to \">=18.18.0\" or later."
+		},
+		{
+			"rule": "V9-04",
+			"file": "packages/web/package.json",
+			"package": "next-safe-action",
+			"found": "^9.0.0 (declared)",
+			"required": ">=9.0.0",
+			"status": "ok",
+			"fix": "Run `pnpm add next-safe-action@latest` in packages/web."
+		},
+		{
+			"rule": "V9-04",
+			"file": "packages/web/package.json",
+			"package": "next",
+			"found": "^15.0.0 (declared)",
+			"required": ">=15.1.0",
+			"status": "upgrade",
+			"fix": "Upgrade Next.js to 15.1.0 or later, for example with `npx @next/codemod@latest upgrade latest`."
+		},
+		{
+			"rule": "V9-04",
+			"file": "packages/web/package.json",
+			"package": "react",
+			"found": "^19.0.0 (declared)",
+			"required": ">=19.0.0",
+			"status": "ok",
+			"fix": "Upgrade react and react-dom to 19 or later (the Next.js upgrade codemod does this)."
+		},
+		{
+			"rule": "V9-04",
+			"file": "packages/web/package.json",
+			"package": "react-dom",
+			"found": "^19.0.0 (declared)",
+			"required": ">=19.0.0",
+			"status": "ok",
+			"fix": "Upgrade react and react-dom to 19 or later (the Next.js upgrade codemod does this)."
+		},
+		{
+			"rule": "V9-04",
+			"file": ".nvmrc",
+			"package": "node",
+			"found": "20",
+			"required": ">=18.18.0",
+			"status": "ok",
+			"fix": "Pin Node.js 18.18.0 or later in .nvmrc."
+		}
+	],
+	"skipped": []
+}
