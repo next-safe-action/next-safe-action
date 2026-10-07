@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { existsSync, lstatSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { CODE_EXTENSIONS, IGNORED_DIRS, TEXT_EXTENSIONS } from "./rules";
 
@@ -23,6 +23,8 @@ export const isCodeFile = (file: string) => CODE_EXTENSIONS.some((ext) => file.e
 
 const inScope = (file: string) =>
 	isCodeFile(file) || TEXT_EXTENSIONS.some((ext) => file.endsWith(ext)) || ENV_FILES.includes(path.basename(file));
+
+const isRegularFile = (file: string) => existsSync(file) && lstatSync(file).isFile();
 
 function walk(dir: string, out: string[]) {
 	for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -58,8 +60,9 @@ export function listFiles(paths: string[]): string[] {
 			found = [];
 			walk(abs, found);
 		}
+		// `git ls-files` lists symlinks too: skip them, so a write can never follow one out of the project.
 		for (const f of found) {
-			if (!isIgnored(path.relative(abs, f)) && inScope(f) && existsSync(f)) files.add(f);
+			if (!isIgnored(path.relative(abs, f)) && inScope(f) && isRegularFile(f)) files.add(f);
 		}
 	}
 	return [...files].sort();

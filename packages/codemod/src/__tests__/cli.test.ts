@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, expect, test } from "vitest";
@@ -48,6 +48,19 @@ test("works in a directory that is not a git repo", () => {
 	expect(result.status).toBe(0);
 	expect(result.stdout).toContain("Changes: 1 in 1 file(s)");
 	expect(read(dir)).toBe(MIGRATED);
+});
+
+test("never writes through a symlink that points outside the project", () => {
+	const dir = project();
+	const outside = mkdtempSync(path.join(tmpdir(), "nsa-codemod-outside-"));
+	dirs.push(outside);
+	writeFileSync(path.join(outside, "target.ts"), SOURCE);
+	symlinkSync(path.join(outside, "target.ts"), path.join(dir, "src/link.ts"));
+	for (const setup of [() => {}, () => gitRepo(dir)]) {
+		setup();
+		expect(run(dir, "v9", "--force").status).toBe(0);
+		expect(readFileSync(path.join(outside, "target.ts"), "utf8")).toBe(SOURCE);
+	}
 });
 
 test("--dry writes nothing", () => {
