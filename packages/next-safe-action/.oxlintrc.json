@@ -9,7 +9,13 @@
 	"rules": {
 		"typescript/consistent-type-imports": "error",
 		"typescript/no-unsafe-type-assertion": "off",
-		"unicorn/require-module-specifiers": "off"
+		"unicorn/require-module-specifiers": "off",
+		// The hooks read refs during render on purpose: `initResult` is captured once at mount
+		// (mirroring `useActionState`), and `useOptimisticStateAction` derives its confirmed value
+		// purely from refs that are only written in layout effects, so an abandoned concurrent render
+		// never leaks uncommitted state. See the architecture notes in AGENTS.md. Tests also capture
+		// hook functions into refs during render.
+		"react/refs": "off"
 	},
 	"overrides": [
 		{
