@@ -21,22 +21,22 @@ next-safe-action is a TypeScript library for type-safe, validated Next.js Server
 | Category | Technology | Version |
 |---|---|---|
 | Language | TypeScript (native `tsgo` compiler, no JS API or tsserver) | ~7.0.2 |
-| Runtime | Node.js | >=18.18 for the published packages; ^22.18.0, ^24.11.0 or >=26 for development (`.node-version`: 24) |
-| Package manager | pnpm (with catalogs) | 11.28.5 |
-| Framework | Next.js | ^16.4.0 |
-| UI library | React | ^19.3.0 |
-| Monorepo orchestration | Turborepo | ^2.11.7 |
-| Bundler | tsdown (Rolldown + Oxc) | ^0.23.1 |
-| Test framework | Vitest | ^5.0.3 |
-| Browser test framework | Playwright (Chromium) | 1.64.0 |
-| Formatter | Oxfmt | ^0.72.0 |
-| Linter | Oxlint (type-aware, oxlint-tsgolint ^7.0.2004) | 1.87.0 |
-| Validation | Zod ^4.6.5, Yup ^1.7.1 (Standard Schema v1) | - |
-| CSS framework | Tailwind CSS v4 | ^4 |
-| Component library | shadcn/ui (Radix UI + CVA) | ^4.21.4 |
-| Docs framework | Fumadocs (core + UI / MDX) | ^16.17.1 / ^15.4.7 |
-| Forms | react-hook-form + @hookform/resolvers | ^7.89.0 / ^5.9.1 |
-| Data fetching | TanStack Query (React Query) | ^5.104.1 |
+| Runtime | Node.js | >=18.18 for the published packages; ^22.18.0, ^24.11.0 or >=26 for development (`.node-version`: 26) |
+| Package manager | pnpm (with catalogs) | 12.18.0 |
+| Framework | Next.js | ^16.4.6 |
+| UI library | React | ^19.3.1 |
+| Monorepo orchestration | Turborepo | ^2.11.11 |
+| Bundler | tsdown (Rolldown + Oxc) | ^0.23.7 |
+| Test framework | Vitest | ^5.1.0 |
+| Browser test framework | Playwright (Chromium) | 1.65.0 |
+| Formatter | Oxfmt | ^0.78.0 |
+| Linter | Oxlint (type-aware, oxlint-tsgolint ^7.0.2007) | 1.93.0 |
+| Validation | Zod ^4.6.7, Yup ^1.7.1 (Standard Schema v1) | - |
+| CSS framework | Tailwind CSS v4 | ^4.3.5 |
+| Component library | shadcn/ui (Radix UI + CVA) | ^4.23.0 |
+| Docs framework | Fumadocs (core + UI / MDX) | ^16.19.0 / ^15.6.1 |
+| Forms | react-hook-form + @hookform/resolvers | ^7.92.0 / ^7.0.6 |
+| Data fetching | TanStack Query (React Query) | ^5.107.1 |
 | Versioning | Changesets (CLI, `changesets/action` v2 in the release workflow) | ^3.0.3 |
 
 ## Commands
@@ -69,7 +69,7 @@ All commands run from the repository root unless noted.
 
 - **Formatter**: Oxfmt, tabs (tabWidth 2), printWidth 120, semicolons, double quotes, trailing commas (es5), import sorting, Tailwind CSS class sorting. Config in `.oxfmtrc.json`.
 - **Linter**: Oxlint with type-aware checking via `oxlint-tsgolint`. Shared base config in `.oxlintrc.base.json`, package overrides in per-package `.oxlintrc.json`. Plugins: oxc, eslint, unicorn, typescript, react, react-perf (library packages), plus nextjs (app packages). The React Compiler rule `react/refs` is on in the core package; the few intentional render-time ref reads in the hooks (see the hook architecture notes below) carry line-level `oxlint-disable` comments with a reason, so any new render-time ref access fails lint. The playground only exempts its shadcn-generated files and two request-time Server Components.
-- **TypeScript**: strict mode with `noUncheckedIndexedAccess`. Library lint runs `tsc --noEmit && oxlint --type-aware .`. The catalog pins TypeScript with a tilde (`~7.0.2`) because tsdown's dts generator (`rolldown-plugin-dts`, peer `~7.0.0`) only supports the native compiler for 7.0.x; widen it once 7.1 is supported.
+- **TypeScript**: strict mode with `noUncheckedIndexedAccess`. Library lint runs `tsc --noEmit && oxlint --type-aware .`. The catalog pins TypeScript with a tilde (`~7.0.2`) because tsdown's dts generator (`rolldown-plugin-dts`, peer `~7.0.0 || ~7.1.0-0`) supports the native compiler one minor line at a time; move to `~7.1` once TypeScript 7.1 is stable, and only to a minor line that the plugin's peer range lists.
 - Prefer explicit type imports/exports (enforced by Oxlint).
 - **CSS**: Tailwind v4 with CSS-first configuration (no tailwind.config file), PostCSS via `@tailwindcss/postcss`.
 - **Punctuation**: Never use em dashes. Use commas, colons, or other appropriate punctuation instead.
@@ -126,9 +126,11 @@ The source lives in `packages/next-safe-action/src/routes/` (`index.ts`, `router
 
 **Never add entries to `minimumReleaseAgeExclude` in `pnpm-workspace.yaml`. This key must stay absent from the file.**
 
-pnpm 11 applies a default `minimumReleaseAge` of 1440 minutes (24 hours), so a freshly published version cannot be installed until it has been on the registry for a full day. This is the repository's main defense against a compromised release: most malicious npm publishes are detected and unpublished within hours. `minimumReleaseAgeExclude` opts specific versions out of that cooldown and defeats the protection, which is why it is banned here, with no exceptions and no "just this once" entries.
+pnpm 12 applies a default `minimumReleaseAge` of 1440 minutes (24 hours), so a freshly published version cannot be installed until it has been on the registry for a full day. This is the repository's main defense against a compromised release: most malicious npm publishes are detected and unpublished within hours. `minimumReleaseAgeExclude` opts specific versions out of that cooldown and defeats the protection, which is why it is banned here, with no exceptions and no "just this once" entries.
 
 Rules when updating dependencies:
+
+- Never pass an exact version that is younger than 24 hours to `pnpm add` or `pnpm update` (for example `pnpm add foo@1.2.3`). pnpm 12 treats an explicit version as an approval and writes it to `minimumReleaseAgeExclude` without asking, even in a non-interactive run. Pass a range instead, and check `pnpm-workspace.yaml` after every dependency command: remove any `minimumReleaseAgeExclude` key that appears.
 
 - If a version range cannot resolve because every matching version is younger than 24 hours, **lower the range** to the newest version that is at least 24 hours old (for example `^13.1.0` becomes `^13.0.0`). Do not add an exclude entry, and do not disable or lower `minimumReleaseAge`.
 - Prefer a slightly older, proven version over the newest release. Being one patch behind for a day is the intended trade-off.

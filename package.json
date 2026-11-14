@@ -37,12 +37,12 @@
 		"@manypkg/cli": "^0.25.1",
 		"oxfmt": "catalog:",
 		"oxlint": "catalog:",
-		"turbo": "^2.11.7",
+		"turbo": "^2.11.11",
 		"typescript": "catalog:"
 	},
 	"devDependencies": {
 		"@changesets/changelog-github": "^1.0.1",
 		"@changesets/cli": "^3.0.3"
 	},
-	"packageManager": "pnpm@11.28.5"
+	"packageManager": "pnpm@12.18.0"
 }
