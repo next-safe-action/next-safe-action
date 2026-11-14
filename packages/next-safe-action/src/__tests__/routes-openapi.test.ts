@@ -22,9 +22,9 @@ it("generates opt-in operations without executing actions or callbacks", () => {
 	const mapped = client.outputSchema(z.string()).action(execution);
 	const document = generate(
 		createRouter()
-			.post("/users", a, { openapi })
-			.put("/users", hidden)
-			.post("/mapped", mapped, {
+			.post(a, "/users", { openapi })
+			.put(hidden, "/users")
+			.post(mapped, "/mapped", {
 				mapInput: mapping,
 				openapi: { operationId: "mapped", requestBodySchema: false, parameters: [] },
 			})
@@ -37,12 +37,12 @@ it("generates opt-in operations without executing actions or callbacks", () => {
 });
 it("requires explicit errors, output and mapping contracts", () => {
 	const noOutput = client.action(async () => {});
-	expect(() => generate(createRouter().post("/users", noOutput, { openapi }))).toThrow("createUser_Output");
+	expect(() => generate(createRouter().post(noOutput, "/users", { openapi }))).toThrow("createUser_Output");
 	const withOutput = client.outputSchema(z.string()).action(async () => "ok");
-	expect(() => generate(createRouter().post("/users", withOutput, { mapInput: passInput, openapi }))).toThrow(
+	expect(() => generate(createRouter().post(withOutput, "/users", { mapInput: passInput, openapi }))).toThrow(
 		"mapInput"
 	);
-	expect(() => generateOpenApiDocument(createRouter().post("/users", withOutput, { openapi }), { info })).toThrow(
+	expect(() => generateOpenApiDocument(createRouter().post(withOutput, "/users", { openapi }), { info })).toThrow(
 		"serverErrorSchema"
 	);
 });
@@ -52,16 +52,16 @@ it("does not execute dynamic factories and identifies missing schemas", () => {
 		.inputSchema(factory)
 		.outputSchema(z.string())
 		.action(async () => "ok");
-	expect(() => generate(createRouter().post("/users", a, { openapi }))).toThrow("dynamic input");
+	expect(() => generate(createRouter().post(a, "/users", { openapi }))).toThrow("dynamic input");
 	const schemas = generate(
-		createRouter().post("/users", a, {
+		createRouter().post(a, "/users", {
 			openapi: { operationId: "createUser", requestBodySchema: { type: "string" } },
 		})
 	).components.schemas;
 	expect(schemas.createUser_Request).toEqual({ type: "string" });
 	expect(factory).not.toHaveBeenCalled();
 	const transformed = client.outputSchema(z.string().transform(Number)).action(async () => 1);
-	expect(() => generate(createRouter().post("/users", transformed, { openapi }))).toThrow("createUser_Output");
+	expect(() => generate(createRouter().post(transformed, "/users", { openapi }))).toThrow("createUser_Output");
 });
 it("flattens recursive roots and definitions into components and keeps nullable and boolean schemas", () => {
 	const recursive = {
@@ -70,7 +70,7 @@ it("flattens recursive roots and definitions into components and keeps nullable 
 	};
 	const a = client.action(async () => {});
 	const schemas = generate(
-		createRouter().post("/users", a, {
+		createRouter().post(a, "/users", {
 			openapi: { operationId: "recursive", requestBodySchema: recursive, outputSchema: true },
 		})
 	).components.schemas;
@@ -90,7 +90,7 @@ it("documents state envelopes and mapped errors without running validation", () 
 		.outputSchema(z.number())
 		.stateAction(async () => 1);
 	const doc = generate(
-		createRouter().post("/users", a, {
+		createRouter().post(a, "/users", {
 			stateSchema: z.object({ data: z.number() }),
 			serverErrorStatus: () => 409,
 			openapi: { operationId: "state", serverErrorStatuses: [409] },
@@ -113,7 +113,7 @@ it("uses Standard JSON Schema input/output sides and never validates schemas", (
 		.inputSchema(schema)
 		.outputSchema(schema)
 		.stateAction(async () => 1);
-	generate(createRouter().post("/users", a, { stateSchema: schema, openapi }));
+	generate(createRouter().post(a, "/users", { stateSchema: schema, openapi }));
 	expect(input).toHaveBeenCalledTimes(2);
 	expect(input).toHaveBeenCalledWith({ target: "draft-2020-12" });
 	expect(output).toHaveBeenCalledExactlyOnceWith({ target: "draft-2020-12" });
@@ -126,7 +126,7 @@ it("rewrites converted recursive root references to their own component", () => 
 		.inputSchema(node)
 		.outputSchema(node)
 		.action(async ({ parsedInput }) => parsedInput);
-	const schemas = generate(createRouter().post("/users", a, { openapi })).components.schemas;
+	const schemas = generate(createRouter().post(a, "/users", { openapi })).components.schemas;
 	const input = schemas.createUser_Input as Record<string, unknown>;
 	const output = schemas.createUser_Output as Record<string, unknown>;
 	expect(JSON.stringify(input)).toContain('"$ref":"#/components/schemas/createUser_Input"');
@@ -136,12 +136,12 @@ it("rewrites converted recursive root references to their own component", () => 
 
 it("reports missing status and parameter contracts and duplicate schema components", () => {
 	const a = client.outputSchema(z.string()).action(async () => "ok");
-	expect(() => generate(createRouter().post("/users", a, { serverErrorStatus: () => 409, openapi }))).toThrow(
+	expect(() => generate(createRouter().post(a, "/users", { serverErrorStatus: () => 409, openapi }))).toThrow(
 		"serverErrorStatuses"
 	);
 	expect(() =>
 		generate(
-			createRouter().post("/users/{id}", a, {
+			createRouter().post(a, "/users/{id}", {
 				mapInput: passInput,
 				openapi: { operationId: "parameter", requestBodySchema: true, parameters: [] },
 			})
@@ -149,7 +149,7 @@ it("reports missing status and parameter contracts and duplicate schema componen
 	).toThrow("missing required path parameter");
 	// Identical $id values do not collide: $id is dropped when a schema is flattened into components.
 	const sharedId = generate(
-		createRouter().post("/users", a, {
+		createRouter().post(a, "/users", {
 			openapi: {
 				operationId: "shared",
 				requestBodySchema: { $id: "https://example.test/shared", $schema: "x" },
@@ -161,7 +161,7 @@ it("reports missing status and parameter contracts and duplicate schema componen
 	// "$defs" keys are sanitized into component names, so distinct keys can still collide.
 	expect(() =>
 		generate(
-			createRouter().post("/users", a, {
+			createRouter().post(a, "/users", {
 				openapi: { operationId: "a", requestBodySchema: { $defs: { "x y": {}, "x_y": {} } } },
 			})
 		)
@@ -169,8 +169,8 @@ it("reports missing status and parameter contracts and duplicate schema componen
 	expect(() =>
 		generate(
 			createRouter()
-				.post("/users", a, { openapi: { operationId: "x", outputSchema: { $defs: { ServerError: {} } } } })
-				.post("/other", a, { openapi: { operationId: "x_Output" } })
+				.post(a, "/users", { openapi: { operationId: "x", outputSchema: { $defs: { ServerError: {} } } } })
+				.post(a, "/other", { openapi: { operationId: "x_Output" } })
 		)
 	).toThrow("duplicate schema component");
 });
@@ -184,27 +184,27 @@ it("documents request bodies as required when an input schema exists unless over
 		.inputSchema(z.object({ name: z.string() }))
 		.outputSchema(z.string())
 		.action(async () => "ok");
-	expect(operation(createRouter().post("/users", required, { openapi })).requestBody!.required).toBe(true);
+	expect(operation(createRouter().post(required, "/users", { openapi })).requestBody!.required).toBe(true);
 	const optional = client
 		.inputSchema(z.string().optional())
 		.outputSchema(z.string())
 		.action(async () => "ok");
-	const optionalRouter = createRouter().post("/users", optional, {
+	const optionalRouter = createRouter().post(optional, "/users", {
 		openapi: { operationId: "createUser", requestBodyRequired: false },
 	});
 	expect(operation(optionalRouter).requestBody!.required).toBe(false);
 	const none = client.outputSchema(z.string()).action(async () => "ok");
-	expect(operation(createRouter().post("/users", none, { openapi })).requestBody).toBeUndefined();
+	expect(operation(createRouter().post(none, "/users", { openapi })).requestBody).toBeUndefined();
 	const state = client
 		.inputSchema(z.number())
 		.outputSchema(z.number())
 		.stateAction(async () => 1);
-	const envelope = operation(createRouter().post("/users", state, { stateSchema: z.object({}), openapi })).requestBody!;
+	const envelope = operation(createRouter().post(state, "/users", { stateSchema: z.object({}), openapi })).requestBody!;
 	expect(envelope.required).toBe(true);
 	expect(envelope.content["application/json"]!.schema.required).toEqual(["input"]);
 	const looseState = client.outputSchema(z.number()).stateAction(async () => 1);
 	const loose = operation(
-		createRouter().post("/users", looseState, { stateSchema: z.object({}), openapi })
+		createRouter().post(looseState, "/users", { stateSchema: z.object({}), openapi })
 	).requestBody!;
 	expect(loose.required).toBe(true);
 	expect(loose.content["application/json"]!.schema.required).toBeUndefined();
@@ -214,7 +214,7 @@ it("keeps document references and instance data, and rewrites local references i
 	const a = client.outputSchema(z.string()).action(async () => "ok");
 	const ref = { $ref: "#/components/schemas/createUser_Output" };
 	const schemasOf = (config: RouteOpenApi, options: Partial<OpenApiDocumentOptions> = {}) =>
-		generate(createRouter().post("/users", a, { openapi: config }), options).components.schemas;
+		generate(createRouter().post(a, "/users", { openapi: config }), options).components.schemas;
 	expect(schemasOf({ operationId: "createUser", requestBodySchema: ref }).createUser_Request).toEqual(ref);
 	const nested = { type: "object", properties: { nested: ref } };
 	expect(schemasOf({ operationId: "createUser", outputSchema: nested }).createUser_Output).toEqual(nested);
@@ -272,7 +272,7 @@ it("validates parameter overrides against the template", () => {
 	const a = client.outputSchema(z.string()).action(async () => "ok");
 	const at = (path: string, parameters: unknown) =>
 		generate(
-			createRouter().post(path, a, {
+			createRouter().post(a, path, {
 				mapInput: passInput,
 				openapi: { operationId: "p", requestBodySchema: true, parameters: parameters as never },
 			})
@@ -290,7 +290,7 @@ it("validates parameter overrides against the template", () => {
 it("keeps every error alternative when server errors map to 400", () => {
 	const a = client.outputSchema(z.string()).action(async () => "ok");
 	const document = generate(
-		createRouter().post("/users", a, {
+		createRouter().post(a, "/users", {
 			serverErrorStatus: () => 400,
 			openapi: { operationId: "createUser", serverErrorStatuses: [400] },
 		})
@@ -320,7 +320,7 @@ it("emits only document-resolvable references for recursive zod schemas with ide
 		.inputSchema(Category)
 		.outputSchema(Category)
 		.action(async ({ parsedInput }) => parsedInput);
-	const document = generate(createRouter().post("/users", a, { openapi }));
+	const document = generate(createRouter().post(a, "/users", { openapi }));
 	const refs: string[] = [];
 	const collect = (node: unknown): void => {
 		if (!node || typeof node !== "object") return;
@@ -352,7 +352,84 @@ it("documents prefixed and merged routes under their full paths", () => {
 		.inputSchema(z.string())
 		.outputSchema(z.string())
 		.action(async () => "ok");
-	const todos = createRouter({ prefix: "/todos" }).post("/", create, { openapi: { operationId: "createTodo" } });
+	const todos = createRouter({ prefix: "/todos" }).post(create, "/", { openapi: { operationId: "createTodo" } });
 	const document = generate(mergeRouters(todos));
 	expect(Object.keys(document.paths)).toEqual(["/todos"]);
+});
+
+it("derives path parameters from the input schema and leaves them out of the request body", () => {
+	const output = z.string();
+	const update = client
+		.inputSchema(z.object({ org: z.string(), id: z.coerce.number(), title: z.string(), done: z.boolean().optional() }))
+		.outputSchema(output)
+		.action(async () => "ok");
+	const remove = client
+		.inputSchema(z.object({ id: z.string() }))
+		.outputSchema(output)
+		.action(async () => "ok");
+	const optional = client
+		.inputSchema(z.object({ id: z.string(), done: z.boolean().optional() }))
+		.outputSchema(output)
+		.action(async () => "ok");
+	const document = generate(
+		createRouter({ prefix: "/orgs/{org}" })
+			.patch(update, "/todos/{id}", { openapi: { operationId: "updateTodo" } })
+			.delete(remove, "/todos/{id}", {
+				mapInput: passInput,
+				openapi: {
+					operationId: "mapped",
+					requestBodySchema: false,
+					parameters: [
+						{ name: "org", in: "path", required: true, schema: { type: "string" } },
+						{ name: "id", in: "path", required: true, schema: { type: "string" } },
+					],
+				},
+			})
+	);
+	const paths = document.paths as Record<string, Record<string, Record<string, unknown>>>;
+	const operation = paths["/orgs/{org}/todos/{id}"]!.patch!;
+	expect(operation.parameters).toEqual([
+		{ name: "org", in: "path", required: true, schema: { $ref: "#/components/schemas/updateTodo_Param_org" } },
+		{ name: "id", in: "path", required: true, schema: { $ref: "#/components/schemas/updateTodo_Param_id" } },
+	]);
+	expect(document.components.schemas.updateTodo_Param_org).toEqual({ type: "string" });
+	const body = document.components.schemas.updateTodo_Input as Record<string, unknown>;
+	expect(Object.keys(body.properties as object)).toEqual(["title", "done"]);
+	expect(body.required).toEqual(["title"]);
+	expect(operation.requestBody).toMatchObject({ required: true });
+
+	const only = generate(createRouter().delete(remove, "/todos/{id}", { openapi: { operationId: "removeTodo" } }));
+	const removeOperation = (only.paths as Record<string, Record<string, Record<string, unknown>>>)["/todos/{id}"]!
+		.delete!;
+	expect(removeOperation).not.toHaveProperty("requestBody");
+	expect(only.components.schemas).not.toHaveProperty("removeTodo_Input");
+
+	const optionalBody = generate(createRouter().patch(optional, "/todos/{id}", { openapi: { operationId: "o" } }));
+	const optionalOperation = (optionalBody.paths as Record<string, Record<string, Record<string, unknown>>>)[
+		"/todos/{id}"
+	]!.patch!;
+	expect(optionalOperation.requestBody).toMatchObject({ required: false });
+	expect(optionalBody.components.schemas.o_Input).not.toHaveProperty("required");
+});
+
+it("lets parameter overrides win and rejects inputs whose properties cannot hold path parameters", () => {
+	const output = z.string();
+	const update = client
+		.inputSchema(z.object({ id: z.string(), title: z.string() }))
+		.outputSchema(output)
+		.action(async () => "ok");
+	const parameters = [{ name: "id", in: "path" as const, required: true, schema: { type: "string", format: "uuid" } }];
+	const document = generate(createRouter().put(update, "/todos/{id}", { openapi: { operationId: "put", parameters } }));
+	const operation = (document.paths as Record<string, Record<string, Record<string, unknown>>>)["/todos/{id}"]!.put!;
+	expect(operation.parameters).toEqual(parameters);
+	expect(document.components.schemas).not.toHaveProperty("put_Param_id");
+	expect(Object.keys((document.components.schemas.put_Input as { properties: object }).properties)).toEqual(["title"]);
+
+	const union = client
+		.inputSchema(z.union([z.object({ id: z.string() }), z.object({ id: z.string(), title: z.string() })]))
+		.outputSchema(output)
+		.action(async () => "ok");
+	expect(() => generate(createRouter().put(union, "/todos/{id}", { openapi: { operationId: "union" } }))).toThrow(
+		"path parameters must be input properties"
+	);
 });

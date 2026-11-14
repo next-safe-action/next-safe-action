@@ -31,7 +31,9 @@ function conflicts(a: Route, b: Pick<Route, "method" | "path" | "segments">) {
 	return (xMore && yMore) || (!xMore && !yMore && (a.path !== b.path || a.method === b.method));
 }
 
-function compile(method: MutationMethod, path: string, action: RouteAction, config: Route["config"] = {}): Route {
+type ConfigInput = Omit<Route["config"], "headers"> & { headers?: HeadersInit };
+
+function compile(method: MutationMethod, path: string, action: RouteAction, config: ConfigInput = {}): Route {
 	const label = method + " " + path;
 	const definition = getActionDefinition(action);
 	if (!definition) throw new TypeError(label + ": not a safe action (bound actions are not supported)");
@@ -47,7 +49,6 @@ function compile(method: MutationMethod, path: string, action: RouteAction, conf
 	if (!Number.isInteger(status) || status < 200 || status > 299 || status === 204 || status === 205)
 		throw new TypeError(label + ": successStatus must allow a JSON body");
 	const parts = segments(path);
-	if (parts.some(isParameter) && !config.mapInput) throw new TypeError(label + ": path parameters require mapInput");
 	return Object.freeze({
 		method,
 		path,
@@ -65,7 +66,7 @@ function append(routes: readonly Route[], route: Route): readonly Route[] {
 }
 
 function router(routes: readonly Route[], prefix: string): Router<any> {
-	const add = (method: MutationMethod) => (path: string, action: RouteAction, config?: Route["config"]) => {
+	const add = (method: MutationMethod) => (action: RouteAction, path: string, config?: ConfigInput) => {
 		// The relative path is validated on its own first, so "s" cannot glue onto the prefix as "/todoss".
 		segments(path);
 		return router(
@@ -79,7 +80,7 @@ function router(routes: readonly Route[], prefix: string): Router<any> {
 /**
  * Creates an empty router. Add actions with `.post()`, `.put()`, `.patch()` and `.delete()`, then pass the router
  * to `createRouteHandlers()` and, optionally, to `generateOpenApiDocument()`. With a `prefix`, every route path is
- * joined to it: `createRouter({ prefix: "/todos" }).post("/", action)` serves `POST /todos`.
+ * joined to it: `createRouter({ prefix: "/todos" }).post(action, "/")` serves `POST /todos`.
  */
 export function createRouter<Prefix extends string = "">(options: { prefix?: Prefix } = {}): Router<Prefix> {
 	const prefix = options.prefix ?? "";

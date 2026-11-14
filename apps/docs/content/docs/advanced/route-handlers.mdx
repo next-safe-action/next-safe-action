@@ -55,10 +55,10 @@ The router maps actions to HTTP methods and paths. Put it in its own module, so 
 import { createRouter } from "next-safe-action/routes";
 import { createUser } from "@/app/actions";
 
-export const router = createRouter().post("/users", createUser, { successStatus: 201 });
+export const router = createRouter().post(createUser, "/users", { successStatus: 201 });
 ```
 
-`createRouter()` returns an immutable router. `.post()`, `.put()`, `.patch()`, and `.delete()` each return a new router with one more route. Every route is checked when it is added, so a bad path, a bad status, a duplicate route, or a value that is not a safe action throws when the module loads, not on the first request.
+`createRouter()` returns an immutable router. `.post()`, `.put()`, `.patch()`, and `.delete()` each return a new router with one more route. Each method takes the action first, then the path, then an optional config. Every route is checked when it is added, so a bad path, a bad status, a duplicate route, or a value that is not a safe action throws when the module loads, not on the first request.
 
 </Step>
 <Step>
@@ -121,7 +121,7 @@ A `"use server"` file can export only async functions. If the router needs a val
 
 - A path starts with `/` and has no trailing slash. Use `/` for the catch-all root.
 - Parameters are complete segments with unique identifier names, for example `/users/{id}`. Wildcards, `%` escapes, `?`, `#`, `.`, and `..` segments are rejected.
-- A path with parameters requires [`mapInput`](#input-and-mapinput), because parameters reach the action only through it. TypeScript requires it, and the router throws without it.
+- Path parameters are merged into the action input automatically, see [Input and path parameters](#input-and-path-parameters). TypeScript checks each parameter against the action input.
 - A parameter value that is empty, `.`, `..`, or contains an encoded slash (`%2F`) does not match, so the request gets `404`.
 - Concrete segments win over parameters, and this happens before the method is selected. If `POST /users/me` and `DELETE /users/{id}` both exist, `DELETE /users/me` returns `405`: it does not fall through to `/users/{id}`.
 - Duplicate routes, and overlapping templates where neither is more concrete (`/a/{x}` and `/{y}/b`), throw when the route is added.
@@ -137,40 +137,65 @@ Pass a `prefix` to `createRouter()` to group related routes, then combine the ro
 import { createRouter, mergeRouters } from "next-safe-action/routes";
 
 const todos = createRouter({ prefix: "/todos" })
-	.post("/", createTodo) // POST /todos
-	.patch("/{id}", updateTodo, { mapInput: ({ input, params }) => ({ ...(input as object), id: params.id }) });
+	.post(createTodo, "/") // POST /todos
+	.patch(updateTodo, "/{id}"); // PATCH /todos/{id}
 
-const orgs = createRouter({ prefix: "/orgs/{orgId}" }).post("/invite", invite, {
-	mapInput: ({ input, params }) => ({ ...(input as object), orgId: params.orgId }),
-});
+const orgs = createRouter({ prefix: "/orgs/{orgId}" }).post(invite, "/invite");
 
-export const router = mergeRouters(todos, orgs).post("/ping", ping);
+export const router = mergeRouters(todos, orgs).post(ping, "/ping");
 ```
 
 - The prefix follows the same rules as a path. A route path is joined to it, and the route `/` maps to the prefix itself.
-- A prefix can have parameters. They are typed in `mapInput` together with the route parameters, and they make `mapInput` required, like any other parameter.
+- A prefix can have parameters. They merge into the input together with the route parameters, so the action input needs an `orgId` key that accepts a string (or use [`mapInput`](#escape-hatch-mapinput)).
 - `mergeRouters()` returns a new router with no prefix. Routes keep their full paths and the argument order. A merged router is still a normal router, so you can add more routes to it or merge it again.
 - The duplicate and ambiguity checks apply across all merged routers. Two routers derived from the same base router both contain the base routes, so merging them throws.
 - Prefixes do not nest: `mergeRouters()` never adds a prefix. To share a segment such as `/v1`, include it in each prefix.
 
-## Input and `mapInput`
+## Input and path parameters
 
-By default, the parsed JSON body is the action input, unchanged. An empty body becomes `undefined`. Path parameters and query values are **not** added to the input: use `mapInput` for them (it is required when the path has parameters).
-
-Use `mapInput` to build the input from the body, the path parameters, and the request:
+Without `mapInput`, the action input is `{ ...body, ...params }`: the parsed JSON body (`{}` when the body is empty) plus every `{param}` value of the path, as strings. Query values are **not** added. A route without path parameters passes the parsed body as the input unchanged, and an empty body becomes `undefined`.
 
 ```ts title="src/lib/router.ts"
-export const router = createRouter().patch("/users/{id}", updateUser, {
-	// Spread the body first, so the path parameter always wins.
+const updateUser = actionClient
+	.inputSchema(z.object({ id: z.string().uuid(), name: z.string().min(1) }))
+	.action(async ({ parsedInput }) => { /* ... */ });
+
+export const router = createRouter().patch(updateUser, "/users/{id}");
+```
+
+`PATCH /users/5f0c...` with the body `{"name":"Ada"}` calls `updateUser` with `{ name: "Ada", id: "5f0c..." }`.
+
+- **Path parameters win over the body.** If the body has an `id` key too, the URL value replaces it. Authorization in a proxy or in middleware usually looks at the URL, so the body must not be able to override it.
+- **The input schema validates the merged object.** An invalid parameter comes back as normal `validationErrors` with status `400`.
+- **The body must be a JSON object** when the path has parameters. An array, string, number, or `null` returns `400` with `{ httpError: { code: "INVALID_INPUT", message: "Path parameters require a JSON object body" } }`.
+- **Stateful actions** merge the parameters into the `input` field of the [envelope](#stateful-actions).
+
+### Type checking
+
+TypeScript checks every `{param}` of the path, including the parameters of a router prefix. Each one must be a key of the action input object, and that key must accept a `string`. Otherwise the path argument has a type error, for example `Path parameter {todoId} is not a key of the action input; rename it or use mapInput` or `Path parameter {id} must accept a string (for example z.coerce.number()); or use mapInput`. A path with parameters on an action with no input schema, or with an input that is not an object, is also an error (`Path parameters need an object input; use mapInput`).
+
+For a numeric id, coerce the string in the schema. In Zod 4, the input type of `z.coerce.number()` is `unknown`, so it accepts the string:
+
+```ts
+.inputSchema(z.object({ id: z.coerce.number().int().positive() }))
+```
+
+### Escape hatch: `mapInput`
+
+`mapInput` is optional. Use it when the automatic merge does not fit: to rename a parameter (`{todoId}` to `id`), to read the input from headers or the query string, or when a schema cannot accept strings. It receives the raw body (`unknown`), the typed `params`, and the `Request`, and must return the action input:
+
+```ts title="src/lib/router.ts"
+export const router = createRouter().patch(updateUser, "/users/{userId}", {
+	// With mapInput there is no automatic merge, so spread the body first and let the parameter win.
 	mapInput: ({ input, params, request }) => ({
 		...(input as object),
-		id: params.id,
+		id: params.userId,
 		notify: new URL(request.url).searchParams.get("notify") === "true",
 	}),
 });
 ```
 
-`params` is typed from the path, so `params.id` exists here and a misspelled name is a type error. The return type is checked against the action's input type. The returned value still goes through the action's input validation. `mapInput` can be async.
+`params` is typed from the path, so `params.userId` exists here and a misspelled name is a type error. The return type is checked against the action's input type, and the path type check is skipped. The returned value still goes through the action's input validation. `mapInput` can be async.
 
 Actions with bind argument schemas (`bindArgsSchemas`) and bound functions (`action.bind(...)`) cannot be routed: the router throws.
 
@@ -179,7 +204,7 @@ Actions with bind argument schemas (`bindArgsSchemas`) and bound functions (`act
 An action defined with `stateAction()` needs a `stateSchema` route option: a Standard Schema for the previous result that the client sends back. TypeScript requires it for stateful actions and rejects it for the others.
 
 ```ts title="src/lib/router.ts"
-export const router = createRouter().post("/counter", addToCounter, {
+export const router = createRouter().post(addToCounter, "/counter", {
 	stateSchema: z.object({ data: z.object({ count: z.number() }).optional() }),
 });
 ```
@@ -193,7 +218,7 @@ The request body is an envelope with only `input` and `prevResult` keys:
 - The body must be a JSON object, so send at least `{}`. Other keys are rejected.
 - A missing `prevResult` becomes `{}`. A present one is validated once with `stateSchema`, and schema transforms apply.
 - An invalid envelope or previous result returns `400` with the `INVALID_STATE` code.
-- `mapInput` receives only `input`, after the state validation.
+- Path parameters merge into `input`, and `mapInput` receives only `input`, after the state validation.
 
 <Callout type="warn">
 `prevResult` is untrusted client data. `stateSchema` checks its shape, not its authenticity or freshness. Never derive permissions, identifiers, or server state from it that the action does not verify again. Route handlers provide no session storage, replay protection, or concurrency control. `stateSchema` applies only to HTTP requests: the Server Action transport passes previous results straight from React.
@@ -215,6 +240,7 @@ The route handler error codes are:
 | Status | Code | Cause |
 | --- | --- | --- |
 | `400` | `INVALID_JSON` | The body is not valid UTF-8 JSON. |
+| `400` | `INVALID_INPUT` | The path has parameters and the body is not a JSON object. |
 | `400` | `INVALID_STATE` | Invalid stateful envelope or previous result. |
 | `400` | `INVALID_PATH` | The `pathParam` segment is not a catch-all array. |
 | `401` | `UNAUTHORIZED` | The action or its middleware called `unauthorized()`. |
@@ -231,7 +257,7 @@ The route handler error codes are:
 Map the `serverError` value (the output of your `handleServerError`, or a value from [`returnServerError()`](/docs/api/error-classes)) to a status with `serverErrorStatus`. Its argument has the action's server error type, and it must return a `4xx` or `5xx` status:
 
 ```ts
-createRouter().post("/usernames", reserveUsername, {
+createRouter().post(reserveUsername, "/usernames", {
 	serverErrorStatus: (error) => (error === USERNAME_TAKEN ? 409 : 500),
 });
 ```
@@ -307,7 +333,7 @@ The `next-safe-action/routes/openapi` entry point generates an OpenAPI 3.1 docum
 Only routes with an `openapi` option are documented:
 
 ```ts title="src/lib/router.ts"
-export const router = createRouter().post("/users", createUser, {
+export const router = createRouter().post(createUser, "/users", {
 	successStatus: 201,
 	openapi: { operationId: "createUser", summary: "Create a user", tags: ["users"] },
 });
@@ -399,9 +425,11 @@ openapi: {
 
 ### Request body and parameters
 
-- The request body is documented as required when the action has an input schema or a `requestBodySchema`. Optionality cannot be detected without running the validator, so set `requestBodyRequired: false` for input that can be omitted.
+- For a route without `mapInput`, each path parameter is derived from the input JSON Schema: `properties[param]` becomes the component `<operationId>_Param_<name>` and a required path parameter. The request body schema is the input schema without those properties, and without them in `required`. If no properties remain, a non-stateful route has no `requestBody`.
+- The request body is documented as required when the action has an input schema or a `requestBodySchema`. For a route with derived path parameters, it is required only when some non-parameter property is required. Optionality that the JSON Schema does not show cannot be detected without running the validator, so set `requestBodyRequired` yourself when the default is wrong. The `parameters` and `requestBodySchema` overrides still work and win over the derived values.
+- With `mapInput`, the generator cannot derive anything, so `requestBodySchema` and `parameters` stay required.
 - For stateful actions, the generated body is the `{ input, prevResult }` envelope, and it is always required. A `requestBodySchema` override describes the complete envelope.
-- `parameters` documents the path, query, header, and cookie parameters that `mapInput` reads. Each entry needs a `schema`, `(name, in)` pairs must be unique, path parameters must exist in the template, and every template parameter must be listed with `required: true`.
+- `parameters` documents the path, query, header, and cookie parameters, such as the ones that `mapInput` reads or a header that your middleware requires. Each entry needs a `schema`, `(name, in)` pairs must be unique, path parameters must exist in the template, and every template parameter must be listed with `required: true`.
 
 ### Components
 
@@ -420,18 +448,18 @@ Overrides can use document references such as `{ "$ref": "#/components/schemas/c
 Returns an empty, immutable `Router`. `options.prefix` is joined to every route path, see [Subrouters](#subrouters). Its methods add one route each and return a new router:
 
 ```ts
-router.post(path, action, config?)
-router.put(path, action, config?)
-router.patch(path, action, config?)
-router.delete(path, action, config?)
+router.post(action, path, config?)
+router.put(action, path, config?)
+router.patch(action, path, config?)
+router.delete(action, path, config?)
 ```
 
-`path` is a template relative to the catch-all folder, for example `/users/{id}`. `action` is an action created with `action()` or `stateAction()`. `router.routes` lists the routes in the order they were added. The route config is:
+`action` is an action created with `action()` or `stateAction()`. `path` is a template relative to the catch-all folder, for example `/users/{id}`. Its parameters merge into the action input, see [Input and path parameters](#input-and-path-parameters). `router.routes` lists the routes in the order they were added. The route config is:
 
 <TypeTable
 	type={{
 		mapInput: {
-			description: "Builds the action input from the parsed body, the typed path parameters, and the request. Its return type must match the action input. Required when the path has parameters. Runs before middleware.",
+			description: "Optional escape hatch. Builds the action input from the parsed body, the typed path parameters, and the request. Replaces the automatic path parameter merge and its type check. Its return type must match the action input. Runs before middleware.",
 			type: "(args: { input: unknown; params: Readonly<Record<Param, string>>; request: Request }) => Input | Promise<Input>",
 		},
 		stateSchema: {
@@ -480,20 +508,20 @@ Returns a new router with no prefix that contains the routes of every argument, 
 			type: "JsonSchema",
 		},
 		requestBodySchema: {
-			description: "JSON Schema for the complete request body. Overrides the converted input schema. Required with mapInput or an input schema factory.",
+			description: "JSON Schema for the complete request body. Overrides the converted input schema. Required with mapInput or an input schema factory. Without mapInput, the default is the input schema minus the path parameter properties.",
 			type: "JsonSchema",
 		},
 		requestBodyRequired: {
 			description: "Whether the request body is required.",
 			type: "boolean",
-			default: "true when there is an input schema or requestBodySchema",
+			default: "true when there is an input schema or requestBodySchema; with derived path parameters, true when some other property is required",
 		},
 		prevResultSchema: {
 			description: "JSON Schema for prevResult. Overrides the converted stateSchema.",
 			type: "JsonSchema",
 		},
 		parameters: {
-			description: "The path, query, header, and cookie parameters. Required with mapInput.",
+			description: "The path, query, header, and cookie parameters. Overrides the path parameters derived from the input schema. Required with mapInput.",
 			type: "OpenApiParameter[]",
 		},
 		serverErrorStatuses: {

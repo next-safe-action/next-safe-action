@@ -96,8 +96,9 @@ export function generateOpenApiDocument(router: Pick<Router, "routes">, options:
 		name: string,
 		schema: Schema | undefined,
 		side: "input" | "output",
-		override?: JsonSchema
-	): JsonSchema {
+		override?: JsonSchema,
+		edit: (schema: Record<string, unknown>) => JsonSchema | undefined = (schema) => schema
+	): JsonSchema | undefined {
 		if (override !== undefined) return component(name, override);
 		const standard:
 			| (Schema["~standard"] & {
@@ -105,11 +106,14 @@ export function generateOpenApiDocument(router: Pick<Router, "routes">, options:
 			  })
 			| undefined = schema?.["~standard"];
 		if (!standard?.jsonSchema) throw new TypeError(name + ": missing JSON Schema; provide an explicit override");
+		let converted: Record<string, unknown>;
 		try {
-			return component(name, standard.jsonSchema[side]({ target: "draft-2020-12" }));
+			converted = standard.jsonSchema[side]({ target: "draft-2020-12" });
 		} catch (cause) {
 			throw new TypeError(name + ": JSON Schema conversion failed; provide an explicit override", { cause });
 		}
+		const edited = edit(converted);
+		return edited === undefined ? undefined : component(name, edited);
 	}
 	for (const route of router.routes) {
 		const { definition } = route;
@@ -129,16 +133,44 @@ export function generateOpenApiDocument(router: Pick<Router, "routes">, options:
 		};
 		if (errors.serverErrorSchema === undefined || errors.validationErrorsSchema === undefined)
 			throw new TypeError(id + ": explicit serverErrorSchema and validationErrorsSchema are required");
-		const output = convert(id + "_Output", definition.outputSchema, "output", config.outputSchema);
+		const output = convert(id + "_Output", definition.outputSchema, "output", config.outputSchema)!;
 		const serverError = component(id + "_ServerError", errors.serverErrorSchema);
 		const validation = component(id + "_ValidationErrors", errors.validationErrorsSchema);
+		const templateParameters = route.segments.filter(isParameter).map((part) => part.slice(1, -1));
+		// Without mapInput, path parameters are input properties: they become parameters and leave the body schema.
+		const merged = route.config.mapInput ? [] : templateParameters;
+		let derivedParameters: OpenApiParameter[] = [];
+		let bodyRequired: boolean | undefined;
+		const split = (schema: Record<string, unknown>) => {
+			const { properties, required, $defs } = schema ?? {};
+			if (!properties || typeof properties !== "object" || merged.some((name) => !Object.hasOwn(properties, name)))
+				throw new TypeError(
+					id + ": path parameters must be input properties; provide requestBodySchema and parameters"
+				);
+			const all = properties as Record<string, JsonSchema>;
+			if (!config.parameters)
+				derivedParameters = merged.map((name) => {
+					const property = all[name]!;
+					// The input's $defs travel along, so references inside the property still resolve.
+					const schema = $defs && typeof property === "object" ? { $defs, ...property } : property;
+					return { name, in: "path", required: true, schema: component(id + "_Param_" + name, schema) };
+				});
+			const rest = Object.fromEntries(Object.entries(all).filter(([key]) => !merged.includes(key)));
+			const stillRequired = Array.isArray(required) ? required.filter((key) => !merged.includes(key)) : [];
+			bodyRequired = stillRequired.length > 0;
+			if (!Object.keys(rest).length && !definition.stateful) return undefined;
+			const { required: _required, ...body } = schema;
+			return { ...body, properties: rest, ...(stillRequired.length ? { required: stillRequired } : {}) };
+		};
 		let request: JsonSchema | undefined;
 		if (config.requestBodySchema !== undefined) request = component(id + "_Request", config.requestBodySchema);
-		else if (definition.inputSchema) request = convert(id + "_Input", definition.inputSchema, "input");
-		// Optionality cannot be inferred without running validators, so it defaults to "an input schema exists".
-		const inputRequired = config.requestBodyRequired ?? request !== undefined;
+		else if (definition.inputSchema)
+			request = convert(id + "_Input", definition.inputSchema, "input", undefined, merged.length ? split : undefined);
+		// Optionality cannot be inferred without running validators, so it defaults to "an input schema exists", or,
+		// when path parameters were split off, to "another input property is required".
+		const inputRequired = config.requestBodyRequired ?? bodyRequired ?? request !== undefined;
 		if (definition.stateful) {
-			const previous = convert(id + "_PrevResult", route.config.stateSchema, "input", config.prevResultSchema);
+			const previous = convert(id + "_PrevResult", route.config.stateSchema, "input", config.prevResultSchema)!;
 			// An override describes the complete HTTP envelope, not just its input field.
 			if (config.requestBodySchema === undefined)
 				request = {
@@ -148,8 +180,7 @@ export function generateOpenApiDocument(router: Pick<Router, "routes">, options:
 					properties: { input: request ?? true, prevResult: previous },
 				};
 		}
-		const templateParameters = route.segments.filter(isParameter).map((part) => part.slice(1, -1));
-		const parameters: OpenApiParameter[] = config.parameters ?? [];
+		const parameters: OpenApiParameter[] = config.parameters ?? derivedParameters;
 		const seen = new Set<string>();
 		for (const parameter of parameters) {
 			if (!parameter || typeof parameter.name !== "string" || !locations.includes(parameter.in))

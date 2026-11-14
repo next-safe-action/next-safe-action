@@ -66,6 +66,7 @@ test("the OpenAPI route documents every registered operation", async ({ request 
 	expect(operationIds.toSorted()).toEqual(
 		[
 			"addToTotal",
+			"completeTodo",
 			"createReport",
 			"createTodo",
 			"incrementCounter",
@@ -77,13 +78,33 @@ test("the OpenAPI route documents every registered operation", async ({ request 
 	expect((await request.get("/api/docs")).headers()["content-type"]).toContain("text/html");
 });
 
-test("mapInput merges the path parameter over the body", async ({ request }) => {
+test("the router merges the path parameter over the body", async ({ request }) => {
 	const response = await request.patch("/api/routes/todos/7", { data: { id: "999", title: "Ship it" } });
 	expect(response.status()).toBe(200);
 	expect(await response.json()).toEqual({ data: { id: "7", title: "Ship it" } });
 	const invalid = await request.patch("/api/routes/todos/7", { data: { title: "" } });
 	expect(invalid.status()).toBe(400);
 	expect(await invalid.json()).toHaveProperty("validationErrors.title");
+});
+
+test("a body key cannot override a path parameter", async ({ request }) => {
+	const response = await request.patch("/api/routes/todos/7", { data: { id: "evil", title: "Ship it" } });
+	expect(response.status()).toBe(200);
+	expect(await response.json()).toEqual({ data: { id: "7", title: "Ship it" } });
+});
+
+test("a path parameter route rejects a body that is not a JSON object", async ({ request }) => {
+	const response = await request.patch("/api/routes/todos/7", { data: [{ title: "Ship it" }] });
+	expect(response.status()).toBe(400);
+	expect(await response.json()).toEqual({
+		httpError: { code: "INVALID_INPUT", message: "Path parameters require a JSON object body" },
+	});
+});
+
+test("mapInput renames a path parameter", async ({ request }) => {
+	const response = await request.post("/api/routes/todos/3/complete", { data: {} });
+	expect(response.status()).toBe(200);
+	expect(await response.json()).toEqual({ data: { id: "3", done: true } });
 });
 
 test("subrouters serve their routes under the prefix", async ({ request }) => {
@@ -98,7 +119,7 @@ test("subrouters serve their routes under the prefix", async ({ request }) => {
 	expect((await request.post("/api/routes/todos/7", { data: {} })).status()).toBe(405);
 });
 
-test("a prefix parameter reaches mapInput and wins over the body", async ({ request }) => {
+test("a prefix parameter merges into the input and wins over the body", async ({ request }) => {
 	const invited = await request.post("/api/routes/orgs/acme/invites", {
 		data: { orgId: "other", email: "ada@example.com" },
 	});
@@ -115,8 +136,14 @@ test("the OpenAPI document lists subrouter routes under their full paths", async
 	expect(Object.keys(document.paths)).toEqual(
 		expect.arrayContaining(["/todos", "/todos/{id}", "/orgs/{orgId}/invites"])
 	);
-	expect(document.paths["/orgs/{orgId}/invites"].post.parameters).toEqual([
-		{ name: "orgId", in: "path", required: true, schema: { type: "string" } },
+	// Without mapInput, the path parameter schema is derived from the input schema, and the body excludes it.
+	const [parameter] = document.paths["/orgs/{orgId}/invites"].post.parameters;
+	expect(parameter).toMatchObject({ name: "orgId", in: "path", required: true });
+	const body = document.paths["/orgs/{orgId}/invites"].post.requestBody;
+	expect(JSON.stringify(body)).not.toContain("orgId");
+	// With mapInput, the explicit overrides are used.
+	expect(document.paths["/todos/{todoId}/complete"].post.parameters).toEqual([
+		{ name: "todoId", in: "path", required: true, schema: { type: "string" } },
 	]);
 });
 
@@ -126,7 +153,7 @@ test("the subrouter demo calls the merged router from the browser", async ({ pag
 	await page.getByRole("button", { name: "POST /orgs/acme/invites (body orgId ignored)" }).click();
 	await expect(result).toContainText("Response: HTTP 201");
 	await expect(result).toContainText('"orgId": "acme"');
-	await page.getByRole("button", { name: "POST /todos" }).click();
+	await page.getByRole("button", { name: "POST /todos", exact: true }).click();
 	await expect(result).toContainText("Response: HTTP 201");
 	await expect(result).toContainText('"title": "Try subrouters"');
 });

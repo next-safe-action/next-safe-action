@@ -45,28 +45,64 @@ export type MapInput<Action extends RouteAction, Path extends string> = (args: {
 	request: Request;
 }) => ActionInput<Action> | Promise<ActionInput<Action>>;
 
-/**
- * Per-route HTTP configuration. `mapInput` is required when the path has parameters, and `stateSchema` is required
- * for stateful actions.
- */
-export type RouteConfig<Action extends RouteAction, Path extends string> = {
+// Error messages for path parameters that cannot be merged into the action input. They become the expected type of
+// the path argument, so TypeScript shows them right on the path.
+type ParamErrors<Input, Names extends string> = [Exclude<Input, undefined>] extends [infer Obj]
+	? [Obj] extends [Record<string, unknown>]
+		? Exclude<Names, keyof Obj> extends infer Missing extends string
+			? [Missing] extends [never]
+				? { [K in Names]: string extends Obj[K & keyof Obj] ? never : K }[Names] extends infer Strict extends string
+					? [Strict] extends [never]
+						? never
+						: `Path parameter {${Strict}} must accept a string (for example z.coerce.number()); or use mapInput`
+					: never
+				: `Path parameter {${Missing}} is not a key of the action input; rename it or use mapInput`
+			: never
+		: "Path parameters need an object input; use mapInput"
+	: never;
+/** The type of the path argument: the path itself when its `{param}` segments merge into the input, otherwise an error. */
+export type CheckPath<Action extends RouteAction, Path extends string, FullPath extends string> = [
+	PathParamNames<FullPath>,
+] extends [never]
+	? Path
+	: [ParamErrors<ActionInput<Action>, PathParamNames<FullPath>>] extends [infer Error extends string]
+		? [Error] extends [never]
+			? Path
+			: Error
+		: Path;
+
+type BaseRouteConfig<Action extends RouteAction> = {
 	successStatus?: number;
 	headers?: HeadersInit;
 	serverErrorStatus?: (error: InferServerError<Action>) => number;
 	openapi?: RouteOpenApi;
-} & ([PathParamNames<Path>] extends [never]
-	? { mapInput?: MapInput<Action, Path> }
-	: { mapInput: MapInput<Action, Path> }) &
-	(IsStateful<Action> extends true ? { stateSchema: Schema } : { stateSchema?: never });
+} & (IsStateful<Action> extends true ? { stateSchema: Schema } : { stateSchema?: never });
+/**
+ * Per-route HTTP configuration. Path parameters merge into the input object unless `mapInput` builds the input, and
+ * `stateSchema` is required for stateful actions.
+ */
+export type RouteConfig<Action extends RouteAction, Path extends string> = BaseRouteConfig<Action> & {
+	mapInput?: MapInput<Action, Path>;
+};
 
-type RouteConfigArgs<Action extends RouteAction, Path extends string> =
-	{} extends RouteConfig<Action, Path> ? [config?: RouteConfig<Action, Path>] : [config: RouteConfig<Action, Path>];
-// Config types are derived from the full path, so `{param}` segments in the router prefix are typed too.
-type AddRoute<Prefix extends string> = <Path extends string, Action extends RouteAction>(
-	path: Path,
-	action: Action,
-	...config: RouteConfigArgs<Action, `${Prefix}${Path}`>
-) => Router<Prefix>;
+type RouteConfigArgs<Action extends RouteAction> =
+	{} extends BaseRouteConfig<Action>
+		? [config?: BaseRouteConfig<Action> & { mapInput?: never }]
+		: [config: BaseRouteConfig<Action> & { mapInput?: never }];
+// Config types are derived from the full path, so `{param}` segments in the router prefix are typed too. The first
+// signature covers routes with `mapInput`; the second merges path parameters and checks them on the path argument.
+type AddRoute<Prefix extends string> = {
+	<Action extends RouteAction, Path extends string>(
+		action: Action,
+		path: Path,
+		config: BaseRouteConfig<Action> & { mapInput: MapInput<Action, `${Prefix}${Path}`> }
+	): Router<Prefix>;
+	<Action extends RouteAction, Path extends string>(
+		action: Action,
+		path: CheckPath<Action, Path, `${Prefix}${Path}`>,
+		...config: RouteConfigArgs<Action>
+	): Router<Prefix>;
+};
 
 /** A compiled route, as stored by the router. */
 export type Route = Readonly<{

@@ -74,8 +74,8 @@ export default async function RoutesPage() {
 				</ExampleCard>
 				<CounterDemo source={counter} />
 				<HttpDemo
-					title="Path parameters with mapInput"
-					description="PATCH /todos/{id}: mapInput merges the id from the URL into the JSON body before validation. The URL wins over an id in the body."
+					title="Path parameters"
+					description="PATCH /todos/{id}: the router merges the id from the URL into the JSON body before validation. The URL wins over an id in the body. POST /todos/{todoId}/complete uses mapInput to rename the parameter."
 					source={updateTodo}
 					testId="todo-http-result"
 					requests={[
@@ -87,11 +87,15 @@ export default async function RoutesPage() {
 							label: "PATCH /todos/2 (body id ignored)",
 							request: { method: "PATCH", path: "/todos/2", body: { id: "999", done: false } },
 						},
+						{
+							label: "POST /todos/3/complete (mapInput)",
+							request: { method: "POST", path: "/todos/3/complete", body: {} },
+						},
 					]}
 				/>
 				<HttpDemo
 					title="Subrouters"
-					description="createRouter({ prefix }) groups the routes of a feature, and mergeRouters() combines the subrouters in router.ts. The prefix /orgs/{orgId} has a parameter, so mapInput is required and params.orgId is typed."
+					description="createRouter({ prefix }) groups the routes of a feature, and mergeRouters() combines the subrouters in router.ts. The prefix /orgs/{orgId} has a parameter, which merges into the input like any path parameter."
 					source={subrouters}
 					testId="subrouter-http-result"
 					requests={[

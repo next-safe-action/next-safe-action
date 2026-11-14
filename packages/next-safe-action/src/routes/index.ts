@@ -179,6 +179,12 @@ export function createRouteHandlers(router: Pick<Router, "routes">, options: Rou
 				input = input.input;
 			}
 			if (route.config.mapInput) input = await route.config.mapInput({ input, params, request });
+			else if (Object.keys(params).length) {
+				if (input !== undefined && !isRecord(input))
+					fail(400, "INVALID_INPUT", "Path parameters require a JSON object body");
+				// Path parameters win: authorization in proxies and middleware usually looks at the URL, not the body.
+				input = { ...input, ...params };
+			}
 			const result = route.definition.stateful ? await route.action(prevResult, input) : await route.action(input);
 			let status = route.config.successStatus ?? 200;
 			if (result.validationErrors !== undefined) status = 400;

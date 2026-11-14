@@ -10,7 +10,7 @@ function echo(run = async (input: unknown): Promise<unknown> => input) {
 }
 // Routes an echo action at POST /users. The config is untyped so tests can pass invalid values.
 function users(config: Record<string, unknown> = {}, run?: (input: unknown) => Promise<unknown>) {
-	return createRouter().post("/users", echo(run), config);
+	return createRouter().post(echo(run), "/users", config);
 }
 async function call(
 	router: Pick<Router, "routes">,
@@ -29,7 +29,7 @@ const passInput = ({ input }: { input: unknown }) => input;
 
 it.each(["POST", "PUT", "PATCH", "DELETE"] as const)("serves %s", async (method) => {
 	const add = method.toLowerCase() as "post" | "put" | "patch" | "delete";
-	const router = createRouter()[add]("/users", echo(), { successStatus: 201 });
+	const router = createRouter()[add](echo(), "/users", { successStatus: 201 });
 	const response = await call(router, method, undefined, '{"name":"Ada"}');
 	expect(response.status).toBe(201);
 	expect(await response.json()).toEqual({ data: { name: "Ada" } });
@@ -38,8 +38,8 @@ it.each(["POST", "PUT", "PATCH", "DELETE"] as const)("serves %s", async (method)
 
 it("matches concrete paths before parameters and supports mappings", async () => {
 	const router = createRouter()
-		.post("/users/{id}", echo(), { mapInput: async ({ input, params }) => ({ input, id: params.id }) })
-		.put("/users/me", echo());
+		.post(echo(), "/users/{id}", { mapInput: async ({ input, params }) => ({ input, id: params.id }) })
+		.put(echo(), "/users/me");
 	const result = await call(router, "POST", ["users", "42"]);
 	expect(await result.json()).toEqual({ data: { input: {}, id: "42" } });
 	expect((await call(router, "POST", ["users", "me"])).status).toBe(405);
@@ -49,35 +49,70 @@ it("matches concrete paths before parameters and supports mappings", async () =>
 	expect(wrong.headers.get("allow")).toBe("POST");
 });
 
+it("merges path parameters into the input, with path parameters winning over body keys", async () => {
+	const update = client
+		.inputSchema(z.object({ org: z.string(), id: z.coerce.number(), title: z.string().optional() }))
+		.action(async ({ parsedInput }) => parsedInput);
+	const router = createRouter({ prefix: "/orgs/{org}" }).patch(update, "/todos/{id}");
+	const path = ["orgs", "acme", "todos", "42"];
+	let response = await call(router, "PATCH", path, '{"title":"Write docs"}');
+	expect(await response.json()).toEqual({ data: { org: "acme", id: 42, title: "Write docs" } });
+	response = await call(router, "PATCH", path, '{"id":7,"org":"evil"}');
+	expect(await response.json()).toEqual({ data: { org: "acme", id: 42 } });
+	response = await call(router, "PATCH", path, "");
+	expect(await response.json()).toEqual({ data: { org: "acme", id: 42 } });
+	for (const body of ["[]", "null", '"text"', "1"]) {
+		response = await call(router, "PATCH", path, body);
+		expect(response.status).toBe(400);
+		expect(await response.json()).toEqual({
+			httpError: { code: "INVALID_INPUT", message: "Path parameters require a JSON object body" },
+		});
+	}
+	// The action's own schema validates the merged parameters.
+	response = await call(router, "PATCH", ["orgs", "acme", "todos", "abc"]);
+	expect(response.status).toBe(400);
+	expect(await response.json()).toHaveProperty("validationErrors");
+});
+
+it("merges path parameters into the input of stateful envelopes", async () => {
+	const stateSchema = z.object({ data: z.number().optional() });
+	const add = client
+		.inputSchema(z.object({ id: z.string(), amount: z.number() }))
+		.stateAction(async ({ parsedInput }, { prevResult }) => (prevResult.data ?? 0) + parsedInput.amount);
+	const router = createRouter().post(add, "/counters/{id}", { stateSchema });
+	const response = await call(router, "POST", ["counters", "a"], '{"input":{"amount":2},"prevResult":{"data":3}}');
+	expect(await response.json()).toEqual({ data: 5 });
+	expect((await call(router, "POST", ["counters", "a"], '{"input":[]}')).status).toBe(400);
+});
+
 it("rejects duplicates, ambiguous paths, unsupported configurations and non-actions", () => {
-	const base = createRouter().post("/{id}/edit", echo(), { mapInput: passInput });
-	expect(() => base.post("/{id}/edit", echo(), { mapInput: passInput })).toThrow("ambiguous");
-	expect(() => base.post("/{name}/edit", echo(), { mapInput: passInput })).toThrow("ambiguous");
-	expect(() => base.put("/users/{id}", echo(), { mapInput: passInput })).toThrow("ambiguous");
+	const base = createRouter().post(echo(), "/{id}/edit", { mapInput: passInput });
+	expect(() => base.post(echo(), "/{id}/edit", { mapInput: passInput })).toThrow("ambiguous");
+	expect(() => base.post(echo(), "/{name}/edit", { mapInput: passInput })).toThrow("ambiguous");
+	expect(() => base.put(echo(), "/users/{id}", { mapInput: passInput })).toThrow("ambiguous");
 	// Routers are immutable: a failed or successful add never changes the original router.
 	expect(base.routes).toHaveLength(1);
-	expect(base.put("/{id}/edit", echo(), { mapInput: passInput }).routes).toHaveLength(2);
+	expect(base.put(echo(), "/{id}/edit", { mapInput: passInput }).routes).toHaveLength(2);
 	expect(base.routes).toHaveLength(1);
-	expect(() => createRouter().post("/x", echo().bind(null) as never)).toThrow("not a safe action");
-	expect(() => createRouter().post("/x", async () => ({}))).toThrow("not a safe action");
+	expect(() => createRouter().post(echo().bind(null) as never, "/x")).toThrow("not a safe action");
+	expect(() => createRouter().post(async () => ({}), "/x")).toThrow("not a safe action");
 	const bound = client.bindArgsSchemas([z.string()]).action(async () => {});
-	expect(() => createRouter().post("/x", bound as never)).toThrow("bind arguments");
+	expect(() => createRouter().post(bound as never, "/x")).toThrow("bind arguments");
 	expect(() => users({ successStatus: 204 })).toThrow("JSON body");
 	expect(() => users({ mapInput: 1 })).toThrow("functions");
-	expect(() => createRouter().post("/{id}/{id}", echo(), { mapInput: passInput })).toThrow("Duplicate path parameter");
+	expect(() => createRouter().post(echo(), "/{id}/{id}", { mapInput: passInput })).toThrow("Duplicate path parameter");
 	// Without mapInput, path parameters would be silently dropped from the action input.
-	expect(() => createRouter().post("/users/{id}", echo(), {} as never)).toThrow("path parameters require mapInput");
 	for (const path of ["users", "/users/", "/a//b", "/a/*", "/a/..", "/a/%2F"])
-		expect(() => createRouter().post(path as "/", echo())).toThrow("Invalid route");
+		expect(() => createRouter().post(echo(), path as "/")).toThrow("Invalid route");
 	expect(() => createRouteHandlers({} as Router)).toThrow("createRouter()");
 });
 
 it("joins router prefixes to route paths and merges routers", async () => {
 	const todos = createRouter({ prefix: "/todos" })
-		.post("/", echo())
-		.put("/{id}", echo(), { mapInput: async ({ input, params }) => ({ input, id: params.id }) });
-	const orgs = createRouter({ prefix: "/orgs/{org}" }).post("/invite", echo(), { mapInput: ({ params }) => params });
-	const api = mergeRouters(todos, orgs).post("/ping", echo());
+		.post(echo(), "/")
+		.put(echo(), "/{id}", { mapInput: async ({ input, params }) => ({ input, id: params.id }) });
+	const orgs = createRouter({ prefix: "/orgs/{org}" }).post(echo(), "/invite", { mapInput: ({ params }) => params });
+	const api = mergeRouters(todos, orgs).post(echo(), "/ping");
 	expect(api.routes.map(({ method, path }) => method + " " + path)).toEqual([
 		"POST /todos",
 		"PUT /todos/{id}",
@@ -89,30 +124,27 @@ it("joins router prefixes to route paths and merges routers", async () => {
 	expect(await (await call(api, "PUT", ["todos", "1"])).json()).toEqual({ data: { input: {}, id: "1" } });
 	expect(await (await call(api, "POST", ["orgs", "acme", "invite"])).json()).toEqual({ data: { org: "acme" } });
 	expect((await call(api, "POST", ["todos"])).status).toBe(200);
-	expect(createRouter({ prefix: "/" }).post("/", echo()).routes[0]!.path).toBe("/");
-	expect(createRouter().post("/", echo()).routes[0]!.path).toBe("/");
+	expect(createRouter({ prefix: "/" }).post(echo(), "/").routes[0]!.path).toBe("/");
+	expect(createRouter().post(echo(), "/").routes[0]!.path).toBe("/");
 });
 
 it("validates prefixes and checks merged routes like added ones", () => {
 	for (const prefix of ["todos", "/todos/", "/a//b", "/a/*"])
 		expect(() => createRouter({ prefix: prefix as "/" })).toThrow("Invalid route");
 	// The route path is validated on its own, so it cannot glue onto the last prefix segment.
-	expect(() => createRouter({ prefix: "/todos" }).post("s" as "/", echo())).toThrow("Invalid route");
+	expect(() => createRouter({ prefix: "/todos" }).post(echo(), "s" as "/")).toThrow("Invalid route");
 	// Checks run on the joined path, so a prefix parameter needs mapInput and cannot repeat in the route path.
-	expect(() => createRouter({ prefix: "/orgs/{org}" }).post("/invite", echo(), {} as never)).toThrow(
-		"path parameters require mapInput"
-	);
-	expect(() => createRouter({ prefix: "/orgs/{org}" }).post("/{org}", echo(), { mapInput: passInput })).toThrow(
+	expect(() => createRouter({ prefix: "/orgs/{org}" }).post(echo(), "/{org}", { mapInput: passInput })).toThrow(
 		"Duplicate path parameter"
 	);
-	const base = createRouter().post("/users", echo());
-	expect(() => mergeRouters(base.post("/a", echo()), base.post("/b", echo()))).toThrow(
+	const base = createRouter().post(echo(), "/users");
+	expect(() => mergeRouters(base.post(echo(), "/a"), base.post(echo(), "/b"))).toThrow(
 		"Duplicate or ambiguous route: POST /users"
 	);
 	expect(() =>
 		mergeRouters(
-			createRouter({ prefix: "/{id}" }).post("/edit", echo(), { mapInput: passInput }),
-			createRouter({ prefix: "/users" }).put("/{id}", echo(), { mapInput: passInput })
+			createRouter({ prefix: "/{id}" }).post(echo(), "/edit", { mapInput: passInput }),
+			createRouter({ prefix: "/users" }).put(echo(), "/{id}", { mapInput: passInput })
 		)
 	).toThrow("ambiguous");
 	expect(() => mergeRouters({} as Router)).toThrow("createRouter()");
@@ -175,7 +207,7 @@ it("validates previous state once, applies transforms and defaults omitted state
 	const state = client
 		.inputSchema(z.number())
 		.stateAction(async ({ parsedInput }, { prevResult }) => (prevResult.data ?? 0) + parsedInput);
-	const router = createRouter().post("/users", state, { stateSchema });
+	const router = createRouter().post(state, "/users", { stateSchema });
 	let response = await call(router, "POST", undefined, '{"input":2}');
 	expect(await response.json()).toEqual({ data: 2 });
 	expect(validate).not.toHaveBeenCalled();
@@ -184,21 +216,21 @@ it("validates previous state once, applies transforms and defaults omitted state
 	expect(validate).toHaveBeenCalledOnce();
 	for (const body of ["null", "[]", '{"input":2,"prevResult":null}', '{"unexpected":2}'])
 		expect((await call(router, "POST", undefined, body)).status).toBe(400);
-	expect(() => createRouter().post("/bad", state, {} as never)).toThrow("stateSchema");
+	expect(() => createRouter().post(state, "/bad", {} as never)).toThrow("stateSchema");
 });
 
 it("preserves validation and server errors, void and short-circuit results", async () => {
 	const invalid = client.inputSchema(z.string()).action(async () => "ok", { throwValidationErrors: true });
-	const response = await call(createRouter().post("/users", invalid, { serverErrorStatus: () => 409 }));
+	const response = await call(createRouter().post(invalid, "/users", { serverErrorStatus: () => 409 }));
 	expect(response.status).toBe(400);
 	expect(await response.json()).toHaveProperty("validationErrors");
 	const custom = client.action(async () => returnServerError({ code: "CUSTOM" }));
-	const error = await call(createRouter().post("/users", custom, { serverErrorStatus: () => 409 }));
+	const error = await call(createRouter().post(custom, "/users", { serverErrorStatus: () => 409 }));
 	expect(error.status).toBe(409);
 	expect(await error.json()).toEqual({ serverError: { code: "CUSTOM" } });
 	expect(await (await call(users({}, async () => undefined))).json()).toEqual({});
 	const short = client.use(async () => ({ success: true })).action(async () => "unreachable");
-	expect(await (await call(createRouter().post("/users", short))).json()).toEqual({});
+	expect(await (await call(createRouter().post(short, "/users"))).json()).toEqual({});
 });
 
 it("sanitizes callbacks and serialization errors, converts navigation and rethrows other signals", async () => {
@@ -210,7 +242,7 @@ it("sanitizes callbacks and serialization errors, converts navigation and rethro
 	const cyclic: Record<string, unknown> = {};
 	cyclic.self = cyclic;
 	for (const router of [
-		createRouter().post("/users", callback),
+		createRouter().post(callback, "/users"),
 		users({}, async () => 1n),
 		users({}, async () => cyclic),
 		users(
@@ -259,7 +291,7 @@ it("sanitizes callbacks and serialization errors, converts navigation and rethro
 });
 
 it("supports root and custom catch-all names and protects protocol headers", async () => {
-	const router = createRouter().post("/", echo(), {
+	const router = createRouter().post(echo(), "/", {
 		headers: {
 			"cache-control": "public",
 			"content-type": "text/plain",
@@ -285,7 +317,7 @@ it("supports root and custom catch-all names and protects protocol headers", asy
 it("exposes only routed actions and adds no enumerable keys to actions", async () => {
 	const routed = echo();
 	const unrouted = echo();
-	const router = createRouter().post("/users", routed);
+	const router = createRouter().post(routed, "/users");
 	expect((await call(createRouter())).status).toBe(404);
 	expect((await call(router)).status).toBe(200);
 	expect((await call(router, "POST", ["other"])).status).toBe(404);
@@ -303,7 +335,7 @@ it("sanitizes raw throws, input mapper failures and invalid error statuses", asy
 		throw new Error("SECRET");
 	});
 	const routers = [
-		createRouter().post("/users", raw),
+		createRouter().post(raw, "/users"),
 		users({
 			mapInput: () => {
 				throw new Error("SECRET");
@@ -322,7 +354,7 @@ it("sanitizes raw throws, input mapper failures and invalid error statuses", asy
 
 it("preserves repeated response headers on thrown validation errors", async () => {
 	const a = client.inputSchema(z.string()).action(async () => "ok", { throwValidationErrors: true });
-	const router = createRouter().post("/users", a, {
+	const router = createRouter().post(a, "/users", {
 		headers: [
 			["set-cookie", "a=1"],
 			["set-cookie", "b=2"],
@@ -374,9 +406,9 @@ it("matches origins against forwarded scheme and host, falling back to the reque
 
 it("applies concrete-path priority and lists only the matched template's methods", async () => {
 	const router = createRouter()
-		.post("/users/{id}", echo(), { mapInput: passInput })
-		.delete("/users/{id}", echo(), { mapInput: passInput })
-		.put("/users/me", echo());
+		.post(echo(), "/users/{id}", { mapInput: passInput })
+		.delete(echo(), "/users/{id}", { mapInput: passInput })
+		.put(echo(), "/users/me");
 	const concrete = await call(router, "POST", ["users", "me"]);
 	expect(concrete.status).toBe(405);
 	expect(concrete.headers.get("allow")).toBe("PUT");
@@ -411,7 +443,7 @@ it("enforces the exact body limit, strict UTF-8 and JSON media types before runn
 });
 
 it("keeps hostile keys as own properties and ignores method override headers", async () => {
-	const router = createRouter().post("/{__proto__}/{constructor}", echo(), {
+	const router = createRouter().post(echo(), "/{__proto__}/{constructor}", {
 		mapInput: ({ input, params }) => ({
 			input,
 			own: Object.hasOwn(params, "__proto__") && Object.hasOwn(params, "constructor"),
@@ -424,8 +456,8 @@ it("keeps hostile keys as own properties and ignores method override headers", a
 	});
 	expect(({} as { polluted?: boolean }).polluted).toBeUndefined();
 	const remove = createRouter().delete(
-		"/users",
-		echo(async () => "deleted")
+		echo(async () => "deleted"),
+		"/users"
 	);
 	const override = await call(remove, "POST", undefined, "{}", {
 		"content-type": "application/json",
@@ -483,7 +515,7 @@ it("reports the original cause of sanitized failures through onError only", asyn
 	onError.mockClear();
 	const invalid = client.inputSchema(z.string()).action(async () => "ok", { throwValidationErrors: true });
 	expect(
-		(await call(createRouter().post("/users", invalid), "POST", undefined, "{}", undefined, { onError })).status
+		(await call(createRouter().post(invalid, "/users"), "POST", undefined, "{}", undefined, { onError })).status
 	).toBe(400);
 	expect((await call(users(), "POST", undefined, "{", undefined, { onError })).status).toBe(400);
 	expect(onError).not.toHaveBeenCalled();
@@ -515,14 +547,14 @@ it("routes actions and recognizes thrown validation errors from a duplicate core
 		.createSafeActionClient()
 		.inputSchema(z.string())
 		.action(async () => "ok", { throwValidationErrors: true });
-	const response = await call(createRouter().post("/users", a));
+	const response = await call(createRouter().post(a, "/users"));
 	expect(response.status).toBe(400);
 	expect(await response.json()).toHaveProperty("validationErrors");
 });
 
 it("rejects path parameter values that are empty, dot segments or contain a slash", async () => {
 	const run = vi.fn(async (input: unknown) => input);
-	const router = createRouter().post("/users/{id}", echo(run), { mapInput: ({ params }) => params.id });
+	const router = createRouter().post(echo(run), "/users/{id}", { mapInput: ({ params }) => params.id });
 	for (const id of ["", ".", "..", "a/b"]) expect((await call(router, "POST", ["users", id])).status).toBe(404);
 	expect(run).not.toHaveBeenCalled();
 	expect(await (await call(router, "POST", ["users", "a.b"])).json()).toEqual({ data: "a.b" });
