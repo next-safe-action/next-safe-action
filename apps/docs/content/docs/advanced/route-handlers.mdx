@@ -12,14 +12,11 @@ next-safe-action can expose selected actions as JSON endpoints through a single 
 - No extra package: route handlers are built into `next-safe-action`.
 </Callout>
 
-## Entry points
+## Entry point
 
-Route handlers are part of the core package, so there is nothing else to install. Import them from two server-only subpath entry points:
+Route handlers are part of the core package, so there is nothing else to install. Import them from the server-only `next-safe-action/routes` entry point: `createRouter()`, `mergeRouters()`, `createRouteHandlers()`, `generateOpenApiDocument()`, and the `HttpStatus` constants. OpenAPI generation is optional: it has no dependencies, and bundlers drop it from route handlers that do not use it.
 
-- `next-safe-action/routes`: `createRouter()`, `mergeRouters()`, `createRouteHandlers()`, and the `HttpStatus` constants.
-- `next-safe-action/routes/openapi`: `generateOpenApiDocument()`. This entry point is optional, and it adds to your bundle only when you import it.
-
-See [Entry points reference](#entry-points-reference) for the full list of exports.
+See [Entry point reference](#entry-point-reference) for the full list of exports.
 
 ## Quick start
 
@@ -346,7 +343,7 @@ Each entry of `allowedOrigins` must be an exact origin (scheme, host, and port i
 
 ## OpenAPI
 
-The `next-safe-action/routes/openapi` entry point generates an OpenAPI 3.1 document from a router. It does not run actions, middleware, input schema factories, `mapInput`, `stateSchema`, or `serverErrorStatus`. You serve the document from a route and point any OpenAPI viewer at it.
+`generateOpenApiDocument()` generates an OpenAPI 3.1 document from a router. It does not run actions, middleware, input schema factories, `mapInput`, `stateSchema`, or `serverErrorStatus`. You serve the document from a route and point any OpenAPI viewer at it.
 
 ### 1. Opt routes in
 
@@ -376,7 +373,7 @@ The check needs literal statuses in the list. A shared `RouteOpenApi` object, or
 The core lets you customize the server error and validation error shapes, so the generator cannot guess them. Describe them once in the document options. A route's `openapi` option can override them.
 
 ```ts title="src/app/api/openapi.json/route.ts"
-import { generateOpenApiDocument } from "next-safe-action/routes/openapi";
+import { generateOpenApiDocument } from "next-safe-action/routes";
 import { router } from "@/lib/router";
 
 // Generated once, when the module loads, so configuration errors surface early.
@@ -603,7 +600,7 @@ Returns `{ POST, PUT, PATCH, DELETE }` for the route file.
 
 ### `generateOpenApiDocument(router, options)`
 
-Returns an OpenAPI 3.1 document object. Import it from `next-safe-action/routes/openapi`. Only routes with an `openapi` option are included.
+Returns an OpenAPI 3.1 document object. Import it from `next-safe-action/routes`. Only routes with an `openapi` option are included.
 
 <TypeTable
 	type={{
@@ -627,12 +624,11 @@ Returns an OpenAPI 3.1 document object. Import it from `next-safe-action/routes/
 	}}
 />
 
-## Entry points reference
+## Entry point reference
 
 | Entry point | Exports | Environment |
 |---|---|---|
-| `next-safe-action/routes` | `createRouter`, `mergeRouters`, `createRouteHandlers`, `HttpStatus`, and the types `Router`, `Route`, `RouteConfig`, `RouteOpenApi`, `SuccessStatus`, `ErrorStatus`, `RouteHandlersOptions`, `OpenApiParameter`, `JsonSchema`, `HttpError` | Server |
-| `next-safe-action/routes/openapi` | `generateOpenApiDocument`, `OpenApiDocumentOptions` | Server |
+| `next-safe-action/routes` | `createRouter`, `mergeRouters`, `createRouteHandlers`, `generateOpenApiDocument`, `HttpStatus`, and the types `Router`, `Route`, `RouteConfig`, `RouteOpenApi`, `SuccessStatus`, `ErrorStatus`, `RouteHandlersOptions`, `OpenApiDocumentOptions`, `OpenApiParameter`, `JsonSchema`, `HttpError` | Server |
 
 ## See also
 

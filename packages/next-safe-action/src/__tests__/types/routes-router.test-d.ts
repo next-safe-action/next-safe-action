@@ -1,9 +1,8 @@
 import { expectTypeOf, test } from "vitest";
 import { z } from "zod";
 import { createSafeActionClient } from "../../index";
-import { createRouteHandlers, createRouter, HttpStatus, mergeRouters } from "../../routes";
+import { createRouteHandlers, createRouter, generateOpenApiDocument, HttpStatus, mergeRouters } from "../../routes";
 import type { ErrorStatus, Router, RouteOpenApi, SuccessStatus } from "../../routes";
-import { generateOpenApiDocument } from "../../routes/openapi";
 
 const client = createSafeActionClient({ handleServerError: () => ({ code: "ERROR" as const }) });
 const update = client.inputSchema(z.object({ id: z.string(), title: z.string() })).action(async () => "ok");

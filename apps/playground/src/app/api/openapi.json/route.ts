@@ -1,4 +1,4 @@
-import { generateOpenApiDocument } from "next-safe-action/routes/openapi";
+import { generateOpenApiDocument } from "next-safe-action/routes";
 import { router } from "@/app/routes/_lib/router";
 
 export function GET() {

@@ -5,6 +5,8 @@ import type { HttpError, RouteContext, RouteHandlersOptions, Router } from "./ty
 
 export { HttpStatus } from "./http-status";
 export type { ErrorStatus, SuccessStatus } from "./http-status";
+export { generateOpenApiDocument } from "./openapi";
+export type { OpenApiDocumentOptions } from "./openapi";
 export { createRouter, mergeRouters } from "./router";
 export type * from "./types";
 

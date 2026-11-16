@@ -1,9 +1,8 @@
 import { expect, it, vi } from "vitest";
 import { z } from "zod";
 import { createSafeActionClient } from "../index";
-import { createRouter, mergeRouters } from "../routes";
-import { generateOpenApiDocument } from "../routes/openapi";
-import type { OpenApiDocumentOptions } from "../routes/openapi";
+import { createRouter, generateOpenApiDocument, mergeRouters } from "../routes";
+import type { OpenApiDocumentOptions } from "../routes";
 import type { RouteOpenApi, Router } from "../routes/types";
 
 const errors = { serverErrorSchema: { type: "string" }, validationErrorsSchema: { type: "object" } };

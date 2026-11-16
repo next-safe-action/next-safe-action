@@ -21,10 +21,6 @@
 		"./routes": {
 			"types": "./dist/routes.d.mts",
 			"default": "./dist/routes.mjs"
-		},
-		"./routes/openapi": {
-			"types": "./dist/routes/openapi.d.mts",
-			"default": "./dist/routes/openapi.mjs"
 		}
 	},
 	"typesVersions": {
@@ -37,9 +33,6 @@
 			],
 			"routes": [
 				"./dist/routes.d.mts"
-			],
-			"routes/openapi": [
-				"./dist/routes/openapi.d.mts"
 			]
 		}
 	},

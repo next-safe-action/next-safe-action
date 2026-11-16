@@ -444,10 +444,7 @@ The hooks no longer write React refs during render. This has no effect on the pu
 
 ### Built-in route handlers
 
-next-safe-action can now expose selected actions as JSON endpoints through a Next.js catch-all Route Handler, and generate an OpenAPI 3.1 document from their schemas. The feature is built into the core package, with two new server-only entry points:
-
-- `next-safe-action/routes`: `createRouter()`, `mergeRouters()`, and `createRouteHandlers()`.
-- `next-safe-action/routes/openapi`: `generateOpenApiDocument()`.
+next-safe-action can now expose selected actions as JSON endpoints through a Next.js catch-all Route Handler, and generate an OpenAPI 3.1 document from their schemas. The feature is built into the core package, with a new server-only entry point, `next-safe-action/routes`: `createRouter()`, `mergeRouters()`, `createRouteHandlers()`, and `generateOpenApiDocument()`.
 
 There is nothing to migrate: your actions keep working as they are, and you can expose them over HTTP when you need it. See [Route handlers](/docs/advanced/route-handlers).
 
