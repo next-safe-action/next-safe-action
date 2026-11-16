@@ -1,7 +1,7 @@
 import { expect, it, vi } from "vitest";
 import { z } from "zod";
 import { ActionValidationError, createSafeActionClient, returnServerError } from "../index";
-import { createRouteHandlers, createRouter, mergeRouters } from "../routes";
+import { createRouteHandlers, createRouter, HttpStatus, mergeRouters } from "../routes";
 import type { MutationMethod, RouteHandlersOptions, Router } from "../routes/types";
 
 const client = createSafeActionClient({ handleServerError: () => ({ code: "CUSTOM" }) });
@@ -217,6 +217,21 @@ it("validates previous state once, applies transforms and defaults omitted state
 	for (const body of ["null", "[]", '{"input":2,"prevResult":null}', '{"unexpected":2}'])
 		expect((await call(router, "POST", undefined, body)).status).toBe(400);
 	expect(() => createRouter().post(state, "/bad", {} as never)).toThrow("stateSchema");
+});
+
+it("exports frozen HttpStatus codes that routes accept", async () => {
+	expect(Object.isFrozen(HttpStatus)).toBe(true);
+	expect(HttpStatus.Conflict).toBe(409);
+	for (const status of Object.values(HttpStatus))
+		expect(Number.isInteger(status) && /^[245]\d\d$/.test(String(status))).toBe(true);
+	expect(new Set(Object.values(HttpStatus)).size).toBe(Object.keys(HttpStatus).length);
+	const created = await call(users({ successStatus: HttpStatus.Created }));
+	expect(created.status).toBe(201);
+	const conflict = client.action(async () => returnServerError({ code: "TAKEN" }));
+	const response = await call(
+		createRouter().post(conflict, "/users", { serverErrorStatus: () => HttpStatus.Conflict })
+	);
+	expect(response.status).toBe(409);
 });
 
 it("preserves validation and server errors, void and short-circuit results", async () => {

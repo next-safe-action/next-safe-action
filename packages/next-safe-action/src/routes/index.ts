@@ -3,6 +3,8 @@ import { ActionValidationError } from "../validation-errors";
 import { isParameter, methods } from "./router";
 import type { HttpError, RouteContext, RouteHandlersOptions, Router } from "./types";
 
+export { HttpStatus } from "./http-status";
+export type { ErrorStatus, SuccessStatus } from "./http-status";
 export { createRouter, mergeRouters } from "./router";
 export type * from "./types";
 

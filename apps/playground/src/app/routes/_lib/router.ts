@@ -1,4 +1,4 @@
-import { mergeRouters } from "next-safe-action/routes";
+import { HttpStatus, mergeRouters } from "next-safe-action/routes";
 import { z } from "zod";
 import { routeCounter } from "../_actions/counter-action";
 import { createReport } from "../_actions/create-report-action";
@@ -15,15 +15,17 @@ export const router = mergeRouters(todosRouter, orgsRouter)
 		openapi: { operationId: "incrementCounter", summary: "Increment the cookie counter", tags: ["counter"] },
 	})
 	.post(reserveUsername, "/usernames", {
-		successStatus: 201,
+		// Statuses are typed literals: `HttpStatus.Created` and `201` are the same value and type.
+		successStatus: HttpStatus.Created,
 		// Expected server errors get a meaningful status. Everything else stays a 500.
-		serverErrorStatus: (error) => (error === USERNAME_TAKEN ? 409 : 500),
+		serverErrorStatus: (error) => (error === USERNAME_TAKEN ? HttpStatus.Conflict : HttpStatus.InternalServerError),
 		openapi: {
 			operationId: "reserveUsername",
 			summary: "Reserve a username",
 			tags: ["usernames"],
-			// Every status the mapper can return, including the 500 fallback.
-			serverErrorStatuses: [409, 500],
+			// Every status the mapper can return, including the 500 fallback. TypeScript rejects a mapper that returns
+			// a status missing from this list.
+			serverErrorStatuses: [HttpStatus.Conflict, HttpStatus.InternalServerError],
 		},
 	})
 	.post(addToTotal, "/total", {

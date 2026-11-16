@@ -16,7 +16,7 @@ next-safe-action can expose selected actions as JSON endpoints through a single 
 
 Route handlers are part of the core package, so there is nothing else to install. Import them from two server-only subpath entry points:
 
-- `next-safe-action/routes`: `createRouter()`, `mergeRouters()`, and `createRouteHandlers()`.
+- `next-safe-action/routes`: `createRouter()`, `mergeRouters()`, `createRouteHandlers()`, and the `HttpStatus` constants.
 - `next-safe-action/routes/openapi`: `generateOpenApiDocument()`. This entry point is optional, and it adds to your bundle only when you import it.
 
 See [Entry points reference](#entry-points-reference) for the full list of exports.
@@ -262,7 +262,27 @@ createRouter().post(reserveUsername, "/usernames", {
 });
 ```
 
-`successStatus` must be a `2xx` status that allows a body, so `204` and `205` are rejected. Use `headers` to add static response headers. The handlers always control `Cache-Control` (`no-store`), `Content-Type`, `Content-Length`, and the `Access-Control-*` headers.
+`successStatus` must be a `2xx` status that allows a body, so `204` and `205` are rejected.
+
+### Status types and `HttpStatus`
+
+Status options are typed with literal unions of the registered HTTP statuses, so your editor suggests valid values and TypeScript rejects invalid ones (such as `serverErrorStatus` returning `200`, or `successStatus: 204`):
+
+- `successStatus` is a `SuccessStatus`: `200`, `201`, `202`, `203`, `206`, `207`, `208`, or `226`.
+- `serverErrorStatus` returns an `ErrorStatus`: any registered `4xx` or `5xx` status.
+
+`next-safe-action/routes` also exports `HttpStatus`, a frozen object of named status codes. Each value has its literal type, so `HttpStatus.Conflict` and `409` are the same type, and you can use whichever form reads better, even in the same route:
+
+```ts
+import { createRouter, HttpStatus } from "next-safe-action/routes";
+
+createRouter().post(reserveUsername, "/usernames", {
+	successStatus: HttpStatus.Created,
+	serverErrorStatus: (error) => (error === USERNAME_TAKEN ? HttpStatus.Conflict : 500),
+});
+```
+
+A status that is not registered, or a value typed as `number`, is a type error. If you need one, cast it: `599 as ErrorStatus`. Use `headers` to add static response headers. The handlers always control `Cache-Control` (`no-store`), `Content-Type`, `Content-Length`, and the `Access-Control-*` headers.
 
 ### Unexpected errors and `onError`
 
@@ -338,6 +358,18 @@ export const router = createRouter().post(createUser, "/users", {
 	openapi: { operationId: "createUser", summary: "Create a user", tags: ["users"] },
 });
 ```
+
+A route with `serverErrorStatus` must list every status that the mapper can return in `serverErrorStatuses`. TypeScript checks the list: the mapper may only return the statuses in it, so a status that the mapper returns but the document does not list is a type error on `serverErrorStatus`:
+
+```ts
+createRouter().post(reserveUsername, "/usernames", {
+	// Error: the mapper returns 409, but the list has only 500.
+	serverErrorStatus: (error) => (error === USERNAME_TAKEN ? 409 : 500),
+	openapi: { operationId: "reserveUsername", serverErrorStatuses: [500] },
+});
+```
+
+The check needs literal statuses in the list. A shared `RouteOpenApi` object, or a list typed as `ErrorStatus[]`, allows every error status.
 
 ### 2. Serve the document
 
@@ -468,7 +500,7 @@ router.delete(action, path, config?)
 		},
 		successStatus: {
 			description: "Success status. A 2xx status other than 204 and 205.",
-			type: "number",
+			type: "SuccessStatus",
 			default: "200",
 		},
 		headers: {
@@ -476,8 +508,8 @@ router.delete(action, path, config?)
 			type: "HeadersInit",
 		},
 		serverErrorStatus: {
-			description: "Maps a returned serverError to a 4xx or 5xx status.",
-			type: "(error: ServerError) => number",
+			description: "Maps a returned serverError to a 4xx or 5xx status. With openapi.serverErrorStatuses, it may only return the listed statuses.",
+			type: "(error: ServerError) => ErrorStatus",
 			default: "() => 500",
 		},
 		openapi: {
@@ -525,8 +557,8 @@ Returns a new router with no prefix that contains the routes of every argument, 
 			type: "OpenApiParameter[]",
 		},
 		serverErrorStatuses: {
-			description: "Every status that serverErrorStatus can return, including 500 if it can. Required with serverErrorStatus.",
-			type: "number[]",
+			description: "Every status that serverErrorStatus can return, including 500 if it can. Required with serverErrorStatus. TypeScript checks that the mapper returns only these statuses.",
+			type: "ErrorStatus[]",
 		},
 		serverErrorSchema: {
 			description: "JSON Schema for serverError. When set, overrides the document option.",
@@ -599,7 +631,7 @@ Returns an OpenAPI 3.1 document object. Import it from `next-safe-action/routes/
 
 | Entry point | Exports | Environment |
 |---|---|---|
-| `next-safe-action/routes` | `createRouter`, `mergeRouters`, `createRouteHandlers`, and the types `Router`, `Route`, `RouteConfig`, `RouteOpenApi`, `RouteHandlersOptions`, `OpenApiParameter`, `JsonSchema`, `HttpError` | Server |
+| `next-safe-action/routes` | `createRouter`, `mergeRouters`, `createRouteHandlers`, `HttpStatus`, and the types `Router`, `Route`, `RouteConfig`, `RouteOpenApi`, `SuccessStatus`, `ErrorStatus`, `RouteHandlersOptions`, `OpenApiParameter`, `JsonSchema`, `HttpError` | Server |
 | `next-safe-action/routes/openapi` | `generateOpenApiDocument`, `OpenApiDocumentOptions` | Server |
 
 ## See also

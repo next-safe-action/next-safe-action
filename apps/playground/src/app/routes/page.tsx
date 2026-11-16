@@ -119,7 +119,7 @@ export default async function RoutesPage() {
 				/>
 				<HttpDemo
 					title="Server error status mapping"
-					description="returnServerError sends an expected error. serverErrorStatus maps it to 409 instead of the default 500. Success uses successStatus 201."
+					description="returnServerError sends an expected error. serverErrorStatus maps it to HttpStatus.Conflict (409) instead of the default 500, and success uses HttpStatus.Created (201). Statuses are typed literals, and TypeScript checks the mapper against the serverErrorStatuses list."
 					source={reserveUsername}
 					testId="username-http-result"
 					requests={[

@@ -1,5 +1,6 @@
 import type { ActionDefinition } from "../action-definition";
 import type { InferSafeActionFnInput, InferServerError } from "../index.types";
+import type { ErrorStatus, SuccessStatus } from "./http-status";
 
 export type Schema = NonNullable<ActionDefinition["inputSchema"]>;
 export type JsonSchema = boolean | Record<string, unknown>;
@@ -16,7 +17,7 @@ export type OpenApiParameter = {
 	schema: JsonSchema;
 	deprecated?: boolean;
 };
-export type RouteOpenApi = OpenApiErrors & {
+export type RouteOpenApi<Status extends ErrorStatus = ErrorStatus> = OpenApiErrors & {
 	operationId: string;
 	summary?: string;
 	description?: string;
@@ -27,7 +28,11 @@ export type RouteOpenApi = OpenApiErrors & {
 	outputSchema?: JsonSchema;
 	prevResultSchema?: JsonSchema;
 	parameters?: OpenApiParameter[];
-	serverErrorStatuses?: number[];
+	/**
+	 * Every status that `serverErrorStatus` can return, including `500` if it can. Required with `serverErrorStatus`.
+	 * On a route, the mapper may only return the statuses listed here.
+	 */
+	serverErrorStatuses?: readonly Status[];
 };
 
 export type RouteAction = (...args: any[]) => Promise<any>;
@@ -71,36 +76,43 @@ export type CheckPath<Action extends RouteAction, Path extends string, FullPath 
 			: Error
 		: Path;
 
-type BaseRouteConfig<Action extends RouteAction> = {
-	successStatus?: number;
+// `Status` is inferred from `openapi.serverErrorStatuses` (literals such as `409` or `HttpStatus.Conflict`), and
+// `serverErrorStatus` may only return those statuses, so the document lists every status the route can send. It is
+// not inferred from the mapper: the mapper's `error` parameter is contextually typed, so TypeScript reads it last.
+type BaseRouteConfig<Action extends RouteAction, Status extends ErrorStatus> = {
+	successStatus?: SuccessStatus;
 	headers?: HeadersInit;
-	serverErrorStatus?: (error: InferServerError<Action>) => number;
-	openapi?: RouteOpenApi;
+	serverErrorStatus?: (error: InferServerError<Action>) => NoInfer<Status>;
+	openapi?: RouteOpenApi<Status>;
 } & (IsStateful<Action> extends true ? { stateSchema: Schema } : { stateSchema?: never });
 /**
  * Per-route HTTP configuration. Path parameters merge into the input object unless `mapInput` builds the input, and
  * `stateSchema` is required for stateful actions.
  */
-export type RouteConfig<Action extends RouteAction, Path extends string> = BaseRouteConfig<Action> & {
+export type RouteConfig<
+	Action extends RouteAction,
+	Path extends string,
+	Status extends ErrorStatus = ErrorStatus,
+> = BaseRouteConfig<Action, Status> & {
 	mapInput?: MapInput<Action, Path>;
 };
 
-type RouteConfigArgs<Action extends RouteAction> =
-	{} extends BaseRouteConfig<Action>
-		? [config?: BaseRouteConfig<Action> & { mapInput?: never }]
-		: [config: BaseRouteConfig<Action> & { mapInput?: never }];
+type RouteConfigArgs<Action extends RouteAction, Status extends ErrorStatus> =
+	{} extends BaseRouteConfig<Action, Status>
+		? [config?: BaseRouteConfig<Action, Status> & { mapInput?: never }]
+		: [config: BaseRouteConfig<Action, Status> & { mapInput?: never }];
 // Config types are derived from the full path, so `{param}` segments in the router prefix are typed too. The first
 // signature covers routes with `mapInput`; the second merges path parameters and checks them on the path argument.
 type AddRoute<Prefix extends string> = {
-	<Action extends RouteAction, Path extends string>(
+	<Action extends RouteAction, Path extends string, Status extends ErrorStatus = ErrorStatus>(
 		action: Action,
 		path: Path,
-		config: BaseRouteConfig<Action> & { mapInput: MapInput<Action, `${Prefix}${Path}`> }
+		config: BaseRouteConfig<Action, Status> & { mapInput: MapInput<Action, `${Prefix}${Path}`> }
 	): Router<Prefix>;
-	<Action extends RouteAction, Path extends string>(
+	<Action extends RouteAction, Path extends string, Status extends ErrorStatus = ErrorStatus>(
 		action: Action,
 		path: CheckPath<Action, Path, `${Prefix}${Path}`>,
-		...config: RouteConfigArgs<Action>
+		...config: RouteConfigArgs<Action, Status>
 	): Router<Prefix>;
 };
 

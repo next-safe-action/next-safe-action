@@ -1,8 +1,8 @@
 import { expectTypeOf, test } from "vitest";
 import { z } from "zod";
 import { createSafeActionClient } from "../../index";
-import { createRouteHandlers, createRouter, mergeRouters } from "../../routes";
-import type { Router } from "../../routes";
+import { createRouteHandlers, createRouter, HttpStatus, mergeRouters } from "../../routes";
+import type { ErrorStatus, Router, RouteOpenApi, SuccessStatus } from "../../routes";
 import { generateOpenApiDocument } from "../../routes/openapi";
 
 const client = createSafeActionClient({ handleServerError: () => ({ code: "ERROR" as const }) });
@@ -77,6 +77,70 @@ test("serverErrorStatus receives the action's server error type", () => {
 			return 409;
 		},
 	});
+});
+
+test("HttpStatus values are literal types that match the status unions", () => {
+	expectTypeOf(HttpStatus.Conflict).toEqualTypeOf<409>();
+	expectTypeOf<200 | 201 | 202 | 203 | 206 | 207 | 208 | 226>().toEqualTypeOf<SuccessStatus>();
+	expectTypeOf<typeof HttpStatus.NoContent>().not.toExtend<SuccessStatus>();
+	expectTypeOf<typeof HttpStatus.InternalServerError>().toExtend<ErrorStatus>();
+	expectTypeOf<typeof HttpStatus.Ok>().not.toExtend<ErrorStatus>();
+	// @ts-expect-error: HttpStatus is read-only.
+	HttpStatus.Ok = 201;
+});
+
+test("successStatus takes a 2xx status that allows a body", () => {
+	createRouter().post(update, "/todos", { successStatus: HttpStatus.Created });
+	createRouter().post(update, "/todos", { successStatus: 202 });
+	// @ts-expect-error: 204 does not allow a body.
+	createRouter().post(update, "/todos", { successStatus: HttpStatus.NoContent });
+	// @ts-expect-error: not a success status.
+	createRouter().post(update, "/todos", { successStatus: 404 });
+	const status: number = 201;
+	// @ts-expect-error: a plain number is not a known status.
+	createRouter().post(update, "/todos", { successStatus: status });
+});
+
+test("serverErrorStatus returns a 4xx or 5xx status", () => {
+	createRouter().post(noInput, "/todos", { serverErrorStatus: () => HttpStatus.Conflict });
+	createRouter().post(noInput, "/todos", { serverErrorStatus: (error) => (error.code === "ERROR" ? 409 : 500) });
+	// @ts-expect-error: not an error status.
+	createRouter().post(noInput, "/todos", { serverErrorStatus: () => 200 });
+	// @ts-expect-error: a plain number is not a known status.
+	createRouter().post(noInput, "/todos", { serverErrorStatus: (): number => 409 });
+});
+
+test("serverErrorStatus may only return the statuses listed in serverErrorStatuses", () => {
+	createRouter().post(noInput, "/todos", {
+		serverErrorStatus: (error) => (error.code === "ERROR" ? HttpStatus.Conflict : 500),
+		openapi: { operationId: "a", serverErrorStatuses: [409, HttpStatus.InternalServerError] },
+	});
+	// Listing a status that the mapper never returns is allowed: it only documents an extra response.
+	createRouter().post(noInput, "/todos", {
+		serverErrorStatus: () => 409,
+		openapi: { operationId: "b", serverErrorStatuses: [409, 500] },
+	});
+	createRouter().put(update, "/todos/{id}", {
+		// @ts-expect-error: 409 is not listed.
+		serverErrorStatus: (error) => (error.code === "ERROR" ? 409 : 500),
+		openapi: { operationId: "c", serverErrorStatuses: [500] },
+	});
+	createRouter().post(counter, "/counter", {
+		stateSchema,
+		// @ts-expect-error: 500 is not listed.
+		serverErrorStatus: (error) => (error.code === "ERROR" ? 409 : 500),
+		openapi: { operationId: "d", serverErrorStatuses: [HttpStatus.Conflict] },
+	});
+	createRouter().put(update, "/todos/{todoId}", {
+		mapInput: ({ params }) => ({ id: params.todoId, title: "" }),
+		serverErrorStatus: () => 409,
+		openapi: { operationId: "e", serverErrorStatuses: [409] },
+	});
+	// A shared OpenAPI object without literal statuses allows every error status.
+	const openapi: RouteOpenApi = { operationId: "f", tags: ["todos"] };
+	createRouter().post(noInput, "/todos", { serverErrorStatus: (): ErrorStatus => 404, openapi });
+	// Without an OpenAPI list there is nothing to check against.
+	createRouter().post(noInput, "/todos", { serverErrorStatus: () => 503 });
 });
 
 test("prefix parameters are typed and checked against the input", () => {
