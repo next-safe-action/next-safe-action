@@ -15,7 +15,6 @@
 		"lucide-react": "^1.31.0",
 		"motion": "^13.0.0",
 		"next": "catalog:",
-		"next-plausible": "^4.0.0",
 		"react": "catalog:",
 		"react-dom": "catalog:"
 	},

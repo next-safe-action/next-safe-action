@@ -1,8 +1,8 @@
 import { RootProvider } from "fumadocs-ui/provider/next";
 import type { Metadata } from "next";
-import PlausibleProvider from "next-plausible";
 import { Inter } from "next/font/google";
 import type { ReactNode } from "react";
+import { UmamiScripts } from "@/components/analytics/umami-scripts";
 import "./global.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -33,9 +33,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 	return (
 		<html lang="en" className={inter.variable} suppressHydrationWarning>
 			<body className="flex min-h-screen flex-col">
-				<PlausibleProvider>
-					<RootProvider>{children}</RootProvider>
-				</PlausibleProvider>
+				<RootProvider>{children}</RootProvider>
+				<UmamiScripts />
 			</body>
 		</html>
 	);
