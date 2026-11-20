@@ -147,7 +147,7 @@ test("onError hook callback's error parameter exposes thrownError: Error | undef
 	// The hook-level `onError` intersects the server error result with
 	// `{ thrownError?: Error }` so hook consumers can surface exceptions that
 	// never became a typed `serverError` (e.g. render-phase throws, mid-transition
-	// failures). The field is optional — present only when an exception was caught.
+	// failures). The field is optional, present only when an exception was caught.
 	type CB = NonNullable<HookCallbacks<ServerError, typeof schema, Shape, Data>["onError"]>;
 	type ErrorArg = Parameters<CB>[0]["error"];
 
@@ -585,7 +585,7 @@ test("InferUseStateActionHookReturn extracts from SafeStateActionFn", () => {
 // ─── Infer*HookReturn preserves discriminated union narrowing ───────────────
 //
 // The `Infer*` utilities are a public API surface (exported from `hooks.types`).
-// Consumers rely on them producing a usable discriminated union — not just a
+// Consumers rely on them producing a usable discriminated union, not just a
 // flat bag where `result.data` happens to have the right leaf type. These tests
 // pin the narrowing behavior on inferred returns, catching any regression that
 // collapses the union during inference.
@@ -644,7 +644,7 @@ test("InferUseActionHookReturn preserves narrowing on hasErrored status", () => 
 // and optimistic hook types are built via different type constructions
 // (intersection + Omit over a mapped conditional for state, plain intersection
 // for optimistic). A regression in either construction would break destructured
-// narrowing without breaking the base test — worth a separate assertion.
+// narrowing without breaking the base test, worth a separate assertion.
 
 test("destructuring UseStateActionHookReturn narrows on status", () => {
 	const { status, result } = {} as UseStateActionHookReturn<ServerError, typeof schema, Shape, Data>;

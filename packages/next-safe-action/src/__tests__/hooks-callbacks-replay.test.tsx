@@ -25,6 +25,7 @@ function ActionHarness({
 	executeRef: ExecuteRef;
 }) {
 	const { execute } = useAction(action, callbacks);
+	// oxlint-disable-next-line react/refs -- test harness captures the hook function during render
 	executeRef.current = execute;
 	return null;
 }

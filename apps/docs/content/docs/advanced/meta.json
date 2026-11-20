@@ -9,6 +9,7 @@
 		"standalone-middleware",
 		"framework-errors",
 		"i18n",
-		"file-uploads"
+		"file-uploads",
+		"route-handlers"
 	]
 }

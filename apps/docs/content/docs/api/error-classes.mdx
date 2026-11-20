@@ -186,6 +186,18 @@ const actionClient = createSafeActionClient({
 });
 ```
 
+## Framework error utilities
+
+Next.js signals navigation and access control by throwing special errors (`redirect()`, `notFound()`, `forbidden()`, `unauthorized()`). The library re-throws them so the framework can handle them. `isNavigationError()` lets your own code recognize them.
+
+### `isNavigationError()`
+
+```ts
+function isNavigationError(error: unknown): error is Error;
+```
+
+Returns `true` for every framework control-flow error: redirects, HTTP access fallbacks, bail-out to client-side rendering, dynamic usage, postpone signals, and the `HANGING_PROMISE_REJECTION` and `NEXT_PRERENDER_INTERRUPTED` signals that Next.js throws during `cacheComponents` prerenders. This is the same set of errors that Next.js `unstable_rethrow()` re-throws. Use it in `try/catch` blocks around action calls to re-throw framework signals instead of treating them as failures.
+
 ## See also
 
 - [Error handling](/docs/concepts/error-handling): the complete error taxonomy

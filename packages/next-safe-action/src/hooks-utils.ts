@@ -99,9 +99,9 @@ export const useActionCallbacks = <ServerError, Schema extends StandardSchemaV1 
 	// Snapshot of the execution state the callbacks last fired for. Every
 	// execution replaces these values with fresh identities (`setResult`,
 	// `setClientInput`, ...), so an effect re-run where all of them are
-	// identical to the snapshot is a replay of already-handled state — e.g.
+	// identical to the snapshot is a replay of already-handled state, e.g.
 	// React `<Activity>` restoring a page from the Next.js router bfcache
-	// (state preserved, effects re-fired) — never a new status transition.
+	// (state preserved, effects re-fired), never a new status transition.
 	// Kept in a ref because refs survive the `<Activity>` hide/show cycle.
 	const lastHandledRef = React.useRef<{
 		status: HookActionStatus;
@@ -192,7 +192,7 @@ export const useActionCallbacks = <ServerError, Schema extends StandardSchemaV1 
 						// `NormalizeActionResult` so void actions surface `data: undefined`,
 						// but internally `result` is the raw `SafeActionResult<..., Data>`.
 						// The two are structurally equivalent for every concrete `Data` the
-						// runtime produces — see the comment in `useActionBase`.
+						// runtime produces, see the comment in `useActionBase`.
 						Promise.resolve(
 							onSettled?.({
 								result: result as unknown as NormalizeActionResult<

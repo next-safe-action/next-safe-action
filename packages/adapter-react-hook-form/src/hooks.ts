@@ -4,7 +4,7 @@ import type { ValidationErrors } from "next-safe-action";
 import type { SingleInputActionFn } from "next-safe-action/hooks";
 import { useAction, useOptimisticAction } from "next-safe-action/hooks";
 import * as React from "react";
-import type { Resolver } from "react-hook-form";
+import type { FieldErrors, Resolver } from "react-hook-form";
 import { useForm } from "react-hook-form";
 import type { HookProps, UseHookFormActionHookReturn, UseHookFormOptimisticActionHookReturn } from "./hooks.types";
 import type { ErrorMapperProps } from "./index";
@@ -59,7 +59,10 @@ function useFormIntegration<Schema extends StandardSchemaV1 | undefined, FormCon
 	const form = useForm<InferInputOrDefault<Schema, any>, FormContext, InferOutputOrDefault<Schema, any>>({
 		...props?.formProps,
 		resolver: hookFormResolver,
-		errors: hookFormValidationErrors,
+		// Validation errors are keyed by the schema output, while the form is typed by the schema input.
+		// Both describe the same field paths, but since react-hook-form 7.92 `FieldErrors<T>` depends on
+		// `keyof T` (the `form` key), so TypeScript can no longer relate the two for a generic `Schema`.
+		errors: hookFormValidationErrors as FieldErrors<InferInputOrDefault<Schema, any>> | undefined,
 	});
 
 	const { handleSubmit, reset: resetForm } = form;

@@ -160,6 +160,10 @@ The `useActionState` hook requires Next.js >= 15 to work, because previous versi
 The `useActionState` hook is exported from `next-safe-action/stateful-hooks` path, unlike the other two hooks. This is because it uses React 19 features and would cause build errors in React 18.
 </Callout>
 
+<Callout type="warn" title="Removed in v9">
+The `next-safe-action/stateful-hooks` entry point and the `.schema()` method were removed in v9. Import `useStateAction` from `next-safe-action/hooks` and use `.inputSchema()` instead. See the [v8 to v9 migration guide](/docs/migrations/v8-to-v9).
+</Callout>
+
 ### [Return input from hooks](https://github.com/TheEdoRan/next-safe-action/issues/117)
 
 Sometimes it's useful to access the input passed to an action when using hooks. Starting from version 7, `input` property is returned from hooks.

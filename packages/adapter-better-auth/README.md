@@ -8,7 +8,8 @@ This adapter offers a way to seamlessly integrate [next-safe-action](https://git
 ## Requirements
 
 - Next.js >= `15.1.0`
-- next-safe-action >= `8.4.0`
+- Node.js >= `18.18`
+- next-safe-action >= `9.0.0`
 - better-auth >= `1.5.0`
 
 ## Installation

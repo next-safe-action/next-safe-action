@@ -46,6 +46,24 @@ Each navigation function maps to a `navigationKind`:
 | `notFound()` | `"notFound"` | 404 | Show the not-found page |
 | `forbidden()` | `"forbidden"` | 403 | Show the forbidden page |
 | `unauthorized()` | `"unauthorized"` | 401 | Show the unauthorized page |
+| Other framework signals | `"other"` | | Internal Next.js signals, see [below](#other-framework-signals) |
+
+## Other framework signals
+
+Next.js also throws internal control-flow errors that are not navigations: for example dynamic usage errors, bail-out to client-side rendering, and React postpone signals. With `cacheComponents` (or the earlier `dynamicIO` flag), it also throws two signals while it prerenders a route:
+
+- `HANGING_PROMISE_REJECTION`: a request data promise (for example `cookies()`) rejects when the prerender is complete.
+- `NEXT_PRERENDER_INTERRUPTED`: a call such as `revalidatePath()` or `draftMode()` interrupts the prerender.
+
+next-safe-action recognizes the same set of errors that Next.js [`unstable_rethrow()`](https://nextjs.org/docs/app/api-reference/functions/unstable_rethrow) re-throws, and treats all of them as framework errors:
+
+- The server-side `onNavigation` and `onSettled` action callbacks run with `navigationKind: "other"`.
+- The error is re-thrown, so Next.js can handle it.
+- `handleServerError` and `onError` are not called, and no `serverError` result is returned.
+
+<Callout>
+Before v9, the `HANGING_PROMISE_REJECTION` and `NEXT_PRERENDER_INTERRUPTED` signals were treated as ordinary errors and reached `handleServerError`. See the [v8 to v9 migration guide](/docs/migrations/v8-to-v9#behavior-changes).
+</Callout>
 
 ## Handling in hooks
 

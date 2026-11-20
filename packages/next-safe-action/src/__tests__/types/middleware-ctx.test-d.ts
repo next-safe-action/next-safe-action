@@ -189,7 +189,7 @@ test("MiddlewareResult exposes result fields as independently optional", () => {
 	type MR = MiddlewareResult<string, { userId: string }>;
 	const mr = {} as MR;
 
-	// All three result fields are independently readable — no narrowing needed.
+	// All three result fields are independently readable, no narrowing needed.
 	expectTypeOf(mr.data).toEqualTypeOf<any>();
 	expectTypeOf(mr.serverError).toEqualTypeOf<string | undefined>();
 	expectTypeOf(mr.validationErrors).toEqualTypeOf<any>();

@@ -121,6 +121,7 @@ export type SafeActionClientArgs<
 	metadata: Metadata;
 	metadataProvided?: HasMetadata;
 	inputSchemaFn: InputSchemaFn;
+	staticInputSchema?: StandardSchemaV1;
 	outputSchema: OutputSchema;
 	bindArgsSchemas: BindArgsSchemas;
 	handleValidationErrorsShape: HandleValidationErrorsShapeFn<InputSchema, BindArgsSchemas, Metadata, Ctx, ShapedErrors>;
@@ -197,12 +198,12 @@ export type SafeActionResult<
  * Collapses the void-success branch of a `SafeActionResult` union.
  *
  * The runtime never emits `{ data: undefined }` for a void-returning action
- * (see `buildResultAndRunCallbacks` in `action-builder.ts` — it only sets
+ * (see `buildResultAndRunCallbacks` in `action-builder.ts`, it only sets
  * `data` when `middlewareResult.data !== undefined`). For user-facing types,
  * we drop the `{ data: void }` branch so that `r.data` narrows to exactly
  * `undefined` instead of `void | undefined`.
  *
- * This is a distributive conditional — each member of the input union is
+ * This is a distributive conditional, each member of the input union is
  * checked individually. Only the exact `{ data: void }` shape is excluded;
  * other branches (idle, server error, validation error) pass through.
  *
@@ -253,18 +254,17 @@ export type SafeStateActionFn<
  * This is intentionally a flat object rather than `SafeActionResult & { ... }`, because
  * `SafeActionResult` is now a discriminated union and intersecting it with additional
  * fields would prevent mutation of `data`/`serverError`/`validationErrors` during
- * middleware execution. The public shape (the set of readable fields) is unchanged.
+ * middleware execution.
  *
- * `NextCtx` is a phantom generic parameter kept for backward compatibility with the
- * previous signature — it is intentionally unused in the body so that
- * `MiddlewareResult<SE, A>` and `MiddlewareResult<SE, B>` remain mutually assignable
- * (as they were when this type intersected `SafeActionResult<..., NextCtx>`, where
- * `NextCtx` was likewise phantom).
+ * `NextCtx` does not appear in the body, but it is NOT dead: it carries the context type that
+ * `next({ ctx })` produced. TypeScript infers type arguments from matching alias references, so a
+ * middleware returning `Promise<MiddlewareResult<SE, NC>>` is how `use()`, `useValidated()`, and
+ * `createMiddleware().define()` infer the context a middleware adds. Removing the parameter turns
+ * every inferred middleware context into `object`. Because it is unused in the body,
+ * `MiddlewareResult<SE, A>` and `MiddlewareResult<SE, B>` stay mutually assignable.
  */
-// `data` and `validationErrors` are intentionally typed as `any` to match the
-// previous definition (`SafeActionResult<ServerError, any, any, any, NextCtx>
-// & { ... }`), preserving universal-donor assignability for middleware authors
-// who inspect the return value of `await next()`.
+// `data` and `validationErrors` are intentionally typed as `any`, preserving universal-donor
+// assignability for middleware authors who inspect the return value of `await next()`.
 // oxlint-disable-next-line no-unused-vars
 export type MiddlewareResult<ServerError, NextCtx extends object> = {
 	data?: any;
@@ -499,38 +499,3 @@ export type InferServerError<T> = T extends
  * Type of the core safe action client.
  */
 export { SafeActionClient };
-
-/**
- * Deprecated aliases kept for backward compatibility.
- */
-
-/**
- * @deprecated Use `ValidationErrorsFormat` instead.
- */
-export type DVES = ValidationErrorsFormat;
-
-/**
- * @deprecated Use `StatefulServerCodeFn` instead.
- */
-export type StateServerCodeFn<
-	ServerError,
-	Metadata,
-	Ctx extends object,
-	Schema extends StandardSchemaV1 | undefined,
-	BindArgsSchemas extends readonly StandardSchemaV1[],
-	ShapedErrors,
-	Data,
-> = StatefulServerCodeFn<ServerError, Metadata, Ctx, Schema, BindArgsSchemas, ShapedErrors, Data>;
-
-/**
- * @deprecated Use `ActionCallbacks` instead.
- */
-export type SafeActionUtils<
-	ServerError,
-	Metadata,
-	Ctx extends object,
-	Schema extends StandardSchemaV1 | undefined,
-	BindArgsSchemas extends readonly StandardSchemaV1[],
-	ShapedErrors,
-	Data,
-> = ActionCallbacks<ServerError, Metadata, Ctx, Schema, BindArgsSchemas, ShapedErrors, Data>;

@@ -209,7 +209,7 @@ test("throwServerError does not override validationErrors precedence in compound
 	// Invalid bind arg AND invalid main input, with throwServerError enabled.
 	const actualResult = await action(-1, { username: "ab" });
 
-	// The action should NOT throw — it should return a result with validationErrors.
+	// The action should NOT throw; it should return a result with validationErrors.
 	expect(actualResult).not.toHaveProperty("serverError");
 	expect(actualResult).not.toHaveProperty("data");
 	expect(actualResult).toHaveProperty("validationErrors");
