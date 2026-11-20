@@ -22,7 +22,7 @@ next-safe-action is a TypeScript library for type-safe, validated Next.js Server
 | Language | TypeScript | ^6.0.3 |
 | Runtime | Node.js | >=18.17 |
 | Package manager | pnpm (with catalogs) | 11.7.0 |
-| Framework | Next.js | ^16.3.1 |
+| Framework | Next.js | ^16.4.6 |
 | UI library | React | ^19 |
 | Monorepo orchestration | Turborepo | ^2.10.10 |
 | Bundler | tsdown (Rolldown + Oxc) | ^0.22.14 |
