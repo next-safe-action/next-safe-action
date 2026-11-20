@@ -10,7 +10,7 @@
 		"@apps/docs#build": {
 			"dependsOn": ["^build"],
 			"outputs": [".next/**", "!.next/cache/**"],
-			"env": ["SPONSORS_GITHUB_TOKEN", "PLAUSIBLE_SCRIPT_URL", "PLAUSIBLE_SCRIPT_PATH"]
+			"env": ["SPONSORS_GITHUB_TOKEN", "UMAMI_URL", "UMAMI_WEBSITE_ID"]
 		},
 		"test": {
 			"dependsOn": ["^build"]
