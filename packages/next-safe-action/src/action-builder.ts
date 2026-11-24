@@ -214,8 +214,19 @@ export function actionBuilder<
 		bindArgsClientInputs: InferInputArray<BindArgsSchemas>,
 		currentCtx: object,
 		middlewareResult: MiddlewareResult<ServerError, object>,
+		frameworkErrorHandler: FrameworkErrorHandler,
 		serverErrorHandled: { value: boolean }
 	) {
+		// A pending navigation can only come from inside a `next()` call, so an error raised while one
+		// is pending was raised by a middleware after `next()` returned (for example a transaction that
+		// fails to commit). That error replaces the navigation, the same way an error thrown in a
+		// `finally` block replaces the one in flight: the action result reports the failure and the
+		// client does not follow a redirect for a change that was rolled back (see #488).
+		if (frameworkErrorHandler.error) {
+			frameworkErrorHandler.discard();
+			middlewareResult.navigationKind = undefined;
+		}
+
 		// `returnValidationErrors`: treat as if schema validation failed. `extractServerValidationErrors`
 		// reads the validation payload from the error `digest`, which is present both on the in-memory
 		// `ActionServerValidationError` instance and on the degraded plain `Error` it becomes after crossing
@@ -488,6 +499,7 @@ export function actionBuilder<
 							bindArgsClientInputs,
 							currentCtx,
 							middlewareResult,
+							frameworkErrorHandler,
 							serverErrorHandled
 						);
 
@@ -572,6 +584,7 @@ export function actionBuilder<
 								bindArgsClientInputs,
 								currentCtx,
 								middlewareResult,
+								frameworkErrorHandler,
 								serverErrorHandled
 							);
 						}
@@ -644,6 +657,7 @@ export function actionBuilder<
 								bindArgsClientInputs,
 								currentCtx,
 								middlewareResult,
+								frameworkErrorHandler,
 								serverErrorHandled
 							);
 						}

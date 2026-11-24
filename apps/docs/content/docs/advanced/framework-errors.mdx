@@ -140,6 +140,40 @@ export const myAction = actionClient
 	);
 ```
 
+## Middleware errors after a navigation
+
+`next()` does not throw when the action calls a navigation function. It returns a result with `success: false` and the `navigationKind`, and the navigation is re-thrown only after the whole middleware chain has finished. Until then, a middleware can still cancel it.
+
+If a middleware throws after `next()` returned, the error **replaces** the pending navigation, the same way an error thrown in a `finally` block replaces the one in flight. The action returns the error (through `handleServerError`, `returnServerError()`, or `returnValidationErrors()`), `onError` and `onSettled` run, `onNavigation` does not, and the client is not redirected. Outer middleware sees the error in the result of their own `next()` call, with no `navigationKind`.
+
+This matters when a middleware finishes work that the action depends on, for example a database transaction that commits after the action returns:
+
+```ts title="src/lib/safe-action.ts"
+export const actionClient = createSafeActionClient().use(async ({ next }) => {
+	const tx = await db.begin();
+	const result = await next({ ctx: { tx } });
+
+	// A navigation means the action finished its work: `success` is false, but `navigationKind` is set.
+	if (!result.success && !result.navigationKind) {
+		await tx.rollback();
+		return result;
+	}
+
+	try {
+		await tx.commit();
+	} catch (e) {
+		await tx.rollback();
+		// The action called `redirect("/posts")`, but the change was not saved.
+		// This error replaces the redirect, so the user stays on the form.
+		throw e;
+	}
+
+	return result;
+});
+```
+
+A navigation function called by the middleware itself after `next()` (for example `redirect("/error")`) replaces the action's navigation instead.
+
 ## Direct execution
 
 When calling actions directly (not via hooks), framework errors cause the navigation to happen on the server. The function call never returns a result:
