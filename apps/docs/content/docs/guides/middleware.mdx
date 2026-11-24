@@ -164,6 +164,10 @@ Throwing an error in middleware stops the entire pipeline:
 })
 ```
 
+### Failing after the action
+
+An error thrown after `next()` becomes the action result, even when the action called `redirect()` or another navigation function: the pending navigation is dropped, so the client does not navigate away from a change that was rolled back. See [Middleware errors after a navigation](/docs/advanced/framework-errors#middleware-errors-after-a-navigation).
+
 ### Passing data through context
 
 Each middleware can add to the context, building up a rich object:
