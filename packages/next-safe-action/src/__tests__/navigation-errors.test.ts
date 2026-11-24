@@ -1,7 +1,7 @@
-import { redirect } from "next/navigation";
-import { expect, test, vi } from "vitest";
+import { notFound, redirect } from "next/navigation";
+import { describe, expect, test, vi } from "vitest";
 import { z } from "zod";
-import { createSafeActionClient, type MiddlewareResult } from "..";
+import { createSafeActionClient, type MiddlewareResult, returnServerError, returnValidationErrors } from "..";
 import { FrameworkErrorHandler } from "../next/errors";
 
 const ac = createSafeActionClient();
@@ -270,4 +270,145 @@ test.each([
 	expect(handleServerError).not.toHaveBeenCalled();
 	expect(onError).not.toHaveBeenCalled();
 	expect(onNavigation).toHaveBeenCalledWith(expect.objectContaining({ navigationKind: "other" }));
+});
+
+// ─── Middleware errors after `next()` replace a pending navigation (#488) ──────
+
+describe("middleware error after next() replaces a pending navigation", () => {
+	const client = createSafeActionClient({
+		handleServerError: (e) => e.message,
+	});
+
+	test("thrown error becomes the server error and the redirect is dropped", async () => {
+		const onNavigation = vi.fn();
+		const onError = vi.fn();
+		const onSettled = vi.fn();
+		let seenNavigationKind: unknown;
+
+		const action = client
+			.use(async ({ next }) => {
+				const res = await next();
+				seenNavigationKind = res.navigationKind;
+				throw new Error("commit failed");
+			})
+			.action(
+				async () => {
+					redirect("/done");
+				},
+				{ onNavigation, onError, onSettled }
+			);
+
+		const result = await action();
+
+		expect(seenNavigationKind).toBe("redirect");
+		expect(result).toStrictEqual({ serverError: "commit failed" });
+		expect(onNavigation).not.toHaveBeenCalled();
+		expect(onError).toHaveBeenCalledWith(expect.objectContaining({ error: { serverError: "commit failed" } }));
+		expect(onSettled).toHaveBeenCalledWith(expect.objectContaining({ result: { serverError: "commit failed" } }));
+		expect(onSettled.mock.calls[0]?.[0]).not.toHaveProperty("navigationKind");
+	});
+
+	test("returnServerError() after next() drops the redirect", async () => {
+		const action = createSafeActionClient()
+			.use(async ({ next }) => {
+				await next();
+				returnServerError("not saved");
+			})
+			.action(async () => {
+				redirect("/done");
+			});
+
+		expect(await action()).toStrictEqual({ serverError: "not saved" });
+	});
+
+	test("returnValidationErrors() after next() drops the redirect", async () => {
+		const schema = z.object({ name: z.string() });
+
+		const action = client
+			.inputSchema(schema)
+			.use(async ({ next }) => {
+				await next();
+				returnValidationErrors(schema, { name: { _errors: ["taken"] } });
+			})
+			.action(async () => {
+				redirect("/done");
+			});
+
+		expect(await action({ name: "x" })).toStrictEqual({ validationErrors: { name: { _errors: ["taken"] } } });
+	});
+
+	test("notFound() is dropped the same way", async () => {
+		const action = client
+			.use(async ({ next }) => {
+				await next();
+				throw new Error("commit failed");
+			})
+			.action(async () => {
+				notFound();
+			});
+
+		expect(await action()).toStrictEqual({ serverError: "commit failed" });
+	});
+
+	test("validated middleware error after next() drops the redirect", async () => {
+		const action = client
+			.inputSchema(z.object({ id: z.string() }))
+			.useValidated(async ({ next }) => {
+				await next();
+				throw new Error("commit failed");
+			})
+			.action(async () => {
+				redirect("/done");
+			});
+
+		expect(await action({ id: "1" })).toStrictEqual({ serverError: "commit failed" });
+	});
+
+	test("outer middleware sees the error, not the navigation", async () => {
+		let outerResult: MiddlewareResult<string, object> | undefined;
+
+		const action = client
+			.use(async ({ next }) => {
+				const res = await next();
+				outerResult = res;
+				return res;
+			})
+			.use(async ({ next }) => {
+				await next();
+				throw new Error("commit failed");
+			})
+			.action(async () => {
+				redirect("/done");
+			});
+
+		expect(await action()).toStrictEqual({ serverError: "commit failed" });
+		expect(outerResult?.success).toBe(false);
+		expect(outerResult?.navigationKind).toBeUndefined();
+		expect(outerResult?.serverError).toBe("commit failed");
+	});
+
+	test("a navigation raised by the middleware after next() still wins", async () => {
+		const action = client
+			.use(async ({ next }) => {
+				await next();
+				redirect("/error");
+			})
+			.action(async () => {
+				redirect("/done");
+			});
+
+		await expect(action()).rejects.toMatchObject({ digest: expect.stringContaining(";/error;") });
+	});
+
+	test("a middleware that only reads the result keeps the redirect", async () => {
+		const action = client
+			.use(async ({ next }) => {
+				return next();
+			})
+			.action(async () => {
+				redirect("/done");
+			});
+
+		await expect(action()).rejects.toMatchObject({ digest: expect.stringContaining(";/done;") });
+	});
 });

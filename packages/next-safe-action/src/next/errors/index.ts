@@ -70,6 +70,11 @@ export class FrameworkErrorHandler {
 		throw e;
 	}
 
+	// Used in action builder, when a middleware error raised after `next()` replaces the pending navigation.
+	discard() {
+		this.#frameworkError = undefined;
+	}
+
 	get error() {
 		return this.#frameworkError;
 	}

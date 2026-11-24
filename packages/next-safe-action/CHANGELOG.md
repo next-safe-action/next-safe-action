@@ -1,5 +1,11 @@
 # next-safe-action
 
+## 8.7.4
+
+### Patch Changes
+
+- [#489](https://github.com/next-safe-action/next-safe-action/pull/489) [`94c751a`](https://github.com/next-safe-action/next-safe-action/commit/94c751a9aeb470d9de6a693854e24f42f62872dc) Thanks [@TheEdoRan](https://github.com/TheEdoRan)! - Let a middleware error raised after `next()` replace a navigation that the action started. Before, when the action called `redirect()`, `notFound()` or another navigation function, an error thrown by a middleware after `next()` (for example a transaction that failed to commit) was passed to `handleServerError` and then discarded, and the client still followed the redirect. Now that error, a `returnServerError()` or a `returnValidationErrors()` becomes the action result, `onError` and `onSettled` run instead of `onNavigation`, and the navigation is dropped. A navigation function called by the middleware itself after `next()` still replaces the action's navigation.
+
 ## 8.7.3
 
 ### Patch Changes
