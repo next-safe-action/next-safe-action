@@ -1,4 +1,5 @@
 import type {} from "zod";
+import { attachActionDefinition } from "./action-definition";
 import { deepmerge } from "./deep-merge";
 import type {
 	ValidationErrorsFormat,
@@ -329,7 +330,7 @@ export function actionBuilder<
 		// since it's set at the action level and overrides the client setting.
 		// `throwServerError` is gated on the absence of `validationErrors` so that
 		// the advertised precedence (validationErrors > serverError > data) is
-		// honored even when a compound state reaches this point — e.g. invalid
+		// honored even when a compound state reaches this point, e.g. invalid
 		// bind args (wrapped as `serverError`) combined with invalid main input
 		// (`validationErrors`). In that case we must not throw the wrapped bind
 		// args server error and lose the actionable field errors.
@@ -467,7 +468,7 @@ export function actionBuilder<
 					PreValidationCtx
 				>
 			) => {
-				return async (...clientInputs: unknown[]) => {
+				const action = async (...clientInputs: unknown[]) => {
 					let currentCtx: object = {};
 					const middlewareResult: MiddlewareResult<ServerError, object> = { success: false };
 					type PrevResult = SafeActionResult<ServerError, InputSchema, ShapedErrors, Data>;
@@ -676,6 +677,14 @@ export function actionBuilder<
 						utils
 					);
 				};
+				attachActionDefinition(action, {
+					stateful: withState,
+					inputSchema: args.staticInputSchema,
+					outputSchema: args.outputSchema,
+					dynamicInputSchema: !!args.inputSchemaFn && !args.staticInputSchema,
+					bindArgsCount: bindArgsSchemas.length,
+				});
+				return action;
 			},
 		};
 	}
@@ -685,15 +694,15 @@ export function actionBuilder<
 		 * Define the action.
 		 * @param serverCodeFn Code that will be executed on the **server side**
 		 *
-		 * {@link https://next-safe-action.dev/docs/define-actions/instance-methods#action--stateaction See docs for more information}
+		 * {@link https://next-safe-action.dev/docs/api/safe-action-client#action See docs for more information}
 		 */
 		action: buildAction({ withState: false }).action,
 
 		/**
-		 * Define the stateful action. To be used with the [`useStateAction`](https://next-safe-action.dev/docs/execute-actions/hooks/usestateaction) hook.
+		 * Define the stateful action. To be used with the [`useStateAction`](https://next-safe-action.dev/docs/guides/hooks#usestateaction) hook.
 		 * @param serverCodeFn Code that will be executed on the **server side**
 		 *
-		 * {@link https://next-safe-action.dev/docs/define-actions/instance-methods#action--stateaction See docs for more information}
+		 * {@link https://next-safe-action.dev/docs/api/safe-action-client#stateaction See docs for more information}
 		 */
 		stateAction: buildAction({ withState: true }).action,
 	};

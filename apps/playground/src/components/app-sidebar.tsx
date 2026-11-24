@@ -10,6 +10,7 @@ import {
 	MoonIcon,
 	MousePointerClickIcon,
 	NavigationIcon,
+	RouteIcon,
 	ShieldAlertIcon,
 	SparklesIcon,
 	SunIcon,
@@ -72,6 +73,7 @@ const navGroups = [
 			{ title: "Form Integration", href: "/forms", icon: FileTextIcon },
 			{ title: "React Hook Form", href: "/react-hook-form", icon: CircuitBoardIcon },
 			{ title: "TanStack Query", href: "/tanstack-query", icon: ZapIcon },
+			{ title: "Route Handlers", href: "/routes", icon: RouteIcon },
 		],
 	},
 	{

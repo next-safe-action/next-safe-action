@@ -34,7 +34,7 @@ export type * from "./validation-errors.types";
  * Works with any validation library implementing the Standard Schema v1 spec (Zod, Valibot, Yup, etc.).
  * @param createOpts Initialization options
  *
- * {@link https://next-safe-action.dev/docs/define-actions/create-the-client#initialization-options See docs for more information}
+ * {@link https://next-safe-action.dev/docs/api/create-safe-action-client#parameters See docs for more information}
  */
 export const createSafeActionClient = <
 	ErrorsFormat extends ValidationErrorsFormat | undefined = undefined,

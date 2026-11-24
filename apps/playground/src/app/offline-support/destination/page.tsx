@@ -25,6 +25,7 @@ async function RequestTimeContent() {
 
 	return (
 		<p className="text-sm" data-testid="offline-destination-dynamic">
+			{/* oxlint-disable-next-line react/purity -- request-time Server Component, rendered after connection() */}
 			Dynamic content received at <time>{new Date().toISOString()}</time>.
 		</p>
 	);

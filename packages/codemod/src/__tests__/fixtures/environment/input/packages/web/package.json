@@ -1,0 +1,9 @@
+{
+	"private": true,
+	"dependencies": {
+		"next": "^15.0.0",
+		"next-safe-action": "^9.0.0",
+		"react": "^19.0.0",
+		"react-dom": "^19.0.0"
+	}
+}

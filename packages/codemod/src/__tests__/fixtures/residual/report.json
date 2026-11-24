@@ -1,0 +1,92 @@
+{
+	"changes": [],
+	"manual": [
+		{
+			"rule": "V9-01",
+			"file": "README.md",
+			"line": 3,
+			"column": 31,
+			"snippet": "Import `useStateAction` from `next-safe-action/stateful-hooks`.",
+			"why": "Found `next-safe-action/stateful-hooks` where the codemod cannot rewrite it safely (a comment, a string, JSDoc, a non-JS file, an unparsable file, or an identifier it could not trace to \"next-safe-action\").",
+			"fix": "Import from \"next-safe-action/hooks\" instead of \"next-safe-action/stateful-hooks\".",
+			"docs": "https://next-safe-action.dev/docs/migrations/v8-to-v9#v9-01"
+		},
+		{
+			"rule": "V9-03",
+			"file": "README.md",
+			"line": 6,
+			"column": 28,
+			"snippet": "const action = actionClient.schema(schema).action(fn);",
+			"why": "Found `.schema(` where the codemod cannot rewrite it safely (a comment, a string, JSDoc, a non-JS file, an unparsable file, or an identifier it could not trace to \"next-safe-action\").",
+			"fix": "If the receiver is a next-safe-action client, replace `.schema(` with `.inputSchema(`. Otherwise ignore this item.",
+			"docs": "https://next-safe-action.dev/docs/migrations/v8-to-v9#v9-03"
+		},
+		{
+			"rule": "V9-02",
+			"file": "README.md",
+			"line": 7,
+			"column": 14,
+			"snippet": "type Shape = DVES;",
+			"why": "Found `DVES` where the codemod cannot rewrite it safely (a comment, a string, JSDoc, a non-JS file, an unparsable file, or an identifier it could not trace to \"next-safe-action\").",
+			"fix": "If it refers to the next-safe-action type, rename `DVES` to `ValidationErrorsFormat` (same generic parameters).",
+			"docs": "https://next-safe-action.dev/docs/migrations/v8-to-v9#v9-02"
+		},
+		{
+			"rule": "V9-01",
+			"file": "src/broken.ts",
+			"line": 1,
+			"column": 33,
+			"snippet": "import { useStateAction } from \"next-safe-action/stateful-hooks\";",
+			"why": "Found `next-safe-action/stateful-hooks` where the codemod cannot rewrite it safely (a comment, a string, JSDoc, a non-JS file, an unparsable file, or an identifier it could not trace to \"next-safe-action\").",
+			"fix": "Import from \"next-safe-action/hooks\" instead of \"next-safe-action/stateful-hooks\".",
+			"docs": "https://next-safe-action.dev/docs/migrations/v8-to-v9#v9-01"
+		},
+		{
+			"rule": "V9-03",
+			"file": "src/strings.ts",
+			"line": 2,
+			"column": 38,
+			"snippet": "* Prefer `.inputSchema()`, the old `.schema()` alias is gone.",
+			"why": "Found `.schema(` where the codemod cannot rewrite it safely (a comment, a string, JSDoc, a non-JS file, an unparsable file, or an identifier it could not trace to \"next-safe-action\").",
+			"fix": "If the receiver is a next-safe-action client, replace `.schema(` with `.inputSchema(`. Otherwise ignore this item.",
+			"docs": "https://next-safe-action.dev/docs/migrations/v8-to-v9#v9-03"
+		},
+		{
+			"rule": "V9-02",
+			"file": "src/strings.ts",
+			"line": 4,
+			"column": 25,
+			"snippet": "export const message = \"HookSafeActionFn was renamed\";",
+			"why": "Found `HookSafeActionFn` where the codemod cannot rewrite it safely (a comment, a string, JSDoc, a non-JS file, an unparsable file, or an identifier it could not trace to \"next-safe-action\").",
+			"fix": "If it refers to the next-safe-action type, rename `HookSafeActionFn` to `SingleInputActionFn` (same generic parameters).",
+			"docs": "https://next-safe-action.dev/docs/migrations/v8-to-v9#v9-02"
+		},
+		{
+			"rule": "V9-01",
+			"file": "src/Widget.vue",
+			"line": 2,
+			"column": 33,
+			"snippet": "import { useStateAction } from \"next-safe-action/stateful-hooks\";",
+			"why": "Found `next-safe-action/stateful-hooks` where the codemod cannot rewrite it safely (a comment, a string, JSDoc, a non-JS file, an unparsable file, or an identifier it could not trace to \"next-safe-action\").",
+			"fix": "Import from \"next-safe-action/hooks\" instead of \"next-safe-action/stateful-hooks\".",
+			"docs": "https://next-safe-action.dev/docs/migrations/v8-to-v9#v9-01"
+		}
+	],
+	"environment": [
+		{
+			"rule": "V9-04",
+			"file": "(not found)",
+			"package": "next-safe-action",
+			"found": "no package.json in scanned paths",
+			"required": ">=9.0.0",
+			"status": "unknown",
+			"fix": "Run the codemod from the project root, or include the path of the package.json that depends on next-safe-action, so the dependency checks can run."
+		}
+	],
+	"skipped": [
+		{
+			"file": "src/broken.ts",
+			"reason": "Syntax error at line 3: Expression expected. Not transformed; leftovers are listed as manual items."
+		}
+	]
+}
